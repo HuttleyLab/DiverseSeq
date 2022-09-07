@@ -1,0 +1,83 @@
+[build-system]
+requires = ["flit_core >=3.2,<4"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "divergent"
+authors = [
+    { name = "Gavin Huttley", email = "Gavin.Huttley@anu.edu.au"},
+]
+keywords = ["biology", "genomics", "statistics", "phylogeny", "evolution", "bioinformatics"]
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+dependencies = ["click", "numpy", "scitrack", "cogent3", "attrs", "sortedcontainers"]
+classifiers = [
+        "Development Status :: 5 - Production/Stable",
+        "Intended Audience :: Science/Research",
+        "License :: OSI Approved :: BSD License",
+        "Topic :: Scientific/Engineering :: Bio-Informatics",
+        "Topic :: Software Development :: Libraries :: Python Modules",
+        "Operating System :: OS Independent",
+        "Programming Language :: Python :: 3.10",
+    ]
+# the following are inferred from the source code
+dynamic = ["version", "description"]
+
+[project.sdist]
+include = ["doc/", "requirements.txt", "src/*", "pyproject.toml"]
+exclude = ["doc/*.html"]
+
+[project.scripts]
+dvgt = "divergent.cli:main"
+
+[project.optional-dependencies]
+test = [
+    "pytest",
+    "pytest-cov",
+    "pytest-xdist",
+    "nox",
+]
+dev = [
+    "black",
+    "click",
+    "docformatter",
+    "flit",
+    "isort",
+    "pytest",
+    "pytest-cov",
+    "pytest-xdist",
+    "nox",
+]
+
+[tool.pytest.ini_options]
+addopts = ["--strict-config", "-ra"]
+testpaths = "tests"
+
+[tool.black]
+line-length = 88
+target-version = ["py310"]
+exclude = '''
+/(
+    \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | build
+  | doc
+  | dist
+  | tests/data
+)/
+'''
+
+[tool.isort]
+atomic=true
+force_grid_wrap=0
+include_trailing_comma=true
+lines_after_imports=2
+lines_between_types=1
+multi_line_output=3
+use_parentheses=true
