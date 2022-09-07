@@ -224,6 +224,29 @@ def seq2array(seq, arr, order):
     return arr
 
 
+def coord_conversion_coeffs(num_states, k):
+    """coefficients for multi-dimensional coordinate conversion into 1D index"""
+    return [num_states ** (i - 1) for i in range(k, 0, -1)]
+
+
+@numba.jit
+def coord_to_index(coord, coeffs):
+    """converts a multi-dimensional coordinate into a 1D index"""
+    return (coord * coeffs).sum()
+
+
+@numba.jit
+def index_to_coord(index, coeffs):
+    """converts a 1D index into a multi-dimensional coordinate"""
+    ndim = len(coeffs)
+    coord = numpy.zeros(ndim, dtype=numpy.int64)
+    remainder = index
+    for i in range(ndim):
+        n, remainder = numpy.divmod(remainder, coeffs[i])
+        coord[i] = n
+    return coord
+
+
 @numba.jit
 def kmer_indices(seq, coeffs, result, k):
     skip_until = 0
@@ -237,8 +260,7 @@ def kmer_indices(seq, coeffs, result, k):
         if i < skip_until:
             index = -1
         else:
-            kmer = seq[i : i + k]
-            index = (kmer * coeffs).sum()
+            index = (seq[i : i + k] * coeffs).sum()
         result[i] = index
     return result
 
@@ -305,29 +327,6 @@ def seq_to_kmer_counts(seq: SeqType, moltype: "MolType", k: int) -> sparse_vecto
     counts = Counter(v for v in result.tolist() if v >= 0)
     kwargs["data"] = counts
     return sparse_vector(**kwargs)
-
-
-def coord_conversion_coeffs(num_states, k):
-    """coefficients for multi-dimensional coordinate conversion into 1D index"""
-    return [num_states ** (i - 1) for i in range(k, 0, -1)]
-
-
-@numba.jit
-def coord_to_index(coord, coeffs):
-    """converts a multi-dimensional coordinate into a 1D index"""
-    return (coord * coeffs).sum()
-
-
-@numba.jit
-def index_to_coord(index, coeffs):
-    """converts a 1D index into a multi-dimensional coordinate"""
-    ndim = len(coeffs)
-    coord = numpy.zeros(ndim, dtype=numpy.int64)
-    remainder = index
-    for i in range(ndim):
-        n, remainder = numpy.divmod(remainder, coeffs[i])
-        coord[i] = n
-    return coord
 
 
 def _gt_zero(instance, attribute, value):

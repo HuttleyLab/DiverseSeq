@@ -1,12 +1,21 @@
+from itertools import product
 from pathlib import Path
 
+import numpy
 import pytest
 
 from cogent3 import get_moltype, make_seq
-from numpy import nextafter
+from numpy import nextafter, ravel_multi_index, unravel_index
 from numpy.testing import assert_allclose
 
-from divergent.record import SeqRecord, seq_to_kmer_counts, sparse_vector
+from divergent.record import (
+    SeqRecord,
+    coord_conversion_coeffs,
+    coord_to_index,
+    index_to_coord,
+    seq_to_kmer_counts,
+    sparse_vector,
+)
 
 
 DATADIR = Path(__file__).parent / "data"
@@ -256,3 +265,26 @@ def test_sparse_vector_div_scalar(cast):
     # div in-place
     v1 /= 3
     assert v1.data == expect
+
+
+@pytest.mark.parametrize("num_states,ndim", ((2, 1), (4, 2), (4, 4)))
+def test_interconversion_of_coords_indices(num_states, ndim):
+    # make sure match numpy functions
+    coeffs = numpy.array(coord_conversion_coeffs(num_states, ndim))
+    for coord in product(*(list(range(num_states)),) * ndim):
+        coord = numpy.array(coord, dtype=numpy.int64)
+        nidx = ravel_multi_index(coord, dims=(num_states,) * ndim)
+        idx = coord_to_index(coord, coeffs)
+        assert idx == nidx
+        ncoord = unravel_index(nidx, shape=(num_states,) * ndim)
+        got = index_to_coord(idx, coeffs)
+        assert (got == ncoord).all()
+        assert (got == coord).all()
+
+
+def test_coord2index_fail():
+    coord = numpy.array((0, 1), dtype=numpy.int64)
+    coeffs = numpy.array(coord_conversion_coeffs(2, 4))
+    # dimension of coords inconsistent with coeffs
+    with pytest.raises(ValueError):
+        coord_to_index(coord, coeffs)
