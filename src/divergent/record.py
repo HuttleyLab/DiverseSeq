@@ -54,9 +54,12 @@ class unique_kmers:
         dtype
         """
         self.size = size
-        self.data = numpy.array(data, dtype=numpy.int64)
+        self.data = numpy.array([] if data is None else data, dtype=numpy.int64)
         self.source = source
         self.name = name
+
+    def __len__(self):
+        return len(self.data)
 
     def __getstate__(self):
         return asdict(self)

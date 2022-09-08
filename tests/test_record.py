@@ -299,3 +299,11 @@ def test_unique_kmer_pickling():
     p = pickle.dumps(o)
     u = pickle.loads(p)
     assert str(o) == str(u)
+
+
+def test_unique_kmer_len():
+    o = unique_kmers(size=4 ** 2, name="abc", source="abc", data=numpy.array([0, 2, 3]))
+    assert len(o) == 3
+
+    o = unique_kmers(size=4 ** 2, name="abc", source="abc")
+    assert len(o) == 0
