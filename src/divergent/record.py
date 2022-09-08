@@ -306,8 +306,10 @@ def kmer_indices(seq, coeffs, result, k):
     return result
 
 
-def seq_to_kmer_counts(seq: SeqType, moltype: "MolType", k: int) -> sparse_vector:
-    """count k-mers
+def seq_to_kmers(
+    seq: SeqType, moltype: "MolType", k: int, unique: bool = False
+) -> Union[sparse_vector, unique_kmers]:
+    """compute k-mers
 
     Parameters
     ----------
@@ -317,6 +319,8 @@ def seq_to_kmer_counts(seq: SeqType, moltype: "MolType", k: int) -> sparse_vecto
         cogent3 molecular type
     k : int
         size of k-mers
+    unique : bool
+        whether to return just unique kmers, or include the counts too
 
     Returns
     -------
@@ -335,7 +339,6 @@ def seq_to_kmer_counts(seq: SeqType, moltype: "MolType", k: int) -> sparse_vecto
     convert those into a 1D coordinate. Use ``numpy.unravel`` and the moltype
     to convert the indices back into a sequence.
     """
-    # we make counts
     moltype = get_moltype(moltype)
     canonical = set(moltype.alphabet)
     num_states = len(canonical)
@@ -365,9 +368,21 @@ def seq_to_kmer_counts(seq: SeqType, moltype: "MolType", k: int) -> sparse_vecto
     coeffs = numpy.array(coord_conversion_coeffs(num_states, k), dtype=dtype)
     result = numpy.zeros(len(seq) - k + 1, dtype=dtype)
     result = kmer_indices(seq, coeffs, result, k)
-    counts = Counter(v for v in result.tolist() if v >= 0)
-    kwargs["data"] = counts
-    return sparse_vector(**kwargs)
+
+    klass = unique_kmers if unique else sparse_vector
+    if unique:
+        kwargs["data"] = numpy.unique(result)
+        kwargs.pop("dtype")
+        klass = unique_kmers
+    else:
+        indices, counts = numpy.unique(result, return_counts=True)
+        counts = dict(zip(indices.tolist(), counts.tolist()))
+        counts.pop(-1, None)
+        kwargs["data"] = counts
+
+    del result
+
+    return klass(**kwargs)
 
 
 def _gt_zero(instance, attribute, value):
@@ -411,7 +426,7 @@ class SeqRecord:
             raise ValueError(f"k={self.k} > length={self.length}")
 
         moltype = get_moltype(moltype)
-        kcounts = seq_to_kmer_counts(seq, moltype, k)
+        kcounts = seq_to_kmers(seq, moltype, k)
         self.kfreqs = kcounts / kcounts.sum()
         kfreqs = array(list(self.kfreqs.iter_nonzero()))
         self.entropy = -(kfreqs * log2(kfreqs)).sum()
