@@ -1,4 +1,6 @@
 """defines basic data type for storing an individual sequence record"""
+import pickle
+
 from collections import Counter
 from collections.abc import MutableSequence
 from math import isclose
@@ -24,6 +26,45 @@ def _gettype(name):
         return getattr(numpy, name)
     else:
         return {"int": int, "float": float}[name]
+
+
+@define(slots=True)
+class unique_kmers:
+    data: numpy.ndarray
+    size: int
+    source: str = None
+    name: str = None
+
+    def __init__(
+        self,
+        *,
+        size: int,
+        data: numpy.ndarray = None,
+        source: str = None,
+        name: str = None,
+    ):
+        """
+
+        Parameters
+        ----------
+        size
+            num_states**k
+        data
+            dict of {k-mer index: NumType}
+        dtype
+        """
+        self.size = size
+        self.data = numpy.array(data, dtype=numpy.int64)
+        self.source = source
+        self.name = name
+
+    def __getstate__(self):
+        return asdict(self)
+
+    def __setstate__(self, data):
+        for k, v in data.items():
+            setattr(self, k, v)
+        return self
 
 
 @define(slots=True)
