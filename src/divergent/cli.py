@@ -1,3 +1,5 @@
+import shutil
+
 from pathlib import Path
 
 import click
@@ -79,9 +81,13 @@ def _make_outpath(outdir, path, k):
     "-U", "--unique", is_flag=True, help="unique kmers only, not their counts"
 )
 @click.option("-L", "--limit", type=int, help="number of records to process")
+@click.option("-O", "--overwrite", is_flag=True, help="overwrite existing")
 @_verbose
-def seqs2kmers(indir, outdir, k, parallel, unique, limit, verbose):
+def seqs2kmers(indir, outdir, k, parallel, unique, limit, overwrite, verbose):
     from wakepy import set_keepawake, unset_keepawake
+
+    if overwrite and outdir.exists():
+        shutil.rmtree(outdir, ignore_errors=True)
 
     outdir.mkdir(parents=True, exist_ok=True)
 
