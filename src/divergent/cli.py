@@ -111,14 +111,15 @@ def seqs2kmers(indir, outdir, k, parallel, unique, limit, verbose):
         series = map(app, paths)
 
     set_keepawake(keep_screen_awake=False)
+    prep_for_write = dv_utils.pickle_data() + dv_utils.blosc_compress()
     for result in track(series, total=len(paths), update_period=1):
         if not result:
             print(result)
             exit()
-        b, source = result
-        path = Path(source)
+        path = Path(result.source)
         outpath = outdir / f"{path.stem.split('.')[0]}-{k}-mer.pickle.blosc2"
-        outpath.write_bytes(b)
+        outpath.write_bytes(prep_for_write(result))
+        del result
 
     unset_keepawake()
 
