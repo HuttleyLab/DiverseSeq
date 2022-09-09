@@ -13,9 +13,9 @@ from divergent.record import (
     coord_conversion_coeffs,
     coord_to_index,
     index_to_coord,
-    seq_to_kmers,
     kmer_indices,
     seq2array,
+    seq_to_kmer_counts,
     sparse_vector,
     unique_kmers,
 )
@@ -67,7 +67,8 @@ def test_seq_to_kmer_counts_kfreqs(k):
 
     from numpy import unravel_index
 
-    kcounts = seq_to_kmers(seq5, moltype=get_moltype("dna"), k=k)
+    s2k = seq_to_kmer_counts(k=k, moltype="dna")
+    kcounts = s2k(seq5)
     assert kcounts.size == 4 ** k
     assert kcounts.sum() == len(seq5) - k + 1
     # check we can round trip the counts

@@ -8,7 +8,12 @@ import numpy
 
 from attrs import asdict, define, field, validators
 from cogent3 import get_moltype
+from cogent3.app import composable
+from cogent3.app import typing as c3_types
 from cogent3.app.typing import SeqType
+from numpy import array, log2, ndarray, zeros
+
+from divergent import util as dv_utils
 
 
 NumType = Union[float, int]
@@ -313,85 +318,6 @@ def kmer_indices(seq, coeffs, result, k):
     return result
 
 
-def seq_to_kmers(
-    seq: SeqType, moltype: "MolType", k: int, unique: bool = False
-) -> Union[sparse_vector, unique_kmers]:
-    """compute k-mers
-
-    Parameters
-    ----------
-    seq : Sequence
-        cogent3 sequence
-    moltype : MolType
-        cogent3 molecular type
-    k : int
-        size of k-mers
-    unique : bool
-        whether to return just unique kmers, or include the counts too
-
-    Returns
-    -------
-    ndarray
-        float of raw counts. This has length (number of moltype states)**k
-
-    Raises
-    ------
-    ValueError
-        if the mapping from characters to integers is not sequential
-
-    Notes
-    -----
-    The sequence is converted to indices using order of canonical characters
-    defined by moltype. Each k-mer is then a k-dimension coordinate. We
-    convert those into a 1D coordinate. Use ``numpy.unravel`` and the moltype
-    to convert the indices back into a sequence.
-    """
-    moltype = get_moltype(moltype)
-    canonical = set(moltype.alphabet)
-    num_states = len(canonical)
-    chars2ints = moltype.alphabet.to_indices
-    v = chars2ints(canonical)
-    if not (0 <= min(v) < max(v) < num_states):
-        raise ValueError(f"indices of canonical states {canonical} not sequential {v}")
-
-    kwargs = dict(
-        size=num_states ** k,
-        dtype=int,
-        source=getattr(seq, "source", None),
-        name=seq.name,
-    )
-
-    # positions with non-canonical characters are assigned -1
-    arr = numpy.zeros(len(seq), dtype=numpy.int8)
-    can = "".join(moltype.alphabet)
-    seq = seq2array(seq._seq.encode("utf8"), arr, can.encode("utf8"))
-
-    # check for crazy big k
-    dtype = numpy.int64
-    if num_states ** k > 2 ** 64:
-        raise NotImplementedError(f"{num_states}**{k} is too big for 64-bit integer")
-
-    # k-mers with -1 are excluded
-    coeffs = numpy.array(coord_conversion_coeffs(num_states, k), dtype=dtype)
-    result = numpy.zeros(len(seq) - k + 1, dtype=dtype)
-    result = kmer_indices(seq, coeffs, result, k)
-
-    klass = unique_kmers if unique else sparse_vector
-    if unique:
-        kwargs["data"] = numpy.unique(result)
-        kwargs.pop("dtype")
-        klass = unique_kmers
-    else:
-        indices, counts = numpy.unique(result, return_counts=True)
-        counts = dict(zip(indices.tolist(), counts.tolist()))
-        counts.pop(-1, None)
-        kwargs["data"] = counts
-
-    del result
-
-    return klass(**kwargs)
-
-
 def _gt_zero(instance, attribute, value):
     if value <= 0:
         raise ValueError(f"must be > 0, not {value}")
@@ -433,8 +359,97 @@ class SeqRecord:
             raise ValueError(f"k={self.k} > length={self.length}")
 
         moltype = get_moltype(moltype)
-        kcounts = seq_to_kmers(seq, moltype, k)
+        kcounts = seq_to_kmer_counts(k, moltype)(seq)
         self.kfreqs = kcounts / kcounts.sum()
         kfreqs = array(list(self.kfreqs.iter_nonzero()))
         self.entropy = -(kfreqs * log2(kfreqs)).sum()
         self.size = self.kfreqs.size
+
+
+class _seq_to_kmers:
+    def __init__(self, k: int, moltype: str):
+        """compute k-mers
+
+        Parameters
+        ----------
+        k : int
+            size of k-mers
+        moltype : MolType
+            cogent3 molecular type
+
+        Raises
+        ------
+        ValueError
+            if the mapping from characters to integers is not sequential
+
+        Notes
+        -----
+        The sequence is converted to indices using order of canonical characters
+        defined by moltype. Each k-mer is then a k-dimension coordinate. We
+        convert those into a 1D coordinate. Use ``numpy.unravel`` and the moltype
+        to convert the indices back into a sequence.
+        """
+        self.k = k
+        self.canonical = _get_canonical_states(moltype)
+        self.compress_pickled = dv_utils.pickle_data() + dv_utils.blosc_compress()
+
+
+@composable.define_app
+class seq_to_kmer_counts(_seq_to_kmers):
+    def main(self, seq: c3_types.SeqType) -> sparse_vector:
+        result = _seq_to_all_kmers(self.k, self.canonical, seq)
+        kwargs = dict(
+            size=len(self.canonical) ** self.k,
+            dtype=int,
+            source=getattr(seq, "source", None),
+            name=seq.name,
+        )
+        indices, counts = numpy.unique(result, return_counts=True)
+        counts = dict(zip(indices.tolist(), counts.tolist()))
+        counts.pop(-1, None)
+        kwargs["data"] = counts
+        del result
+        return sparse_vector(**kwargs)
+
+
+@composable.define_app
+class seq_to_unique_kmers(_seq_to_kmers):
+    def main(self, seq: c3_types.SeqType) -> unique_kmers:
+        result = _seq_to_all_kmers(self.k, self.canonical, seq)
+        kwargs = dict(
+            size=len(self.canonical) ** self.k,
+            source=getattr(seq, "source", None),
+            name=seq.name,
+        )
+        kwargs["data"] = numpy.unique(result)
+        if kwargs["data"][0] == -1:
+            kwargs["data"] = kwargs["data"][1:]
+        del result
+        return unique_kmers(**kwargs)
+
+
+def _get_canonical_states(moltype: str) -> bytes:
+    moltype = get_moltype(moltype)
+    canonical = list(moltype.alphabet)
+    v = moltype.alphabet.to_indices(canonical)
+    if not (0 <= min(v) < max(v) < len(canonical)):
+        raise ValueError(f"indices of canonical states {canonical} not sequential {v}")
+    return "".join(canonical).encode("utf8")
+
+
+def _seq_to_all_kmers(k: int, canonical: bytes, seq: SeqType) -> ndarray:
+    """return all k-mers from seq"""
+    # positions with non-canonical characters are assigned -1
+    arr = numpy.zeros(len(seq), dtype=numpy.int8)
+    seq = seq2array(seq._seq.encode("utf8"), arr, canonical)
+
+    # check for crazy big k
+    dtype = numpy.int64
+    num_states = len(canonical)
+    if num_states ** k > 2 ** 64:
+        raise NotImplementedError(f"{num_states}**{k} is too big for 64-bit integer")
+    # k-mers with -1 are excluded
+    coeffs = numpy.array(coord_conversion_coeffs(num_states, k), dtype=dtype)
+    result = numpy.zeros(len(seq) - k + 1, dtype=dtype)
+    result = kmer_indices(seq, coeffs, result, k)
+    return result

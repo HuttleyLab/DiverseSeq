@@ -75,9 +75,12 @@ def _make_outpath(outdir, path, k):
 )
 @click.option("-k", type=int, default=7)
 @click.option("-p", "--parallel", is_flag=True, help="run in parallel")
+@click.option(
+    "-U", "--unique", is_flag=True, help="unique kmers only, not their counts"
+)
 @click.option("-L", "--limit", type=int, help="number of records to process")
 @_verbose
-def oneoff(indir, outdir, k, parallel, limit, verbose):
+def seqs2kmers(indir, outdir, k, parallel, unique, limit, verbose):
     from wakepy import set_keepawake, unset_keepawake
 
     outdir.mkdir(parents=True, exist_ok=True)
@@ -86,7 +89,12 @@ def oneoff(indir, outdir, k, parallel, limit, verbose):
     if limit:
         paths = paths[:limit]
 
-    app = seq_from_fasta() + seq_to_kmers(k=k)
+    kwargs = dict(k=k, moltype="dna")
+    app = (
+        dv_utils.seq_from_fasta() + seq_to_unique_kmers(**kwargs)
+        if unique
+        else seq_to_kmer_counts(**kwargs)
+    )
 
     not_done = []
     for p in paths:
@@ -109,7 +117,7 @@ def oneoff(indir, outdir, k, parallel, limit, verbose):
             exit()
         b, source = result
         path = Path(source)
-        outpath = outdir / f"{path.stem.split('.')[0]}-{k}-mer.json.blosc2"
+        outpath = outdir / f"{path.stem.split('.')[0]}-{k}-mer.pickle.blosc2"
         outpath.write_bytes(b)
 
     unset_keepawake()
