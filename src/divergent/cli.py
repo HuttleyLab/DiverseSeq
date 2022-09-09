@@ -6,7 +6,10 @@ from cogent3.util import parallel as PAR
 from rich.progress import track
 from scitrack import CachingLogger
 
-from .record import seq_to_kmer_counts, sparse_vector
+import divergent.util as dv_utils
+
+from divergent.record import seq_to_kmer_counts, seq_to_unique_kmers
+from divergent.unique import signature_kmers
 
 
 __author__ = "Gavin Huttley"
@@ -50,47 +53,6 @@ _names = click.option(
 _outpath = click.option(
     "-o", "--outpath", type=Path, help="the input string will be cast to Path instance"
 )
-
-
-def _label_func(label):
-    return label.split()[0]
-
-
-@composable.define_app(app_type="loader")
-class seq_from_fasta:
-    def __init__(self, label_func=_label_func, max_length=None) -> None:
-        self.label_func = label_func
-        self.max_length = max_length
-
-    def main(self, path: c3_types.IdentifierType) -> c3_types.SeqType:
-        with open_(path) as infile:
-            data = list(iter(MinimalFastaParser(infile.read().splitlines())))
-            assert len(data) == 1
-            name, seq = data[0]
-            name = self.label_func(name)
-
-        if self.max_length:
-            seq = seq[: self.max_length]
-
-        seq = make_seq(seq, name=name, moltype="dna")
-        seq.source = str(path)
-        return seq
-
-
-@composable.define_app
-class seq_to_kmers:
-    def __init__(self, k: int):
-        self.k = k
-
-    def main(self, seq: c3_types.SeqType) -> tuple[bytes, str]:
-        sv = seq_to_kmer_counts(seq=seq, moltype="dna", k=self.k)
-        return (
-            blosc2.compress(
-                json.dumps(sv.to_rich_dict()).encode("utf8"),
-                shuffle=blosc2.Filter.BITSHUFFLE,
-            ),
-            sv.source,
-        )
 
 
 def _make_outpath(outdir, path, k):
