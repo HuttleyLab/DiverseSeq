@@ -1,7 +1,4 @@
 """defines basic data type for storing an individual sequence record"""
-import pickle
-
-from collections import Counter
 from collections.abc import MutableSequence
 from math import isclose
 from typing import Dict, Optional, Union
@@ -12,7 +9,6 @@ import numpy
 from attrs import asdict, define, field, validators
 from cogent3 import get_moltype
 from cogent3.app.typing import SeqType
-from numpy import array, log2, ndarray, ravel_multi_index, zeros
 
 
 NumType = Union[float, int]

@@ -1,16 +1,7 @@
-import json
-import time
-
 from pathlib import Path
 
-import blosc2
 import click
 
-from cogent3 import make_seq, open_
-from cogent3.app import composable
-from cogent3.app import io as io_app
-from cogent3.app import typing as c3_types
-from cogent3.parse.fasta import MinimalFastaParser
 from cogent3.util import parallel as PAR
 from rich.progress import track
 from scitrack import CachingLogger
