@@ -14,6 +14,8 @@ from divergent.record import (
     coord_to_index,
     index_to_coord,
     seq_to_kmers,
+    kmer_indices,
+    seq2array,
     sparse_vector,
     unique_kmers,
 )
@@ -307,3 +309,38 @@ def test_unique_kmer_len():
 
     o = unique_kmers(size=4 ** 2, name="abc", source="abc")
     assert len(o) == 0
+
+
+def test_seq2arry():
+    dna = get_moltype("dna")
+    s = b"ACGTT"
+    r = numpy.zeros(len(s), dtype=int)
+    bases = "".join(dna).encode("utf8")
+    expect = dna.alphabet.to_indices(s.decode("utf8"))
+    g = seq2array(s, r, bases)
+    assert g.tolist() == expect
+    g = seq2array(b"ACGNT", r, bases)
+    assert g[-2] == -1  # non-canonical characters are -1
+
+
+def test_seq2kmers():
+    from divergent.record import coord_conversion_coeffs
+
+    k = 2
+    dtype = numpy.int64
+    coeffs = numpy.array(coord_conversion_coeffs(4, k), dtype=dtype)
+
+    dna = get_moltype("dna")
+
+    s = b"ACGGCGGTGCA"
+    indices = numpy.zeros(len(s), dtype=dtype)
+    bases = "".join(dna).encode("utf8")
+    indices = seq2array(s, indices, bases)
+    result = numpy.zeros(len(s) - k + 1, dtype=numpy.int64)
+    got = kmer_indices(indices, coeffs, result, k)
+
+    expect = [
+        numpy.ravel_multi_index(indices[i : i + k], dims=(4,) * k)
+        for i in range(len(s) - k + 1)
+    ]
+    assert (got == expect).all()
