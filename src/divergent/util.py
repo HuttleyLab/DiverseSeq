@@ -40,6 +40,18 @@ def pickle_data(data: Any) -> bytes:
 
 
 @composable.define_app
+class bundle_data:
+    def __init__(self):
+        self.prep = pickle_data() + blosc_compress()
+
+    T = Union["sparse_vector", "unique_kmers"]
+
+    def main(self, data: T) -> tuple[bytes, str]:
+        source = data.source
+        return self.prep(data), source
+
+
+@composable.define_app
 def unpickle_data(data: bytes) -> bytes:
     return pickle.loads(data)
 

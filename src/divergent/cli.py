@@ -97,9 +97,9 @@ def seqs2kmers(indir, outdir, k, parallel, unique, limit, overwrite, verbose):
 
     kwargs = dict(k=k, moltype="dna")
     app = (
-        dv_utils.seq_from_fasta() + seq_to_unique_kmers(**kwargs)
-        if unique
-        else seq_to_kmer_counts(**kwargs)
+        dv_utils.seq_from_fasta()
+        + (seq_to_unique_kmers(**kwargs) if unique else seq_to_kmer_counts(**kwargs))
+        + dv_utils.bundle_data()
     )
 
     not_done = []
@@ -117,15 +117,16 @@ def seqs2kmers(indir, outdir, k, parallel, unique, limit, overwrite, verbose):
         series = map(app, paths)
 
     set_keepawake(keep_screen_awake=False)
-    prep_for_write = dv_utils.pickle_data() + dv_utils.blosc_compress()
+
     for result in track(series, total=len(paths), update_period=1):
         if not result:
             print(result)
             exit()
-        path = Path(result.source)
+        b, source = result
+        path = Path(source)
         outpath = outdir / f"{path.stem.split('.')[0]}-{k}-mer.pickle.blosc2"
-        outpath.write_bytes(prep_for_write(result))
-        del result
+        outpath.write_bytes(b)
+        del b, source
 
     unset_keepawake()
 
