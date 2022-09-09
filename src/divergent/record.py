@@ -131,6 +131,14 @@ class sparse_vector(MutableSequence):
     def __iter__(self) -> NumType:
         yield from (self[i] for i in range(len(self)))
 
+    def __getstate__(self):
+        return asdict(self)
+
+    def __setstate__(self, data):
+        for k, v in data.items():
+            setattr(self, k, v)
+        return self
+
     def _sub_vector(self, data, other) -> dict:
         assert self.size == len(other)
         for pos, num in other.data.items():

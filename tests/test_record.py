@@ -229,6 +229,15 @@ def test_sv_iter():
     arr = array(got)
 
 
+def test_sv_pickling():
+    import pickle
+
+    o = sparse_vector(data={2: 1, 1: 1, 3: 1, 0: 1}, size=4, dtype=int)
+    p = pickle.dumps(o)
+    u = pickle.loads(p)
+    assert str(u) == str(o)
+
+
 @pytest.mark.parametrize("cast", (float, int))
 def test_sparse_vector_div_vector(cast):
     # adds two vectors
