@@ -121,11 +121,59 @@ def seqs2kmers(indir, outdir, k, parallel, unique, limit, verbose):
         outpath.write_bytes(b)
 
     unset_keepawake()
-    # LOGGER.log_args()
-    # LOGGER.log_versions("numpy")
-    # LOGGER.input_file(infile)
-    #
-    # LOGGER.log_file_path = outpath / "dvg-n.log"
+
+
+@main.command(no_args_is_help=True)
+@click.option(
+    "-i",
+    "--indir",
+    required=True,
+    type=Path,
+    help="directory containing fasta formatted sequence files",
+)
+@click.option(
+    "-o",
+    "--outdir",
+    type=Path,
+    help="directory to write compressed json",
+)
+@click.option("-p", "--parallel", is_flag=True, help="run in parallel")
+@click.option("-L", "--limit", type=int, help="number of records to process")
+@_verbose
+def sig_kmers(indir, outdir, parallel, limit, verbose):
+    from wakepy import set_keepawake, unset_keepawake
+
+    outdir.mkdir(parents=True, exist_ok=True)
+    outpath = outdir / f"{indir.stem}-unique.pickle.blosc2"
+
+    paths = [p for p in indir.glob("**/*.blosc2")]
+
+    set_keepawake(keep_screen_awake=False)
+
+    app = signature_kmers(paths)
+    limit = limit or len(paths)
+    paths = paths[:limit]
+    if parallel:
+        series = PAR.as_completed(
+            app,
+            paths,
+            max_workers=6,
+        )
+    else:
+        series = map(app, paths)
+
+    results = []
+    for r in track(series, total=len(paths)):
+        if not r:
+            print(r)
+            continue
+        results.append(r)
+
+    prep = dv_utils.pickle_data() + dv_utils.blosc_compress()
+    b = prep(results)
+    outpath.write_bytes(b)
+
+    unset_keepawake()
 
 
 if __name__ == "__main__":
