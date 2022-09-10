@@ -52,7 +52,7 @@ class bundle_data:
 
 
 @composable.define_app
-def unpickle_data(data: bytes) -> bytes:
+def unpickle_data(data: bytes) -> Any:
     return pickle.loads(data)
 
 
