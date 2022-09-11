@@ -61,14 +61,17 @@ def _make_outpath(outdir, path, k):
     return outdir / f"{path.stem.split('.')[0]}-{k}-mer.json.blosc2"
 
 
-@main.command(no_args_is_help=True)
-@click.option(
-    "-i",
-    "--indir",
+_seqdir = click.option(
+    "-s",
+    "--seqdir",
     required=True,
     type=Path,
     help="directory containing fasta formatted sequence files",
 )
+
+
+@main.command(no_args_is_help=True)
+@_seqdir
 @click.option(
     "-o",
     "--outdir",
@@ -83,7 +86,7 @@ def _make_outpath(outdir, path, k):
 @click.option("-L", "--limit", type=int, help="number of records to process")
 @click.option("-O", "--overwrite", is_flag=True, help="overwrite existing")
 @_verbose
-def seqs2kmers(indir, outdir, k, parallel, unique, limit, overwrite, verbose):
+def seqs2kmers(seqdir, outdir, k, parallel, unique, limit, overwrite, verbose):
     from wakepy import set_keepawake, unset_keepawake
 
     if overwrite and outdir.exists():
@@ -91,7 +94,7 @@ def seqs2kmers(indir, outdir, k, parallel, unique, limit, overwrite, verbose):
 
     outdir.mkdir(parents=True, exist_ok=True)
 
-    paths = [str(p) for p in indir.glob("**/*.fa*")]
+    paths = [str(p) for p in seqdir.glob("**/*.fa*")]
     if limit:
         paths = paths[:limit]
 
