@@ -329,33 +329,48 @@ def test_unique_kmer_len():
 def test_seq2arry():
     dna = get_moltype("dna")
     s = b"ACGTT"
-    r = numpy.zeros(len(s), dtype=int)
+    r = numpy.zeros(len(s), dtype=numpy.uint16)
     bases = "".join(dna).encode("utf8")
     expect = dna.alphabet.to_indices(s.decode("utf8"))
     g = seq2array(s, r, bases)
     assert g.tolist() == expect
     g = seq2array(b"ACGNT", r, bases)
-    assert g[-2] == -1  # non-canonical characters are -1
+    assert g[-2] == 4  # non-canonical characters equal num_states
 
 
-def test_seq2kmers():
-    from divergent.record import coord_conversion_coeffs
+_seqs = (b"ACGGCGGTGCA", b"ACGGNGGTGCA", b"ANGGCGGTGNA")
+_ks = (1, 2, 3)
 
-    k = 2
-    dtype = numpy.int64
-    coeffs = numpy.array(coord_conversion_coeffs(4, k), dtype=dtype)
+
+@pytest.mark.parametrize("seq,k", tuple(product(_seqs, _ks)))
+def test_seq2kmers(seq, k):
+    dtype = numpy.uint64
 
     dna = get_moltype("dna")
 
-    s = b"ACGGCGGTGCA"
-    indices = numpy.zeros(len(s), dtype=dtype)
+    indices = numpy.zeros(len(seq), dtype=dtype)
     bases = "".join(dna).encode("utf8")
-    indices = seq2array(s, indices, bases)
-    result = numpy.zeros(len(s) - k + 1, dtype=numpy.int64)
-    got = kmer_indices(indices, coeffs, result, k)
+    indices = seq2array(seq, indices, bases)
+
+    result = numpy.zeros(len(seq) - k + 1, dtype=dtype)
+    num_states = 4
+    got = kmer_indices(indices, result, num_states, k)
 
     expect = [
-        numpy.ravel_multi_index(indices[i : i + k], dims=(4,) * k)
-        for i in range(len(s) - k + 1)
+        numpy.ravel_multi_index(indices[i : i + k], dims=(num_states,) * k)
+        for i in range(len(seq) - k + 1)
+        if indices[i : i + k].max() < num_states
     ]
+    assert (got == expect).all()
+
+
+def test_seq2kmers_all_ambig():
+    k = 2
+    dtype = numpy.uint64
+    indices = numpy.zeros(6, dtype=dtype)
+    indices[:] = 4
+    result = numpy.zeros(len(indices) - k + 1, dtype=dtype)
+    got = kmer_indices(indices, result, 4, k)
+
+    expect = []
     assert (got == expect).all()

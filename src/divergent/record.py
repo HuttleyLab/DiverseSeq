@@ -280,7 +280,7 @@ class sparse_vector(MutableSequence):
 def seq2array(seq, arr, order):
     num_states = len(order)
     for i in range(len(seq)):
-        char_index = -1
+        char_index = num_states
         c = seq[i]
         for j in range(num_states):
             if c == order[j]:
@@ -291,9 +291,10 @@ def seq2array(seq, arr, order):
     return arr
 
 
+@numba.jit
 def coord_conversion_coeffs(num_states, k):
     """coefficients for multi-dimensional coordinate conversion into 1D index"""
-    return [num_states ** (i - 1) for i in range(k, 0, -1)]
+    return numpy.array([num_states ** (i - 1) for i in range(k, 0, -1)])
 
 
 @numba.jit
@@ -315,21 +316,26 @@ def index_to_coord(index, coeffs):
 
 
 @numba.jit
-def kmer_indices(seq, coeffs, result, k):
+def kmer_indices(seq: ndarray, result: ndarray, num_states: int, k: int) -> ndarray:
+    coeffs = coord_conversion_coeffs(num_states, k)
     skip_until = 0
     for i in range(k):
-        if seq[i] < 0:
+        if seq[i] >= num_states:
             skip_until = i + 1
 
+    result_idx = 0
     for i in range(len(result)):
-        if seq[i + k - 1] < 0:
+        if seq[i + k - 1] >= num_states:
             skip_until = i + k
+
         if i < skip_until:
-            index = -1
-        else:
-            index = (seq[i : i + k] * coeffs).sum()
-        result[i] = index
-    return result
+            continue
+
+        index = (seq[i : i + k] * coeffs).sum()
+        result[result_idx] = index
+        result_idx += 1
+
+    return result[:result_idx]
 
 
 def _gt_zero(instance, attribute, value):
@@ -421,7 +427,6 @@ class seq_to_kmer_counts(_seq_to_kmers):
         )
         indices, counts = numpy.unique(result, return_counts=True)
         counts = dict(zip(indices.tolist(), counts.tolist()))
-        counts.pop(-1, None)
         kwargs["data"] = counts
         del result
         return sparse_vector(**kwargs)
@@ -438,8 +443,6 @@ class seq_to_unique_kmers(_seq_to_kmers):
             name=seq.name,
         )
         kwargs["data"] = numpy.unique(result)
-        if kwargs["data"][0] == -1:
-            kwargs["data"] = kwargs["data"][1:]
         del result
         return unique_kmers(**kwargs)
 
@@ -466,6 +469,7 @@ def _seq_to_all_kmers(k: int, canonical: bytes, seq: SeqType) -> ndarray:
         raise NotImplementedError(f"{num_states}**{k} is too big for 64-bit integer")
     # k-mers with -1 are excluded
     coeffs = numpy.array(coord_conversion_coeffs(num_states, k), dtype=dtype)
+    # k-mers that include an index for ambiguity character are excluded
     result = numpy.zeros(len(seq) - k + 1, dtype=dtype)
-    result = kmer_indices(seq, coeffs, result, k)
+    result = kmer_indices(seq, result, num_states, k)
     return result
