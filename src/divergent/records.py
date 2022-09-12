@@ -43,7 +43,8 @@ def _jsd(summed_freqs: sparse_vector, summed_entropy: float, n: int):
 
 def _summed_stats(records: list[SeqRecord]) -> tuple[sparse_vector, float]:
     # takes series of records and sums quantitative parts
-    vec = sparse_vector(size=records[0].size, dtype=float)
+    sv = records[0].kfreqs
+    vec = sparse_vector(num_states=sv.num_states, k=sv.k, dtype=float)
     entropies = []
     for record in records:
         vec += record.kfreqs

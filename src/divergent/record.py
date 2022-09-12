@@ -32,14 +32,16 @@ def _gettype(name):
 @define(slots=True)
 class unique_kmers:
     data: numpy.ndarray
-    size: int
+    num_states: int
+    k: int
     source: str = None
     name: str = None
 
     def __init__(
         self,
         *,
-        size: int,
+        num_states: int,
+        k: int,
         data: numpy.ndarray = None,
         source: str = None,
         name: str = None,
@@ -48,13 +50,16 @@ class unique_kmers:
 
         Parameters
         ----------
-        size
-            num_states**k
+        num_states
+            num_states
+        k
+            length of k-mer
         data
             dict of {k-mer index: NumType}
         dtype
         """
-        self.size = size
+        self.num_states = num_states
+        self.k = k
         self.data = numpy.array([] if data is None else data, dtype=numpy.int64)
         self.source = source
         self.name = name
@@ -74,7 +79,8 @@ class unique_kmers:
 @define(slots=True)
 class sparse_vector(MutableSequence):
     data: dict
-    size: int
+    num_states: int
+    k: int
     default: Optional[NumType] = field(init=False)
     dtype: type = float
     source: str = None
@@ -83,7 +89,8 @@ class sparse_vector(MutableSequence):
     def __init__(
         self,
         *,
-        size: int,
+        num_states: int,
+        k: int,
         data: PosDictType = None,
         dtype: type = float,
         source: str = None,
@@ -93,13 +100,14 @@ class sparse_vector(MutableSequence):
 
         Parameters
         ----------
-        size
+        num_states
             num_states**k
         data
             dict of {k-mer index: NumType}
         dtype
         """
-        self.size = size
+        self.num_states = num_states
+        self.k = k
         self.dtype = dtype
 
         data = data or {}
@@ -127,7 +135,7 @@ class sparse_vector(MutableSequence):
             pass
 
     def __len__(self) -> int:
-        return self.size
+        return self.num_states ** self.k
 
     def __iter__(self) -> NumType:
         yield from (self[i] for i in range(len(self)))
@@ -141,7 +149,7 @@ class sparse_vector(MutableSequence):
         return self
 
     def _sub_vector(self, data, other) -> dict:
-        assert self.size == len(other)
+        assert len(self) == len(other)
         for pos, num in other.data.items():
             data[pos] = self[pos] - num
         return data
@@ -157,7 +165,9 @@ class sparse_vector(MutableSequence):
             self._sub_vector if isinstance(other, self.__class__) else self._sub_scalar
         )
         data = func({**self.data}, other)
-        return self.__class__(data=data, size=self.size, dtype=self.dtype)
+        return self.__class__(
+            data=data, num_states=self.num_states, k=self.k, dtype=self.dtype
+        )
 
     def __isub__(self, other):
         func = (
@@ -167,7 +177,7 @@ class sparse_vector(MutableSequence):
         return self
 
     def _add_vector(self, data, other) -> dict:
-        assert self.size == len(other)
+        assert len(self) == len(other)
         for pos, num in other.data.items():
             data[pos] = self[pos] + num
         return data
@@ -184,7 +194,9 @@ class sparse_vector(MutableSequence):
             self._add_vector if isinstance(other, self.__class__) else self._add_scalar
         )
         data = func({**self.data}, other)
-        return self.__class__(data=data, size=self.size, dtype=self.dtype)
+        return self.__class__(
+            data=data, num_states=self.num_states, k=self.k, dtype=self.dtype
+        )
 
     def __iadd__(self, other):
         func = (
@@ -194,7 +206,7 @@ class sparse_vector(MutableSequence):
         return self
 
     def _truediv_vector(self, data, other) -> dict:
-        assert self.size == len(other)
+        assert len(self) == len(other)
         for pos, num in other.data.items():
             data[pos] = self[pos] / num
         return data
@@ -213,7 +225,9 @@ class sparse_vector(MutableSequence):
         )
         # we are creating a new instance
         data = func({**self.data}, other)
-        return self.__class__(data=data, size=self.size, dtype=float)
+        return self.__class__(
+            data=data, num_states=self.num_states, k=self.k, dtype=float
+        )
 
     def __itruediv__(self, other):
         func = (
@@ -233,7 +247,7 @@ class sparse_vector(MutableSequence):
 
     @property
     def array(self) -> ndarray:
-        arr = zeros(self.size, dtype=self.dtype)
+        arr = zeros(len(self), dtype=self.dtype)
 
         for index, val in self.data.items():
             arr[index] = val
@@ -363,7 +377,7 @@ class SeqRecord:
         self.kfreqs = kcounts / kcounts.sum()
         kfreqs = array(list(self.kfreqs.iter_nonzero()))
         self.entropy = -(kfreqs * log2(kfreqs)).sum()
-        self.size = self.kfreqs.size
+        self.size = len(self.kfreqs)
 
 
 class _seq_to_kmers:
@@ -399,7 +413,8 @@ class seq_to_kmer_counts(_seq_to_kmers):
     def main(self, seq: c3_types.SeqType) -> sparse_vector:
         result = _seq_to_all_kmers(self.k, self.canonical, seq)
         kwargs = dict(
-            size=len(self.canonical) ** self.k,
+            num_states=len(self.canonical),
+            k=self.k,
             dtype=int,
             source=getattr(seq, "source", None),
             name=seq.name,
@@ -417,7 +432,8 @@ class seq_to_unique_kmers(_seq_to_kmers):
     def main(self, seq: c3_types.SeqType) -> unique_kmers:
         result = _seq_to_all_kmers(self.k, self.canonical, seq)
         kwargs = dict(
-            size=len(self.canonical) ** self.k,
+            num_states=len(self.canonical),
+            k=self.k,
             source=getattr(seq, "source", None),
             name=seq.name,
         )
