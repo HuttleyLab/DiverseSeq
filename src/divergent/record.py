@@ -278,7 +278,26 @@ class sparse_vector(MutableSequence):
 
 
 @numba.jit
-def seq2array(seq, arr, order):
+def seq2array(seq: bytes, result: numpy.ndarray, order: bytes) -> numpy.ndarray:
+    """convert bytes to int sequence with int mapping defined by order
+
+    Parameters
+    ----------
+    seq
+        original sequence
+    result
+        ints to be written here
+    order
+        the ordered characters, e.g. b"TCAG"
+
+    Notes
+    -----
+    Any characters not in order are assigned len(order)
+
+    Returns
+    -------
+    arr
+    """
     num_states = len(order)
     for i in range(len(seq)):
         char_index = num_states
@@ -288,8 +307,8 @@ def seq2array(seq, arr, order):
                 char_index = j
                 break
 
-        arr[i] = char_index
-    return arr
+        result[i] = char_index
+    return result
 
 
 @numba.jit
@@ -318,6 +337,24 @@ def index_to_coord(index, coeffs):
 
 @numba.jit
 def kmer_indices(seq: ndarray, result: ndarray, num_states: int, k: int) -> ndarray:
+    """return 1D indices for valid k-mers
+
+    Parameters
+    ----------
+    seq
+        numpy array of uint, assumed that canonical characters have
+        sequential indexes which are all < num_states
+    result
+        array to be written into
+    num_states
+        defines range of possible ints at a position
+    k
+        k-mer size
+
+    Returns
+    -------
+    result
+    """
     coeffs = coord_conversion_coeffs(num_states, k)
     skip_until = 0
     for i in range(k):
@@ -458,7 +495,7 @@ def _get_canonical_states(moltype: str) -> bytes:
 
 
 def _seq_to_all_kmers(k: int, canonical: bytes, seq: SeqType) -> ndarray:
-    """return all k-mers from seq"""
+    """return all valid k-mers from seq"""
     # positions with non-canonical characters are assigned -1
     arr = numpy.zeros(len(seq), dtype=numpy.int8)
     seq = seq2array(seq._seq.encode("utf8"), arr, canonical)
