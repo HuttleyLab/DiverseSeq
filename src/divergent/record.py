@@ -11,6 +11,7 @@ from cogent3 import get_moltype
 from cogent3.app import composable
 from cogent3.app import typing as c3_types
 from cogent3.app.typing import SeqType
+from cogent3.core.alphabet import get_array_type
 from numpy import array, log2, ndarray, zeros
 
 from divergent import util as dv_utils
@@ -461,14 +462,9 @@ def _seq_to_all_kmers(k: int, canonical: bytes, seq: SeqType) -> ndarray:
     # positions with non-canonical characters are assigned -1
     arr = numpy.zeros(len(seq), dtype=numpy.int8)
     seq = seq2array(seq._seq.encode("utf8"), arr, canonical)
-
-    # check for crazy big k
-    dtype = numpy.int64
     num_states = len(canonical)
-    if num_states ** k > 2 ** 64:
-        raise NotImplementedError(f"{num_states}**{k} is too big for 64-bit integer")
-    # k-mers with -1 are excluded
-    coeffs = numpy.array(coord_conversion_coeffs(num_states, k), dtype=dtype)
+    dtype = get_array_type(num_states ** k)
+
     # k-mers that include an index for ambiguity character are excluded
     result = numpy.zeros(len(seq) - k + 1, dtype=dtype)
     result = kmer_indices(seq, result, num_states, k)
