@@ -57,7 +57,6 @@ class unique_kmers:
             length of k-mer
         data
             dict of {k-mer index: NumType}
-        dtype
         """
         self.num_states = num_states
         self.k = k
