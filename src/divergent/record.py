@@ -454,7 +454,7 @@ class _seq_to_kmers:
 @composable.define_app
 class seq_to_kmer_counts(_seq_to_kmers):
     def main(self, seq: c3_types.SeqType) -> sparse_vector:
-        result = _seq_to_all_kmers(self.k, self.canonical, seq)
+        result = _seq_to_all_kmers(seq, self.canonical, self.k)
         kwargs = dict(
             num_states=len(self.canonical),
             k=self.k,
@@ -472,7 +472,8 @@ class seq_to_kmer_counts(_seq_to_kmers):
 @composable.define_app
 class seq_to_unique_kmers(_seq_to_kmers):
     def main(self, seq: c3_types.SeqType) -> unique_kmers:
-        result = _seq_to_all_kmers(self.k, self.canonical, seq)
+        print(len(seq))
+        result = _seq_to_all_kmers(seq, self.canonical, self.k)
         kwargs = dict(
             num_states=len(self.canonical),
             k=self.k,
@@ -493,7 +494,7 @@ def _get_canonical_states(moltype: str) -> bytes:
     return "".join(canonical).encode("utf8")
 
 
-def _seq_to_all_kmers(k: int, states: bytes, seq: SeqType) -> ndarray:
+def _seq_to_all_kmers(seq: SeqType, states: bytes, k: int) -> ndarray:
     """return all valid k-mers from seq"""
     # positions with non-canonical characters are assigned -1
     arr = numpy.zeros(len(seq), dtype=numpy.int8)
