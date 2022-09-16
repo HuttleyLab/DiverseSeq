@@ -277,7 +277,7 @@ class sparse_vector(MutableSequence):
 
 
 @numba.jit
-def seq2array(seq: bytes, result: numpy.ndarray, order: bytes) -> numpy.ndarray:
+def seq2array(seq: bytes, result: numpy.ndarray, states: bytes) -> numpy.ndarray:
     """convert bytes to int sequence with int mapping defined by order
 
     Parameters
@@ -286,7 +286,7 @@ def seq2array(seq: bytes, result: numpy.ndarray, order: bytes) -> numpy.ndarray:
         original sequence
     result
         ints to be written here
-    order
+    states
         the ordered characters, e.g. b"TCAG"
 
     Notes
@@ -295,14 +295,14 @@ def seq2array(seq: bytes, result: numpy.ndarray, order: bytes) -> numpy.ndarray:
 
     Returns
     -------
-    arr
+    result
     """
-    num_states = len(order)
+    num_states = len(states)
     for i in range(len(seq)):
         char_index = num_states
         c = seq[i]
         for j in range(num_states):
-            if c == order[j]:
+            if c == states[j]:
                 char_index = j
                 break
 
@@ -441,7 +441,7 @@ class _seq_to_kmers:
 
         Notes
         -----
-        The sequence is converted to indices using order of canonical characters
+        The sequence is converted to indices using states of canonical characters
         defined by moltype. Each k-mer is then a k-dimension coordinate. We
         convert those into a 1D coordinate. Use ``numpy.unravel`` and the moltype
         to convert the indices back into a sequence.
@@ -493,12 +493,12 @@ def _get_canonical_states(moltype: str) -> bytes:
     return "".join(canonical).encode("utf8")
 
 
-def _seq_to_all_kmers(k: int, canonical: bytes, seq: SeqType) -> ndarray:
+def _seq_to_all_kmers(k: int, states: bytes, seq: SeqType) -> ndarray:
     """return all valid k-mers from seq"""
     # positions with non-canonical characters are assigned -1
     arr = numpy.zeros(len(seq), dtype=numpy.int8)
-    seq = seq2array(seq._seq.encode("utf8"), arr, canonical)
-    num_states = len(canonical)
+    seq = seq2array(seq._seq.encode("utf8"), arr, states)
+    num_states = len(states)
     dtype = get_array_type(num_states ** k)
 
     # k-mers that include an index for ambiguity character are excluded
