@@ -333,9 +333,9 @@ def test_seq2arry():
     bases = "".join(dna).encode("utf8")
     expect = dna.alphabet.to_indices(s.decode("utf8"))
     g = seq2array(s, r, bases)
-    assert g.tolist() == expect
+    assert (g == expect).all()
     g = seq2array(b"ACGNT", r, bases)
-    assert g[-2] == 4  # non-canonical characters equal num_states
+    assert g[-2] == 4  # index for non-canonical character == num_states
 
 
 _seqs = (b"ACGGCGGTGCA", b"ACGGNGGTGCA", b"ANGGCGGTGNA")
