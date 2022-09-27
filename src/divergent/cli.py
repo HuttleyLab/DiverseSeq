@@ -14,6 +14,16 @@ from divergent.record import seq_to_kmer_counts, seq_to_unique_kmers
 from divergent.unique import signature_kmers
 
 
+try:
+    from wakepy import set_keepawake, unset_keepawake
+except (ImportError, NotImplementedError):
+    # may not be installed, or on linux where this library doesn't work
+    def _do_nothing_func(*args, **kwargs):
+        ...
+
+    set_keepawake, unset_keepawake = _do_nothing_func, _do_nothing_func
+
+
 __author__ = "Gavin Huttley"
 __copyright__ = "Copyright 2022-, Gavin Huttley"
 __credits__ = ["Gavin Huttley"]
@@ -89,7 +99,6 @@ _seqdir = click.option(
 @click.option("-O", "--overwrite", is_flag=True, help="overwrite existing")
 @_verbose
 def seqs2kmers(seqdir, outdir, k, parallel, unique, limit, overwrite, verbose):
-    from wakepy import set_keepawake, unset_keepawake
 
     if overwrite and outdir.exists():
         shutil.rmtree(outdir, ignore_errors=True)
@@ -149,7 +158,6 @@ def seqs2kmers(seqdir, outdir, k, parallel, unique, limit, overwrite, verbose):
 @click.option("-L", "--limit", type=int, help="number of records to process")
 @_verbose
 def sig_kmers(indir, outdir, parallel, limit, verbose):
-    from wakepy import set_keepawake, unset_keepawake
 
     outdir.mkdir(parents=True, exist_ok=True)
     outpath = outdir / f"{indir.stem}-unique.pickle.blosc2"
