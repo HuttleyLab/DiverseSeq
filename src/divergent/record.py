@@ -4,7 +4,6 @@ from math import isclose
 from typing import Dict, Optional, Union
 
 import numba
-import numpy
 
 from attrs import asdict, define, field, validators
 from cogent3 import get_moltype
@@ -12,7 +11,11 @@ from cogent3.app import composable
 from cogent3.app import typing as c3_types
 from cogent3.app.typing import SeqType
 from cogent3.core.alphabet import get_array_type
-from numpy import array, log2, ndarray, zeros
+from numpy import array
+from numpy import divmod as np_divmod
+from numpy import int64, log2, ndarray, uint8
+from numpy import unique as np_unique
+from numpy import zeros
 
 from divergent import util as dv_utils
 
@@ -32,7 +35,7 @@ def _gettype(name):
 
 @define(slots=True)
 class unique_kmers:
-    data: numpy.ndarray
+    data: ndarray
     num_states: int
     k: int
     source: str = None
@@ -43,7 +46,7 @@ class unique_kmers:
         *,
         num_states: int,
         k: int,
-        data: numpy.ndarray = None,
+        data: ndarray = None,
         source: str = None,
         name: str = None,
     ):
@@ -60,7 +63,7 @@ class unique_kmers:
         """
         self.num_states = num_states
         self.k = k
-        self.data = numpy.array([] if data is None else data, dtype=numpy.int64)
+        self.data = array([] if data is None else data, dtype=int64)
         self.source = source
         self.name = name
 
@@ -277,7 +280,7 @@ class sparse_vector(MutableSequence):
 
 
 @numba.jit
-def seq2array(seq: bytes, result: numpy.ndarray, states: bytes) -> numpy.ndarray:
+def seq2array(seq: bytes, result: ndarray, states: bytes) -> ndarray:
     """convert bytes to int sequence with int mapping defined by order
 
     Parameters
@@ -313,7 +316,7 @@ def seq2array(seq: bytes, result: numpy.ndarray, states: bytes) -> numpy.ndarray
 @numba.jit
 def coord_conversion_coeffs(num_states, k):
     """coefficients for multi-dimensional coordinate conversion into 1D index"""
-    return numpy.array([num_states ** (i - 1) for i in range(k, 0, -1)])
+    return array([num_states ** (i - 1) for i in range(k, 0, -1)])
 
 
 @numba.jit
@@ -326,10 +329,10 @@ def coord_to_index(coord, coeffs):
 def index_to_coord(index, coeffs):
     """converts a 1D index into a multi-dimensional coordinate"""
     ndim = len(coeffs)
-    coord = numpy.zeros(ndim, dtype=numpy.int64)
+    coord = zeros(ndim, dtype=int64)
     remainder = index
     for i in range(ndim):
-        n, remainder = numpy.divmod(remainder, coeffs[i])
+        n, remainder = np_divmod(remainder, coeffs[i])
         coord[i] = n
     return coord
 
@@ -462,7 +465,7 @@ class seq_to_kmer_counts(_seq_to_kmers):
             source=getattr(seq, "source", None),
             name=seq.name,
         )
-        indices, counts = numpy.unique(result, return_counts=True)
+        indices, counts = np_unique(result, return_counts=True)
         counts = dict(zip(indices.tolist(), counts.tolist()))
         kwargs["data"] = counts
         del result
@@ -472,7 +475,6 @@ class seq_to_kmer_counts(_seq_to_kmers):
 @composable.define_app
 class seq_to_unique_kmers(_seq_to_kmers):
     def main(self, seq: c3_types.SeqType) -> unique_kmers:
-        print(len(seq))
         result = _seq_to_all_kmers(seq, self.canonical, self.k)
         kwargs = dict(
             num_states=len(self.canonical),
@@ -480,7 +482,7 @@ class seq_to_unique_kmers(_seq_to_kmers):
             source=getattr(seq, "source", None),
             name=seq.name,
         )
-        kwargs["data"] = numpy.unique(result)
+        kwargs["data"] = np_unique(result)
         del result
         return unique_kmers(**kwargs)
 
@@ -496,13 +498,13 @@ def _get_canonical_states(moltype: str) -> bytes:
 
 def _seq_to_all_kmers(seq: SeqType, states: bytes, k: int) -> ndarray:
     """return all valid k-mers from seq"""
-    # positions with non-canonical characters are assigned -1
-    arr = numpy.zeros(len(seq), dtype=numpy.int8)
+    # positions with non-canonical characters are assigned value outside range
+    arr = zeros(len(seq), dtype=uint8)
     seq = seq2array(seq._seq.encode("utf8"), arr, states)
     num_states = len(states)
     dtype = get_array_type(num_states ** k)
 
     # k-mers that include an index for ambiguity character are excluded
-    result = numpy.zeros(len(seq) - k + 1, dtype=dtype)
+    result = zeros(len(seq) - k + 1, dtype=dtype)
     result = kmer_indices(seq, result, num_states, k)
     return result
