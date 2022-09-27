@@ -291,7 +291,7 @@ def seq2array(seq: bytes, result: numpy.ndarray, states: bytes) -> numpy.ndarray
 
     Notes
     -----
-    Any characters not in order are assigned len(order)
+    Any characters not in states are assigned len(states)
 
     Returns
     -------

@@ -90,7 +90,7 @@ _seqdir = click.option(
 @main.command(no_args_is_help=True)
 @_seqdir
 @_outdir
-@click.option("-k", type=int, default=7)
+@click.option("-k", type=int, default=7, help="k-mer size")
 @click.option("-p", "--parallel", is_flag=True, help="run in parallel")
 @click.option(
     "-U", "--unique", is_flag=True, help="unique kmers only, not their counts"
@@ -99,7 +99,7 @@ _seqdir = click.option(
 @click.option("-O", "--overwrite", is_flag=True, help="overwrite existing")
 @_verbose
 def seqs2kmers(seqdir, outdir, k, parallel, unique, limit, overwrite, verbose):
-
+    """write kmer data for seqs in seqdir"""
     if overwrite and outdir.exists():
         shutil.rmtree(outdir, ignore_errors=True)
 
@@ -151,14 +151,18 @@ def seqs2kmers(seqdir, outdir, k, parallel, unique, limit, overwrite, verbose):
     "--indir",
     required=True,
     type=Path,
-    help="directory containing fasta formatted sequence files",
+    help="directory containing pickled k-mers",
 )
 @_outdir
 @click.option("-p", "--parallel", is_flag=True, help="run in parallel")
 @click.option("-L", "--limit", type=int, help="number of records to process")
 @_verbose
 def sig_kmers(indir, outdir, parallel, limit, verbose):
+    """signature k-mers uniquely identify each sequence.
 
+    Sequences that are redundant are excluded and written out as
+    a tsv file to outdir.
+    """
     outdir.mkdir(parents=True, exist_ok=True)
     outpath = outdir / f"{indir.stem}-unique.pickle.blosc2"
 
