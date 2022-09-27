@@ -56,6 +56,13 @@ _outpath = click.option(
     "-o", "--outpath", type=Path, help="the input string will be cast to Path instance"
 )
 
+_outdir = click.option(
+    "-o",
+    "--outdir",
+    type=Path,
+    help="directory to write compressed json",
+)
+
 
 def _make_outpath(outdir, path, k):
     return outdir / f"{path.stem.split('.')[0]}-{k}-mer.json.blosc2"
@@ -72,12 +79,7 @@ _seqdir = click.option(
 
 @main.command(no_args_is_help=True)
 @_seqdir
-@click.option(
-    "-o",
-    "--outdir",
-    type=Path,
-    help="directory to write compressed json",
-)
+@_outdir
 @click.option("-k", type=int, default=7)
 @click.option("-p", "--parallel", is_flag=True, help="run in parallel")
 @click.option(
@@ -142,12 +144,7 @@ def seqs2kmers(seqdir, outdir, k, parallel, unique, limit, overwrite, verbose):
     type=Path,
     help="directory containing fasta formatted sequence files",
 )
-@click.option(
-    "-o",
-    "--outdir",
-    type=Path,
-    help="directory to write compressed json",
-)
+@_outdir
 @click.option("-p", "--parallel", is_flag=True, help="run in parallel")
 @click.option("-L", "--limit", type=int, help="number of records to process")
 @_verbose
