@@ -4,6 +4,7 @@ from pathlib import Path
 
 import click
 
+from cogent3 import get_moltype, make_table
 from cogent3.util import parallel as PAR
 from rich.progress import track
 from scitrack import CachingLogger
@@ -11,7 +12,11 @@ from scitrack import CachingLogger
 import divergent.util as dv_utils
 
 from divergent.record import seq_to_kmer_counts, seq_to_unique_kmers
-from divergent.unique import signature_kmers
+from divergent.unique import (
+    get_signature_kmers,
+    non_redundant,
+    signature_kmers,
+)
 
 
 try:
@@ -153,11 +158,12 @@ def seqs2kmers(seqdir, outdir, k, parallel, unique, limit, overwrite, verbose):
     type=Path,
     help="directory containing pickled k-mers",
 )
+@_seqdir
 @_outdir
 @click.option("-p", "--parallel", is_flag=True, help="run in parallel")
 @click.option("-L", "--limit", type=int, help="number of records to process")
 @_verbose
-def sig_kmers(indir, outdir, parallel, limit, verbose):
+def sig_kmers(indir, seqdir, outdir, parallel, limit, verbose):
     """signature k-mers uniquely identify each sequence.
 
     Sequences that are redundant are excluded and written out as
@@ -165,29 +171,25 @@ def sig_kmers(indir, outdir, parallel, limit, verbose):
     """
     outdir.mkdir(parents=True, exist_ok=True)
     outpath = outdir / f"{indir.stem}-unique.pickle.blosc2"
+    table_outpath = outdir / f"{indir.stem}-redundant.tsv"
 
-    paths = [p for p in indir.glob("**/*.blosc2")]
+    paths = list(indir.glob("**/*.blosc2"))
 
     set_keepawake(keep_screen_awake=False)
 
     app = signature_kmers(paths)
     limit = limit or len(paths)
-    paths = paths[:limit]
-    if parallel:
-        series = PAR.as_completed(
-            app,
-            paths,
-            max_workers=6,
-        )
-    else:
-        series = map(app, paths)
 
-    results = []
-    for r in track(series, total=len(paths)):
-        if not r:
-            print(r)
-            continue
-        results.append(r)
+    results, redundant = get_signature_kmers(app, parallel, paths[:limit])
+    if redundant:
+        nr, nr_paths, r_paths = non_redundant(redundant, seqdir)
+
+        app = signature_kmers([p for p in paths if p not in r_paths])
+        new_results, new_redundant = get_signature_kmers(app, parallel, nr_paths)
+        results.extend(new_results)
+        redund_map = [(k, ",".join(nr[k])) for k in nr]
+        table = make_table(header=["representative", "matched to"], data=redund_map)
+        table.write(table_outpath)
 
     prep = dv_utils.pickle_data() + dv_utils.blosc_compress()
     b = prep(results)
