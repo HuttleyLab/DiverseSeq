@@ -123,7 +123,7 @@ def seqs2kmers(seqdir, outdir, k, parallel, unique, limit, overwrite, verbose):
             continue
         not_done.append(p)
 
-    paths = not_done
+    paths = paths if overwrite else not_done
 
     if parallel:
         series = PAR.as_completed(app, paths, max_workers=6)
