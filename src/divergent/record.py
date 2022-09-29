@@ -1,4 +1,7 @@
 """defines basic data type for storing an individual sequence record"""
+
+import contextlib
+
 from collections.abc import MutableSequence
 from math import isclose
 from typing import Dict, Optional, Union
@@ -79,6 +82,11 @@ class unique_kmers:
         for k, v in data.items():
             setattr(self, k, v)
         return self
+
+    def to_kmer_strings(self, states: str) -> list[str]:
+        with contextlib.suppress(AttributeError):
+            states = states.encode("utf8")
+        return indices_to_seqs(self.data, states, self.k)
 
 
 @define(slots=True)
@@ -563,3 +571,8 @@ def _seq_to_all_kmers(seq: SeqType, states: bytes, k: int) -> ndarray:
     result = zeros(len(seq) - k + 1, dtype=dtype)
     result = kmer_indices(seq, result, num_states, k)
     return result
+
+
+@composable.define_app
+def indices2str(r: unique_kmers, states: str) -> tuple[str, str]:
+    return r.name.rsplit(".", maxsplit=1)[0], ",".join(r.to_kmer_strings(states))

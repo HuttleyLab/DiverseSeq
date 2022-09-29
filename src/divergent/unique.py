@@ -4,7 +4,7 @@ from collections import defaultdict
 from functools import singledispatch
 from pathlib import Path
 
-from cogent3 import get_moltype
+from cogent3 import get_moltype, make_table
 from cogent3.app import composable
 from cogent3.app import typing as c3_types
 from cogent3.app.composable import NotCompleted
@@ -13,7 +13,12 @@ from numpy import intersect1d, setdiff1d, union1d, zeros
 from rich.progress import track
 
 from divergent import util as dv_utils
-from divergent.record import indices_to_seqs, seq_to_unique_kmers, unique_kmers
+from divergent.record import (
+    indices2str,
+    indices_to_seqs,
+    seq_to_unique_kmers,
+    unique_kmers,
+)
 
 
 @composable.define_app
@@ -138,7 +143,9 @@ def get_signature_kmers(app, parallel, paths):
     # a single member(s) should then be used and added
     # the skipped genomes should be logged as such
     redundant = []
-    for r in track(series, total=len(paths)):
+    for r in track(
+        series, total=len(paths), description="Finding unique", transient=True
+    ):
         if not r:
             redundant.append(Path(r.source))
             continue
@@ -146,3 +153,23 @@ def get_signature_kmers(app, parallel, paths):
     return results, redundant
 
 
+def make_signature_table(results, parallel):
+    states = "".join(get_moltype("dna")).encode("utf8")
+    app = indices2str(states=states)
+    if parallel:
+        series = PAR.as_completed(
+            app,
+            results,
+            max_workers=6,
+        )
+    else:
+        series = map(app, results)
+
+    rows = [
+        r
+        for r in track(
+            series, total=len(results), transient=True, description="Convert to str"
+        )
+        if r
+    ]
+    return make_table(["name", "unique"], data=rows)

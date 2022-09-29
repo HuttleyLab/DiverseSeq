@@ -14,6 +14,7 @@ import divergent.util as dv_utils
 from divergent.record import seq_to_kmer_counts, seq_to_unique_kmers
 from divergent.unique import (
     get_signature_kmers,
+    make_signature_table,
     non_redundant,
     signature_kmers,
 )
@@ -170,15 +171,15 @@ def sig_kmers(indir, seqdir, outdir, parallel, limit, verbose):
     a tsv file to outdir.
     """
     outdir.mkdir(parents=True, exist_ok=True)
-    outpath = outdir / f"{indir.stem}-unique.pickle.blosc2"
+    outpath = outdir / f"{indir.stem}-unique.tsv"
     table_outpath = outdir / f"{indir.stem}-redundant.tsv"
 
     paths = list(indir.glob("**/*.blosc2"))
 
     set_keepawake(keep_screen_awake=False)
 
-    app = signature_kmers(paths)
     limit = limit or len(paths)
+    app = signature_kmers(paths[:limit], verbose=verbose)
 
     results, redundant = get_signature_kmers(app, parallel, paths[:limit])
     if redundant:
@@ -191,9 +192,11 @@ def sig_kmers(indir, seqdir, outdir, parallel, limit, verbose):
         table = make_table(header=["representative", "matched to"], data=redund_map)
         table.write(table_outpath)
 
-    prep = dv_utils.pickle_data() + dv_utils.blosc_compress()
-    b = prep(results)
-    outpath.write_bytes(b)
+    unique = make_signature_table(results, parallel)
+    unique.write(table_outpath)
+    click.secho(f"Wrote {outpath}", fg="green")
+
+    unset_keepawake()
 
     unset_keepawake()
 
