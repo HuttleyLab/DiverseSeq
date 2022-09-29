@@ -13,7 +13,7 @@ from cogent3.app.typing import SeqType
 from cogent3.core.alphabet import get_array_type
 from numpy import array
 from numpy import divmod as np_divmod
-from numpy import int64, log2, ndarray, uint8
+from numpy import log2, ndarray, uint8, uint64
 from numpy import unique as np_unique
 from numpy import zeros
 
@@ -63,7 +63,9 @@ class unique_kmers:
         """
         self.num_states = num_states
         self.k = k
-        self.data = array([] if data is None else data, dtype=int64)
+        self.data = array(
+            [] if data is None else data, dtype=get_array_type(num_states ** k)
+        )
         self.source = source
         self.name = name
 
@@ -329,12 +331,65 @@ def coord_to_index(coord, coeffs):
 def index_to_coord(index, coeffs):
     """converts a 1D index into a multi-dimensional coordinate"""
     ndim = len(coeffs)
-    coord = zeros(ndim, dtype=int64)
+    coord = zeros(ndim, dtype=uint64)
     remainder = index
     for i in range(ndim):
         n, remainder = np_divmod(remainder, coeffs[i])
         coord[i] = n
     return coord
+
+
+def indices_to_seqs(indices: ndarray, states: bytes, k: int) -> list[str]:
+    """convert indices from k-dim into sequence
+
+        Parameters
+    ----------
+    indices
+        array of (len(states), k) dimensioned indices
+    states
+        the ordered characters, e.g. b"TCAG"
+    """
+    arr = indices_to_bytes(indices, states, k)
+    return [bytearray(kmer).decode("utf8") for kmer in arr]
+
+
+@numba.jit
+def indices_to_bytes(indices: ndarray, states: bytes, k: int) -> ndarray:
+    """convert indices from k-dim into bytes
+
+        Parameters
+    ----------
+    indices
+        array of (len(states), k) dimensioned indices
+    states
+        the ordered characters, e.g. b"TCAG"
+    k
+        dimensions
+
+    Raises
+    -----
+    IndexError if an index not in states
+
+    Returns
+    -------
+    uint8 array.
+
+    Notes
+    -----
+    Use indices_to_seqs to have the results returned as strings
+    """
+    result = zeros((len(indices), k), dtype=uint8)
+    coeffs = coord_conversion_coeffs(len(states), k)
+    num_states = len(states)
+    for i in range(len(indices)):
+        index = indices[i]
+        coord = index_to_coord(index, coeffs)
+        for j in range(k):
+            if coord[j] >= num_states:
+                raise IndexError("index out of character range")
+            result[i][j] = states[coord[j]]
+
+    return result
 
 
 @numba.jit
@@ -446,8 +501,8 @@ class _seq_to_kmers:
         -----
         The sequence is converted to indices using states of canonical characters
         defined by moltype. Each k-mer is then a k-dimension coordinate. We
-        convert those into a 1D coordinate. Use ``numpy.unravel`` and the moltype
-        to convert the indices back into a sequence.
+        convert those into a 1D coordinate. Use indices_to_seqs to convert
+        indices back into k-mer sequences.
         """
         self.k = k
         self.canonical = _get_canonical_states(moltype)

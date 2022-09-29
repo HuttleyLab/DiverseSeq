@@ -13,6 +13,7 @@ from divergent.record import (
     coord_conversion_coeffs,
     coord_to_index,
     index_to_coord,
+    indices_to_seqs,
     kmer_indices,
     seq2array,
     seq_to_kmer_counts,
@@ -374,3 +375,14 @@ def test_seq2kmers_all_ambig():
 
     expect = []
     assert (got == expect).all()
+
+
+def test_indices_to_seqs():
+    indices = numpy.array([0, 8], dtype=numpy.uint16)
+    states = b"TCAG"
+    result = indices_to_seqs(indices, states, 2)
+    assert result == ["TT", "AT"]
+    indices = numpy.array([0, 16], dtype=numpy.uint16)
+    with pytest.raises(IndexError):
+        # 16 is outside range
+        indices_to_seqs(indices, states, 2)
