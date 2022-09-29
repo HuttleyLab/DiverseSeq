@@ -153,6 +153,26 @@ def get_signature_kmers(app, parallel, paths):
     return results, redundant
 
 
+@composable.define_app
+class matched_kmers:
+    def __init__(self, signatures_path, moltype, k):
+        table = dv_utils.load_tsv(signatures_path)
+        patterns = {}
+        for ref, kmers in table.tolist():
+            patterns[ref] = set(kmers.split(","))
+        self.patterns = patterns
+        self.make_unique = seq_to_unique_kmers(k, moltype)
+        self.k = k
+        self.moltype = get_moltype("dna")
+
+    def main(self, seq: c3_types.SeqType) -> tuple[str, set]:
+        uniques = self.make_unique(seq)
+        states = "".join(self.moltype)
+        seqs = zeros(len(uniques), dtype=f"|U{self.k}")
+        kmers = set(indices_to_seqs(uniques.data, seqs, states, self.k))
+        return seq.name, {ref for ref, rk in self.patterns.items() if rk & kmers}
+
+
 def make_signature_table(results, parallel):
     states = "".join(get_moltype("dna")).encode("utf8")
     app = indices2str(states=states)

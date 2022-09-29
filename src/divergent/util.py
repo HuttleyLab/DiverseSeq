@@ -107,3 +107,32 @@ def get_seq_identifiers(paths, label_func=_label_func) -> list[filename_seqname]
     return records
 
 
+def _label_from_filename(path):
+    return Path(path).stem.split(".")[0]
+
+
+@composable.define_app(app_type="loader")
+class concat_seqs:
+    def __init__(
+        self, label_func: callable = _label_from_filename, max_length: int | None = None
+    ) -> None:
+        self.label_func = label_func
+        self.max_length = max_length
+        self.loader = faster_load_fasta(label_func=label_func)
+
+    def main(self, path: c3_types.IdentifierType) -> c3_types.SeqType:
+        data = self.loader(path)
+        seq = "N".join(data.values())
+
+        if self.max_length:
+            seq = seq[: self.max_length]
+
+        return make_seq(seq, name=self.label_func(path), moltype="dna")
+
+
+def load_tsv(path):
+    with open_(path) as infile:
+        data = infile.read().splitlines()
+    header = data[0].strip().split("\t")
+    data = [l.strip().split("\t") for l in data[1:]]
+    return make_table(header, data=data)

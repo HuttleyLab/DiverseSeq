@@ -198,6 +198,55 @@ def sig_kmers(indir, seqdir, outdir, parallel, limit, verbose):
 
     unset_keepawake()
 
+
+@main.command()
+@_seqdir
+@_outdir
+@click.option("-r", "--refk", type=Path, help="path to signature kmers from reference")
+@click.option(
+    "-T",
+    "--test_run",
+    is_flag=True,
+    help="reduce number of paths and size of query seqs",
+)
+@click.option("-p", "--parallel", is_flag=True, help="run in parallel")
+def find_species(seqdir, outdir, refk, test_run, parallel):
+    """"""
+    from divergent.unique import matched_kmers
+
+    set_keepawake(keep_screen_awake=False)
+
+    paths = list(seqdir.glob("**/*.fa*"))
+    if not paths:
+        click.secho(f"{seqdir} contains no fasta paths", fg="red")
+        exit(1)
+
+    paths = paths[:2] if test_run else paths
+    loader = dv_utils.concat_seqs(max_length=100000 if test_run else None)
+    matched = matched_kmers(refk, "dna", 13)
+    app = loader + matched
+
+    if parallel:
+        series = PAR.as_completed(app, paths, max_workers=6)
+    else:
+        series = map(app, paths)
+
+    records = []
+    for found in track(series, total=len(paths), transient=True):
+        if not found:
+            continue
+        path, found = found
+        found = ",".join(found)
+        records.append([str(path), found])
+
+    table = make_table(["path", "matched_refs"], data=records)
+    outpath = outdir / f"matched-{seqdir.name}.tsv"
+    outpath.parent.mkdir(parents=True, exist_ok=True)
+    if test_run:
+        print(repr(table))
+        exit()
+    table.write(outpath)
+
     unset_keepawake()
 
 
