@@ -290,15 +290,13 @@ class sparse_vector(MutableSequence):
 
 
 @numba.jit
-def seq2array(seq: bytes, result: ndarray, states: bytes) -> ndarray:
+def seq2array(seq: bytes, states: bytes) -> ndarray:
     """convert bytes to int sequence with int mapping defined by order
 
     Parameters
     ----------
     seq
         original sequence
-    result
-        ints to be written here
     states
         the ordered characters, e.g. b"TCAG"
 
@@ -308,9 +306,13 @@ def seq2array(seq: bytes, result: ndarray, states: bytes) -> ndarray:
 
     Returns
     -------
-    result
+    uint8 array
     """
+    result = zeros(len(seq), dtype=uint8)
     num_states = len(states)
+    if num_states >= 2 ** 8:
+        raise ValueError("number of states too large be represented by 8-bit integer")
+
     for i in range(len(seq)):
         char_index = num_states
         c = seq[i]
@@ -562,8 +564,7 @@ def _get_canonical_states(moltype: str) -> bytes:
 def _seq_to_all_kmers(seq: SeqType, states: bytes, k: int) -> ndarray:
     """return all valid k-mers from seq"""
     # positions with non-canonical characters are assigned value outside range
-    arr = zeros(len(seq), dtype=uint8)
-    seq = seq2array(seq._seq.encode("utf8"), arr, states)
+    seq = seq2array(seq._seq.encode("utf8"), states)
     num_states = len(states)
     dtype = get_array_type(num_states ** k)
 

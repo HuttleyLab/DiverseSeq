@@ -330,13 +330,20 @@ def test_unique_kmer_len():
 def test_seq2arry():
     dna = get_moltype("dna")
     s = b"ACGTT"
-    r = numpy.zeros(len(s), dtype=numpy.uint16)
     bases = "".join(dna).encode("utf8")
     expect = dna.alphabet.to_indices(s.decode("utf8"))
-    g = seq2array(s, r, bases)
+    g = seq2array(s, bases)
     assert (g == expect).all()
-    g = seq2array(b"ACGNT", r, bases)
+    g = seq2array(b"ACGNT", bases)
     assert g[-2] == 4  # index for non-canonical character == num_states
+
+
+def test_seq2arry_err():
+    mt = get_moltype("bytes")
+    s = b"ACGTT"
+    mt = "".join(mt).encode("utf8")
+    with pytest.raises(ValueError):
+        seq2array(s, mt)
 
 
 _seqs = (b"ACGGCGGTGCA", b"ACGGNGGTGCA", b"ANGGCGGTGNA")
@@ -349,9 +356,8 @@ def test_seq2kmers(seq, k):
 
     dna = get_moltype("dna")
 
-    indices = numpy.zeros(len(seq), dtype=dtype)
     bases = "".join(dna).encode("utf8")
-    indices = seq2array(seq, indices, bases)
+    indices = seq2array(seq, bases)
 
     result = numpy.zeros(len(seq) - k + 1, dtype=dtype)
     num_states = 4
