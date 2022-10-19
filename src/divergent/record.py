@@ -290,42 +290,6 @@ class sparse_vector(MutableSequence):
 
 
 @numba.jit
-def seq2array(seq: bytes, states: bytes) -> ndarray:
-    """convert bytes to int sequence with int mapping defined by order
-
-    Parameters
-    ----------
-    seq
-        original sequence
-    states
-        the ordered characters, e.g. b"TCAG"
-
-    Notes
-    -----
-    Any characters not in states are assigned len(states)
-
-    Returns
-    -------
-    uint8 array
-    """
-    result = zeros(len(seq), dtype=uint8)
-    num_states = len(states)
-    if num_states >= 2 ** 8:
-        raise ValueError("number of states too large be represented by 8-bit integer")
-
-    for i in range(len(seq)):
-        char_index = num_states
-        c = seq[i]
-        for j in range(num_states):
-            if c == states[j]:
-                char_index = j
-                break
-
-        result[i] = char_index
-    return result
-
-
-@numba.jit
 def coord_conversion_coeffs(num_states, k):
     """coefficients for multi-dimensional coordinate conversion into 1D index"""
     return array([num_states ** (i - 1) for i in range(k, 0, -1)])
@@ -516,6 +480,7 @@ class _seq_to_kmers:
         """
         self.k = k
         self.canonical = _get_canonical_states(moltype)
+        self.seq2array = dv_utils.str2arr(moltype=moltype)
         self.compress_pickled = dv_utils.pickle_data() + dv_utils.blosc_compress()
 
 
@@ -561,10 +526,9 @@ def _get_canonical_states(moltype: str) -> bytes:
     return "".join(canonical).encode("utf8")
 
 
-def _seq_to_all_kmers(seq: SeqType, states: bytes, k: int) -> ndarray:
+def _seq_to_all_kmers(seq: ndarray, states: bytes, k: int) -> ndarray:
     """return all valid k-mers from seq"""
     # positions with non-canonical characters are assigned value outside range
-    seq = seq2array(seq._seq.encode("utf8"), states)
     num_states = len(states)
     dtype = get_array_type(num_states ** k)
 

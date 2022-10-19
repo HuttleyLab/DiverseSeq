@@ -11,6 +11,7 @@ from cogent3 import make_seq, make_table, open_
 from cogent3.app import composable
 from cogent3.app import typing as c3_types
 from cogent3.parse.fasta import MinimalFastaParser
+from numpy import array, ndarray, uint8
 
 
 def _label_func(label):
@@ -136,3 +137,23 @@ def load_tsv(path):
     header = data[0].strip().split("\t")
     data = [l.strip().split("\t") for l in data[1:]]
     return make_table(header, data=data)
+
+
+@composable.define_app
+class str2arr:
+    def __init__(self, moltype: str = "dna", max_length=None):
+        moltype = get_moltype(moltype)
+        self.canonical = "".join(moltype)
+        self.extended = "".join(list(moltype.alphabets.degen))
+        self.max_length = max_length
+        self.translation = b"".maketrans(
+            self.extended.encode("utf8"),
+            "".join(chr(i) for i in range(len(self.extended))).encode("utf8"),
+        )
+
+    def main(self, data: str) -> ndarray:
+        if self.max_length:
+            data = data[: self.max_length]
+
+        b = data.encode("utf8").translate(self.translation)
+        return array(memoryview(bytearray(b)), dtype=uint8)
