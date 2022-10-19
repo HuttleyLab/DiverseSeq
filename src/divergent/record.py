@@ -407,6 +407,47 @@ def kmer_indices(seq: ndarray, result: ndarray, num_states: int, k: int) -> ndar
     return result[:result_idx]
 
 
+@numba.jit
+def kmer_counts(seq: ndarray, num_states: int, k: int) -> ndarray:
+    """return freqs of valid k-mers using 1D indices
+
+    Parameters
+    ----------
+    seq
+        numpy array of uint, assumed that canonical characters have
+        sequential indexes which are all < num_states
+    result
+        array to be written into
+    num_states
+        defines range of possible ints at a position
+    k
+        k-mer size
+
+    Returns
+    -------
+    result
+    """
+    coeffs = coord_conversion_coeffs(num_states, k)
+    kfreqs = zeros(num_states ** k, dtype=uint64)
+    skip_until = 0
+    for i in range(k):
+        if seq[i] >= num_states:
+            skip_until = i + 1
+
+    for i in range(len(seq) - k + 1):
+        if seq[i + k - 1] >= num_states:
+            skip_until = i + k
+
+        if i < skip_until:
+            continue
+
+        kmer = seq[i : i + k]
+        index = (kmer * coeffs).sum()
+        kfreqs[index] += 1
+
+    return kfreqs
+
+
 def _gt_zero(instance, attribute, value):
     if value <= 0:
         raise ValueError(f"must be > 0, not {value}")

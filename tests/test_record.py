@@ -1,3 +1,4 @@
+from collections import Counter
 from itertools import product
 from pathlib import Path
 
@@ -21,6 +22,7 @@ from divergent.record import (
     coord_to_index,
     index_to_coord,
     indices_to_seqs,
+    kmer_counts,
     kmer_indices,
     seq_to_kmer_counts,
     sparse_vector,
@@ -376,3 +378,21 @@ def test_indices_to_seqs():
     with pytest.raises(IndexError):
         # 16 is outside range
         indices_to_seqs(indices, states, 2)
+
+
+@pytest.mark.parametrize("seq,k", tuple(product(_seqs, _ks)))
+def test_kmer_freqs(seq, k):
+    seq = make_seq(seq, moltype="dna")
+    states = (list(seq.moltype),) * k
+    states = ["".join(v) for v in product(*states)]
+    counts = Counter(seq.iter_kmers(k))
+    expect = zeros(len(states), dtype=int)
+    for kmer, v in counts.items():
+        if kmer not in states:
+            continue
+        expect[states.index(kmer)] = v
+
+    seq2array = str2arr()
+    arr = seq2array(seq._seq)
+    got = kmer_counts(arr, 4, k)
+    assert (got == expect).all()
