@@ -1,11 +1,18 @@
 from itertools import product
 from pathlib import Path
 
-import numpy
 import pytest
 
 from cogent3 import get_moltype, make_seq
-from numpy import nextafter, ravel_multi_index, unravel_index
+from numpy import (
+    array,
+    nextafter,
+    ravel_multi_index,
+    uint16,
+    uint64,
+    unravel_index,
+    zeros,
+)
 from numpy.testing import assert_allclose
 
 from divergent.record import (
@@ -285,9 +292,9 @@ def test_sparse_vector_div_scalar(cast):
 @pytest.mark.parametrize("num_states,ndim", ((2, 1), (4, 2), (4, 4)))
 def test_interconversion_of_coords_indices(num_states, ndim):
     # make sure match numpy functions
-    coeffs = numpy.array(coord_conversion_coeffs(num_states, ndim))
+    coeffs = array(coord_conversion_coeffs(num_states, ndim))
     for coord in product(*(list(range(num_states)),) * ndim):
-        coord = numpy.array(coord, dtype=numpy.int64)
+        coord = array(coord, dtype=uint64)
         nidx = ravel_multi_index(coord, dims=(num_states,) * ndim)
         idx = coord_to_index(coord, coeffs)
         assert idx == nidx
@@ -298,8 +305,8 @@ def test_interconversion_of_coords_indices(num_states, ndim):
 
 
 def test_coord2index_fail():
-    coord = numpy.array((0, 1), dtype=numpy.int64)
-    coeffs = numpy.array(coord_conversion_coeffs(2, 4))
+    coord = array((0, 1), dtype=uint64)
+    coeffs = array(coord_conversion_coeffs(2, 4))
     # dimension of coords inconsistent with coeffs
     with pytest.raises(ValueError):
         coord_to_index(coord, coeffs)
@@ -308,9 +315,7 @@ def test_coord2index_fail():
 def test_unique_kmer_pickling():
     import pickle
 
-    kwargs = dict(
-        num_states=4, k=2, name="abc", source="abc", data=numpy.array([0, 2, 3])
-    )
+    kwargs = dict(num_states=4, k=2, name="abc", source="abc", data=array([0, 2, 3]))
     o = unique_kmers(**kwargs)
     p = pickle.dumps(o)
     u = pickle.loads(p)
@@ -318,9 +323,7 @@ def test_unique_kmer_pickling():
 
 
 def test_unique_kmer_len():
-    o = unique_kmers(
-        num_states=4, k=2, name="abc", source="abc", data=numpy.array([0, 2, 3])
-    )
+    o = unique_kmers(num_states=4, k=2, name="abc", source="abc", data=array([0, 2, 3]))
     assert len(o) == 3
 
     o = unique_kmers(num_states=4, k=2, name="abc", source="abc")
@@ -333,19 +336,19 @@ _ks = (1, 2, 3)
 
 @pytest.mark.parametrize("seq,k", tuple(product(_seqs, _ks)))
 def test_seq2kmers(seq, k):
-    dtype = numpy.uint64
+    dtype = uint64
 
     dna = get_moltype("dna")
 
     seq2array = str2arr()
     indices = seq2array(seq)
 
-    result = numpy.zeros(len(seq) - k + 1, dtype=dtype)
+    result = zeros(len(seq) - k + 1, dtype=dtype)
     num_states = 4
     got = kmer_indices(indices, result, num_states, k)
 
     expect = [
-        numpy.ravel_multi_index(indices[i : i + k], dims=(num_states,) * k)
+        ravel_multi_index(indices[i : i + k], dims=(num_states,) * k)
         for i in range(len(seq) - k + 1)
         if indices[i : i + k].max() < num_states
     ]
@@ -354,10 +357,10 @@ def test_seq2kmers(seq, k):
 
 def test_seq2kmers_all_ambig():
     k = 2
-    dtype = numpy.uint64
-    indices = numpy.zeros(6, dtype=dtype)
+    dtype = uint64
+    indices = zeros(6, dtype=dtype)
     indices[:] = 4
-    result = numpy.zeros(len(indices) - k + 1, dtype=dtype)
+    result = zeros(len(indices) - k + 1, dtype=dtype)
     got = kmer_indices(indices, result, 4, k)
 
     expect = []
@@ -365,11 +368,11 @@ def test_seq2kmers_all_ambig():
 
 
 def test_indices_to_seqs():
-    indices = numpy.array([0, 8], dtype=numpy.uint16)
+    indices = array([0, 8], dtype=uint16)
     states = b"TCAG"
     result = indices_to_seqs(indices, states, 2)
     assert result == ["TT", "AT"]
-    indices = numpy.array([0, 16], dtype=numpy.uint16)
+    indices = array([0, 16], dtype=uint16)
     with pytest.raises(IndexError):
         # 16 is outside range
         indices_to_seqs(indices, states, 2)
