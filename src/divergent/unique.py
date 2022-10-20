@@ -86,6 +86,10 @@ def non_redundant(paths, seqdir):
         range(len(records) - 1), total=len(records) - 1, description="calc distances..."
     ):
         rec1 = records[i]
+        if not rec1:
+            print(rec1)
+            continue
+
         rec1_id = get_identifier(rec1.name)
         if rec1_id in matched:
             continue
