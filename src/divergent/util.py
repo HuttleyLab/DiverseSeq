@@ -7,7 +7,7 @@ from typing import Any, Union
 import blosc2
 
 from attrs import define
-from cogent3 import make_seq, make_table, open_
+from cogent3 import get_moltype, make_seq, make_table, open_
 from cogent3.app import composable
 from cogent3.app import typing as c3_types
 from cogent3.parse.fasta import MinimalFastaParser
@@ -18,7 +18,7 @@ def _label_func(label):
     return label.split()[0]
 
 
-@composable.define_app
+@composable.define_app(app_type=composable.LOADER)
 def faster_load_fasta(path: c3_types.IdentifierType, label_func=_label_func) -> dict:
     with open_(path) as infile:
         result = {}
@@ -86,16 +86,22 @@ class seq_from_fasta:
         self.max_length = max_length
         self.loader = faster_load_fasta(label_func=label_func)
 
-    def main(self, identifier: filename_seqname) -> c3_types.SeqType:
-        name = identifier.name
-        data = self.loader(identifier.source)
-        seq = data[name]
+    def main(
+        self, identifier: filename_seqname | c3_types.IdentifierType
+    ) -> c3_types.SeqType:
+        path = identifier.source if hasattr(identifier, "name") else identifier
+        data = self.loader(path)
+        if hasattr(identifier, "name"):
+            name = identifier.name
+            seq = data[name]
+        else:
+            name, seq = list(data.items())[0]
 
         if self.max_length:
             seq = seq[: self.max_length]
 
         seq = make_seq(seq, name=name, moltype="dna")
-        seq.source = identifier.source
+        seq.source = getattr(identifier, "source", identifier)
         return seq
 
 
