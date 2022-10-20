@@ -157,3 +157,25 @@ class str2arr:
 
         b = data.encode("utf8").translate(self.translation)
         return array(memoryview(bytearray(b)), dtype=uint8)
+
+
+@composable.define_app
+class arr2str:
+    """convert array of uint8 to str"""
+
+    def __init__(self, moltype: str = "dna", max_length=None):
+        moltype = get_moltype(moltype)
+        self.canonical = "".join(moltype)
+        self.max_length = max_length
+        extended = "".join(list(moltype.alphabets.degen))
+        self.translation = b"".maketrans(
+            "".join(chr(i) for i in range(len(extended))).encode("utf8"),
+            extended.encode("utf8"),
+        )
+
+    def main(self, data: ndarray) -> str:
+        if self.max_length:
+            data = data[: self.max_length]
+
+        b = data.tobytes().translate(self.translation)
+        return bytearray(b).decode("utf8")
