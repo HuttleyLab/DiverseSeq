@@ -13,12 +13,7 @@ from numpy import intersect1d, setdiff1d, union1d, zeros
 from rich.progress import track
 
 from divergent import util as dv_utils
-from divergent.record import (
-    indices2str,
-    indices_to_seqs,
-    seq_to_unique_kmers,
-    unique_kmers,
-)
+from divergent.record import indices_to_seqs, seq_to_unique_kmers, unique_kmers
 
 
 @composable.define_app
@@ -174,8 +169,7 @@ class matched_kmers:
 
 
 def make_signature_table(results, parallel):
-    states = "".join(get_moltype("dna")).encode("utf8")
-    app = indices2str(states=states)
+    app = dv_utils.arr2str()
     if parallel:
         series = PAR.as_completed(
             app,
