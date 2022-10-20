@@ -1,7 +1,6 @@
 import re
 
 from collections import defaultdict
-from functools import singledispatch
 from pathlib import Path
 
 from cogent3 import get_moltype, make_table
@@ -9,11 +8,12 @@ from cogent3.app import composable
 from cogent3.app import typing as c3_types
 from cogent3.app.composable import NotCompleted
 from cogent3.util import parallel as PAR
-from numpy import intersect1d, setdiff1d, union1d, zeros
+from numpy import setdiff1d, zeros
 from rich.progress import track
 
 from divergent import util as dv_utils
 from divergent.record import indices_to_seqs, seq_to_unique_kmers, unique_kmers
+from src.divergent.distance import jaccard
 
 
 @composable.define_app
@@ -50,25 +50,6 @@ class signature_kmers:
             print(f"final number k-mers = {len(query):,}")
 
         return query
-
-
-@singledispatch
-def jaccard_similarity(rec1, rec2) -> tuple[int, int]:
-    raise NotImplementedError
-
-
-@jaccard_similarity.register(unique_kmers)
-def _(rec1: unique_kmers, rec2: unique_kmers) -> tuple[int, int]:
-    intersect = intersect1d(rec1.data, rec2.data, assume_unique=True)
-    union = union1d(rec1.data, rec2.data)
-    return len(intersect), len(union)
-
-
-@jaccard_similarity.register(set)
-def _(rec1: set, rec2: set) -> tuple[int, int]:
-    intersect = rec1 & rec2
-    union = rec1 | rec2
-    return len(intersect), len(union)
 
 
 def non_redundant(paths, seqdir):
@@ -111,7 +92,7 @@ def non_redundant(paths, seqdir):
         for j in range(i + 1, len(records)):
             rec2 = records[j]
             rec2_id = get_identifier(rec2.name)
-            if jaccard_similarity(rec1, rec2) == 1:
+            if jaccard(rec1, rec2) == 0:
                 matches[rec1_id].append(rec2_id)
                 matched.update({rec1_id, rec2_id})
                 continue
