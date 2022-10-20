@@ -141,14 +141,16 @@ def load_tsv(path):
 
 @composable.define_app
 class str2arr:
+    """convert string to array of uint8"""
+
     def __init__(self, moltype: str = "dna", max_length=None):
         moltype = get_moltype(moltype)
         self.canonical = "".join(moltype)
-        self.extended = "".join(list(moltype.alphabets.degen))
         self.max_length = max_length
+        extended = "".join(list(moltype.alphabets.degen))
         self.translation = b"".maketrans(
-            self.extended.encode("utf8"),
-            "".join(chr(i) for i in range(len(self.extended))).encode("utf8"),
+            extended.encode("utf8"),
+            "".join(chr(i) for i in range(len(extended))).encode("utf8"),
         )
 
     def main(self, data: str) -> ndarray:
