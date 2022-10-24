@@ -21,7 +21,7 @@ SummedRecords is the container that simplifies these applications
 from math import fsum
 
 from attrs import define, field
-from numpy import array, ndarray
+from numpy import isnan, ndarray
 
 from divergent.record import SeqRecord, sparse_vector
 
@@ -65,6 +65,9 @@ def _delta_jsd(
         summed_entropies = total_entropies - record.entropy
         jsd = _jsd(summed_kfreqs, summed_entropies, n - 1)
         record.delta_jsd = total_jsd - jsd
+        if isnan(record.delta_jsd):
+            print(f"{record.name!r} had a nan")
+            exit()
         result.append(record)
     return result
 
