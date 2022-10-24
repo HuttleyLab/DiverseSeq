@@ -81,6 +81,7 @@ class SummedRecords:
     summed_entropies: float
     total_jsd: float
     size: int = field(init=False)
+    record_names: set = field(init=False)
     lowest: SeqRecord = field(init=False)
 
     def __init__(
@@ -90,6 +91,7 @@ class SummedRecords:
         summed_entropies: float,
         total_jsd: float,
     ):
+        self.record_names = {r.name for r in records}
         self.total_jsd = total_jsd
         self.lowest = records[0]
         self.records = records[1:]
@@ -124,7 +126,11 @@ class SummedRecords:
         )
         return self.__class__(records, summed_kfreqs, summed_entropies, total_jsd)
 
+    def __contains__(self, item: SeqRecord):
+        return item.name in self.record_names
+
     def __add__(self, other: SeqRecord):
+        assert other not in self
         summed_kfreqs = self.summed_kfreqs + self.lowest.kfreqs + other.kfreqs
         summed_entropies = self.summed_entropies + self.lowest.entropy + other.entropy
         return self._make_new(
@@ -134,6 +140,7 @@ class SummedRecords:
         )
 
     def __sub__(self, other: SeqRecord):
+        assert other in self
         records = [r for r in self.records + [self.lowest] if r is not other]
         if len(records) != len(self.records):
             raise ValueError(
@@ -145,8 +152,8 @@ class SummedRecords:
         return self._make_new(records, summed_kfreqs, summed_entropies)
 
     def iter_record_names(self):
-        for record in [self.lowest] + self.records:
-            yield record.name
+        for name in self.record_names:
+            yield name
 
     def increases_jsd(self, record: SeqRecord) -> bool:
         # whether total JSD increases when record is used
