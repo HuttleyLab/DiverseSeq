@@ -487,17 +487,14 @@ class SeqRecord:
     )
 
     @property
-    @lru_cache(1)
     def size(self):
         return len(self.kfreqs)
 
     @property
-    @lru_cache(1)
     def entropy(self):
         return self.kfreqs.entropy
 
     @property
-    @lru_cache(1)
     def kfreqs(self):
         kcounts = self.kcounts
         return kcounts / kcounts.sum()
