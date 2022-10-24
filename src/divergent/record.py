@@ -1,9 +1,7 @@
 """defines basic data type for storing an individual sequence record"""
-
 import contextlib
 
 from collections.abc import MutableSequence
-from math import isclose
 from typing import Dict, Optional, Union
 
 import numba
@@ -12,7 +10,6 @@ from attrs import asdict, define, field, validators
 from cogent3 import get_moltype
 from cogent3.app import composable
 from cogent3.app import typing as c3_types
-from cogent3.app.typing import SeqType
 from cogent3.core.alphabet import get_array_type
 from numpy import array
 from numpy import divmod as np_divmod

@@ -22,7 +22,6 @@ from math import fsum
 
 from attrs import define, field
 from numpy import array, ndarray
-from sortedcontainers import SortedList
 
 from divergent.record import SeqRecord, sparse_vector
 
