@@ -43,28 +43,35 @@ seq4one = make_seq("AAAA", name="null", moltype="dna")
 
 @pytest.mark.parametrize("seq,entropy", ((seq4eq, 2.0), (seq4one, 0.0)))
 def test_seqrecord_entropy(seq, entropy):
-    sr = SeqRecord(seq=seq, moltype="dna", k=1)
+    arr = str2arr()(str(seq))
+    kcounts = kmer_counts(arr, 4, 1)
+    sr = SeqRecord(kcounts=kcounts, name=seq.name, length=len(seq))
     assert sr.entropy == entropy
 
 
-@pytest.mark.parametrize("seq,k", ((seq0, 1), (seq5, -1), (seq5, 100)))
-def test_seqrecord_invalid_input(seq, k):
-    with pytest.raises(ValueError):
-        SeqRecord(seq=seq, moltype="dna", k=k)
-
-
-@pytest.mark.parametrize("seq,k", ((seq_nameless, 1), (seq5, 0.1)))
-def test_seqrecord_invalid_types(seq, k):
+@pytest.mark.parametrize("name,length", ((1, 20), ("1", 20.0)))
+def test_seqrecord_invalid_types(name, length):
+    kcounts = array([1, 2, 3])
     with pytest.raises(TypeError):
-        SeqRecord(seq=seq, moltype="dna", k=k)
+        SeqRecord(kcounts=kcounts, name=name, length=length)
+
+
+@pytest.mark.parametrize("kcounts", ((0, 1, 2), [0, 1, 2]))
+def test_seqrecord_invalid_kcounts(kcounts):
+    with pytest.raises(TypeError):
+        SeqRecord(kcounts=kcounts, name="n1", length=1)
 
 
 def test_seqrecord_compare():
-    sr1 = SeqRecord(seq=seq5, moltype="dna", k=2)
+    arr = str2arr()(str(seq5))
+    kcounts = kmer_counts(arr, 4, 2)
+    length = 10
+    kwargs = dict(kcounts=kcounts, length=length)
+    sr1 = SeqRecord(name="n1", **kwargs)
     sr1.delta_jsd = 1.0
-    sr2 = SeqRecord(seq=seq5, moltype="dna", k=2)
+    sr2 = SeqRecord(name="n2", **kwargs)
     sr2.delta_jsd = 2.0
-    sr3 = SeqRecord(seq=seq5, moltype="dna", k=2)
+    sr3 = SeqRecord(name="n3", **kwargs)
     sr3.delta_jsd = 34.0
 
     rec = sorted((sr3, sr1, sr2))

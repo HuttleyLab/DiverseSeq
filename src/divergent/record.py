@@ -2,6 +2,7 @@
 import contextlib
 
 from collections.abc import MutableSequence
+from functools import lru_cache, singledispatch
 from math import fabs
 from typing import Dict, Optional, Union
 
@@ -459,47 +460,53 @@ def _gt_zero(instance, attribute, value):
         raise ValueError(f"must be > 0, not {value}")
 
 
-@define(slots=True, order=True)
-class SeqRecord:
-    """representation of a single sequence as kmers"""
+@singledispatch
+def _make_kcounts(data) -> sparse_vector:
+    raise TypeError(f"type {type(data)} not supported")
 
-    k: int = field(validator=[_gt_zero, validators.instance_of(int)])
-    name: str = field(init=False, validator=validators.instance_of(str))
-    length: int = field(init=False, validator=_gt_zero)
-    entropy: float = field(init=False, validator=validators.instance_of(float))
-    kfreqs: sparse_vector = field(init=False)
+
+@_make_kcounts.register
+def _(data: ndarray):
+    nonzero = {i: v for i, v in enumerate(data.tolist()) if v}
+    return sparse_vector(
+        vector_length=len(data), data=nonzero, dtype=_gettype(data.dtype.name)
+    )
+
+
+@_make_kcounts.register
+def _(data: sparse_vector):
+    return data
+
+
+@define(slots=True, order=True, hash=True)
+class SeqRecord:
+    """representation of a single sequence as kmer counts"""
+
+    kcounts: sparse_vector = field(eq=False, converter=_make_kcounts)
+    name: str = field(validator=validators.instance_of(str), eq=True)
+    length: int = field(validator=[validators.instance_of(int), _gt_zero], eq=True)
     delta_jsd: float = field(
         init=False,
         validator=validators.instance_of(float),
         default=0.0,
-        eq=True,
+        eq=False,
     )
-    size: int = field(init=False)
 
-    def __init__(self, k: int, seq: SeqType, moltype: Union[str, "MolType"]):
-        """
+    @property
+    @lru_cache(1)
+    def size(self):
+        return len(self.kfreqs)
 
-        Parameters
-        ----------
-        k
-            word size
-        seq
-            cogent3 Sequence instance
-        moltype
-            cogent3 MolType instance
-        """
-        self.__attrs_init__(k=k)
-        self.name = seq.name
-        self.length = len(seq)
-        if self.k > self.length:
-            raise ValueError(f"k={self.k} > length={self.length}")
+    @property
+    @lru_cache(1)
+    def entropy(self):
+        return self.kfreqs.entropy
 
-        moltype = get_moltype(moltype)
-        kcounts = seq_to_kmer_counts(k, moltype)(seq)
-        self.kfreqs = kcounts / kcounts.sum()
-        kfreqs = array(list(self.kfreqs.iter_nonzero()))
-        self.entropy = -(kfreqs * log2(kfreqs)).sum()
-        self.size = len(self.kfreqs)
+    @property
+    @lru_cache(1)
+    def kfreqs(self):
+        kcounts = self.kcounts
+        return kcounts / kcounts.sum()
 
 
 class _seq_to_kmers:
@@ -535,8 +542,7 @@ class _seq_to_kmers:
 class seq_to_kmer_counts(_seq_to_kmers):
     def main(self, seq: c3_types.SeqType) -> sparse_vector:
         kwargs = dict(
-            num_states=len(self.canonical),
-            k=self.k,
+            vector_length=len(self.canonical) ** self.k,
             dtype=int,
             source=getattr(seq, "source", None),
             name=seq.name,
