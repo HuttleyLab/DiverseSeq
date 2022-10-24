@@ -162,10 +162,7 @@ class sparse_vector(MutableSequence):
         assert len(self) == len(other)
         for pos in other.data.keys() & data.keys():
             val = self[pos] - other[pos]
-            if val < 0:
-                if not np_isclose(val, 0):
-                    raise ValueError(val)
-                val = fabs(val)
+            val = 0 if np_isclose(val, 0) else val
             data[pos] = val
         return data
 
@@ -173,10 +170,7 @@ class sparse_vector(MutableSequence):
         scalar = self.dtype(scalar)
         for pos, num in data.items():
             val = data[pos] - scalar
-            if val < 0:
-                if not np_isclose(val, 0):
-                    raise ValueError(val)
-                val = fabs(val)
+            val = 0 if np_isclose(val, 0) else val
             data[pos] = val
 
         return data
