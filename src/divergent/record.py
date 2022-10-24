@@ -121,12 +121,12 @@ class sparse_vector(MutableSequence):
 
         data = data or {}
         self.default = dtype(0)
-        self.data = {i: n for i, n in data.items() if not isclose(n, 0)}
+        self.data = {i: n for i, n in data.items() if not np_isclose(n, 0)}
         self.source = source
         self.name = name
 
     def __setitem__(self, key: int, value: NumType):
-        if isclose(value, 0):
+        if np_isclose(value, 0):
             return
         try:
             key = key.item()
