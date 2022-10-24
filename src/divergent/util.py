@@ -89,9 +89,9 @@ class seq_from_fasta:
     def main(
         self, identifier: filename_seqname | c3_types.IdentifierType
     ) -> c3_types.SeqType:
-        path = identifier.source if hasattr(identifier, "name") else identifier
+        path = identifier.source if hasattr(identifier, "source") else identifier
         data = self.loader(path)
-        if hasattr(identifier, "name"):
+        if hasattr(identifier, "source"):
             name = identifier.name
             seq = data[name]
         else:
