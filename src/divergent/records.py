@@ -157,7 +157,9 @@ class SummedRecords:
 
     def increases_jsd(self, record: SeqRecord) -> bool:
         # whether total JSD increases when record is used
-        return self.total_jsd < _jsd(
-            self.kfreqs + record.kfreqs,
+        j = _jsd(
+            self.summed_kfreqs + record.kfreqs,
+            self.summed_entropies + record.entropy,
+            self.size,
         )
-        raise NotImplementedError
+        return self.total_jsd < j
