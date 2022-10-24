@@ -12,8 +12,8 @@ from numpy import setdiff1d, zeros
 from rich.progress import track
 
 from divergent import util as dv_utils
+from divergent.distance import jaccard
 from divergent.record import indices_to_seqs, seq_to_unique_kmers, unique_kmers
-from src.divergent.distance import jaccard
 
 
 @composable.define_app
