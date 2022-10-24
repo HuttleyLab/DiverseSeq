@@ -79,6 +79,17 @@ def test_sub(seqcoll):
     assert_allclose(sr.total_jsd, expect)
 
 
+@pytest.mark.parametrize(
+    "exclude,expect", (("a", False), ("b", False), ("c", True), ("d", True))
+)
+def test_increases_jsd(seqcoll, exclude, expect):
+    kcounts = _get_kfreqs_per_seq(seqcoll, k=1)
+    records = {r.name: r for r in _make_records(kcounts, seqcoll)}
+    excluded = records.pop(exclude)
+    sr = SummedRecords.from_records(list(records.values()))
+    assert sr.increases_jsd(excluded) == expect
+
+
 def test_mean_delta_jsd(seqcoll):
     k = 1
     kcounts = _get_kfreqs_per_seq(seqcoll, k=k)
