@@ -77,8 +77,8 @@ class SummedRecords:
     """use the from_records clas method to construct the instance"""
 
     records: list[SeqRecord]
-    total_kfreqs: sparse_vector
-    total_entropies: ndarray
+    summed_kfreqs: sparse_vector
+    summed_entropies: float
     total_jsd: float
     size: int = field(init=False)
     lowest: SeqRecord = field(init=False)
@@ -87,15 +87,16 @@ class SummedRecords:
         self,
         records: list[SeqRecord],
         summed_kfreqs: sparse_vector,
-        summed_entropies: ndarray,
+        summed_entropies: float,
         total_jsd: float,
     ):
         self.total_jsd = total_jsd
         self.lowest = records[0]
         self.records = records[1:]
         self.size = len(records)
-        self.total_kfreqs = summed_kfreqs - self.lowest.kfreqs
-        self.total_entropies = summed_entropies - self.lowest.entropy
+        # NOTE we exclude lowest record from freqs and entropy
+        self.summed_kfreqs = summed_kfreqs - self.lowest.kfreqs
+        self.summed_entropies = summed_entropies - self.lowest.entropy
 
     @classmethod
     def from_records(cls, records: list[:SeqRecord]):
@@ -105,29 +106,14 @@ class SummedRecords:
         records = sorted(_delta_jsd(summed_kfreqs, summed_entropies, records))
         return cls(records, summed_kfreqs, summed_entropies, total_jsd)
 
-    def __add__(self, other: SeqRecord):
-        summed_kfreqs = self.total_kfreqs + self.lowest.kfreqs + other.kfreqs
-        summed_entropies = self.total_entropies + self.lowest.entropy + other.entropy
-        size = self.size + 1
-        total_jsd = _jsd(summed_kfreqs, summed_entropies, size)
-        records = sorted(
-            _delta_jsd(
-                summed_kfreqs,
-                summed_entropies,
-                [self.lowest, other] + list(self.records),
-            )
-        )
-        return self.__class__(records, summed_kfreqs, summed_entropies, total_jsd)
-
-    def __sub__(self, other: SeqRecord):
-        if other is self.lowest:
-            records = self.records
-        else:
-            records = [self.lowest] + [r for r in self.records if r is not other]
-
-        summed_kfreqs = self.total_kfreqs + self.lowest.kfreqs - other.kfreqs
-        summed_entropies = self.total_entropies + self.lowest.entropy - other.entropy
-        size = self.size - 1
+    def _make_new(
+        self,
+        records: list[:SeqRecord],
+        summed_kfreqs: sparse_vector,
+        summed_entropies: float,
+    ):
+        """summed are totals from all records"""
+        size = len(records)
         total_jsd = _jsd(summed_kfreqs, summed_entropies, size)
         records = sorted(
             _delta_jsd(
@@ -137,6 +123,26 @@ class SummedRecords:
             )
         )
         return self.__class__(records, summed_kfreqs, summed_entropies, total_jsd)
+
+    def __add__(self, other: SeqRecord):
+        summed_kfreqs = self.summed_kfreqs + self.lowest.kfreqs + other.kfreqs
+        summed_entropies = self.summed_entropies + self.lowest.entropy + other.entropy
+        return self._make_new(
+            [self.lowest, other] + list(self.records),
+            summed_kfreqs,
+            summed_entropies,
+        )
+
+    def __sub__(self, other: SeqRecord):
+        records = [r for r in self.records + [self.lowest] if r is not other]
+        if len(records) != len(self.records):
+            raise ValueError(
+                f"cannot subtract record {other.name!r}, not present in self"
+            )
+
+        summed_kfreqs = self.summed_kfreqs + self.lowest.kfreqs - other.kfreqs
+        summed_entropies = self.summed_entropies + self.lowest.entropy - other.entropy
+        return self._make_new(records, summed_kfreqs, summed_entropies)
 
     def iter_record_names(self):
         for record in [self.lowest] + self.records:
