@@ -79,8 +79,6 @@ def test_seq_to_kmer_counts_kfreqs(k):
 
     s2k = seq_to_kmer_counts(k=k, moltype="dna")
     kcounts = s2k(seq5)
-    assert kcounts.num_states == 4
-    assert kcounts.k == k
     assert kcounts.sum() == len(seq5) - k + 1
     # check we can round trip the counts
     int2str = lambda x: "".join(
@@ -96,12 +94,12 @@ def test_sparse_vector_create():
 
     data = {2: 3, 3: 9}
     # to constructor
-    v1 = sparse_vector(data=data, num_states=2, k=2, dtype=int)
+    v1 = sparse_vector(data=data, vector_length=2 ** 2, dtype=int)
     expect = array([0, 0, 3, 9])
     assert_allclose(v1.array, expect)
 
     # or via set item individually
-    v2 = sparse_vector(num_states=2, k=2)
+    v2 = sparse_vector(vector_length=2 ** 2)
     for index, count in data.items():
         v2[index] = count
 
@@ -112,10 +110,10 @@ def test_sparse_vector_create():
 def test_sparse_vector_add_vector(cast):
     # adds two vectors
     data = {2: 3, 3: 9}
-    v1 = sparse_vector(data=data, num_states=2, k=2, dtype=cast)
+    v1 = sparse_vector(data=data, vector_length=2 ** 2, dtype=cast)
 
     # add to zero vector
-    v0 = sparse_vector(num_states=2, k=2, dtype=cast)
+    v0 = sparse_vector(vector_length=2 ** 2, dtype=cast)
     v_ = v1 + v0
     assert v_.data == v1.data
     assert v_.data is not v1.data
@@ -134,7 +132,7 @@ def test_sparse_vector_add_zero(zero):
     # does not include
     expect = {2: 3.0, 3: 9.0}
     data = {1: zero, **expect}
-    v1 = sparse_vector(data=data, num_states=2, k=2, dtype=float)
+    v1 = sparse_vector(data=data, vector_length=2 ** 2, dtype=float)
     assert v1.data == expect
 
 
@@ -142,10 +140,10 @@ def test_sparse_vector_add_zero(zero):
 def test_sparse_vector_add_scalar(cast):
     # adds two vectors
     data = {2: 3, 3: 9}
-    v1 = sparse_vector(data=data, num_states=2, k=2, dtype=cast)
+    v1 = sparse_vector(data=data, vector_length=2 ** 2, dtype=cast)
 
     # add to zero vector
-    v0 = sparse_vector(num_states=2, k=2, dtype=cast)
+    v0 = sparse_vector(vector_length=2 ** 2, dtype=cast)
     v_ = v1 + 0
     assert v_.data == v1.data
     assert v_.data is not v1.data
@@ -159,13 +157,13 @@ def test_sparse_vector_add_scalar(cast):
 def test_sparse_vector_sub_vector(cast):
     # sub two vectors
     data = {2: 3, 3: 9}
-    v1 = sparse_vector(data=data, num_states=2, k=2, dtype=cast)
+    v1 = sparse_vector(data=data, vector_length=2 ** 2, dtype=cast)
     # sub self
     v3 = v1 - v1
     assert v3.data == {}
 
     data2 = {2: 3, 3: 10}
-    v2 = sparse_vector(data=data2, num_states=2, k=2, dtype=cast)
+    v2 = sparse_vector(data=data2, vector_length=2 ** 2, dtype=cast)
     v3 = v2 - v1
     assert v3.data == {3: cast(1)}
 
@@ -175,9 +173,9 @@ def test_sparse_vector_sub_vector(cast):
 
     # negative allowed
     data = {2: 3, 3: 9}
-    v1 = sparse_vector(data=data, num_states=2, k=2, dtype=cast)
+    v1 = sparse_vector(data=data, vector_length=2 ** 2, dtype=cast)
     data2 = {2: 6, 3: 10}
-    v2 = sparse_vector(data=data2, num_states=2, k=2, dtype=cast)
+    v2 = sparse_vector(data=data2, vector_length=2 ** 2, dtype=cast)
     v3 = v1 - v2
     assert v3[2] == -3
 
@@ -186,7 +184,7 @@ def test_sparse_vector_sub_vector(cast):
 def test_sparse_vector_sub_scalar(cast):
     # subtracts two vectors
     data = {2: 3, 3: 9}
-    v1 = sparse_vector(data=data, num_states=2, k=2, dtype=cast)
+    v1 = sparse_vector(data=data, vector_length=2 ** 2, dtype=cast)
 
     # subtract zero
     v_ = v1 - 0
@@ -201,7 +199,7 @@ def test_sparse_vector_sub_scalar(cast):
 @pytest.mark.parametrize("cast", (float, int))
 def test_sparse_vector_sub_elementwise(cast):
     data = {2: 3, 3: 9}
-    v2 = sparse_vector(data=data, num_states=2, k=2, dtype=cast)
+    v2 = sparse_vector(data=data, vector_length=2 ** 2, dtype=cast)
     v2[1] -= 99
     assert v2[1] == -99
     assert type(v2[1]) == cast
@@ -210,7 +208,7 @@ def test_sparse_vector_sub_elementwise(cast):
 @pytest.mark.parametrize("cast", (float, int))
 def test_sparse_vector_elementwise(cast):
     data = {2: 3, 3: 9}
-    v2 = sparse_vector(data=data, num_states=2, k=2, dtype=cast)
+    v2 = sparse_vector(data=data, vector_length=2 ** 2, dtype=cast)
     v2[1] += 99
     assert v2[1] == 99
     assert type(v2[1]) == cast
@@ -220,13 +218,13 @@ def test_sparse_vector_elementwise(cast):
 
 
 def test_sparse_vector_sum():
-    sv = sparse_vector(num_states=2, k=2, dtype=int)
+    sv = sparse_vector(vector_length=2 ** 2, dtype=int)
     assert sv.sum() == 0
 
 
 def test_sparse_vector_iter_nonzero():
     data = {3: 9, 2: 3}
-    sv = sparse_vector(data=data, num_states=4, k=2, dtype=int)
+    sv = sparse_vector(data=data, vector_length=4 ** 2, dtype=int)
     got = list(sv.iter_nonzero())
     assert got == [3, 9]
 
@@ -234,7 +232,7 @@ def test_sparse_vector_iter_nonzero():
 def test_sv_iter():
     from numpy import array
 
-    sv = sparse_vector(data={2: 1, 1: 1, 3: 1, 0: 1}, num_states=2, k=2, dtype=int)
+    sv = sparse_vector(data={2: 1, 1: 1, 3: 1, 0: 1}, vector_length=2 ** 2, dtype=int)
     sv /= sv.sum()
     got = list(sv.iter_nonzero())
     assert_allclose(got, 0.25)
@@ -244,7 +242,7 @@ def test_sv_iter():
 def test_sv_pickling():
     import pickle
 
-    o = sparse_vector(data={2: 1, 1: 1, 3: 1, 0: 1}, num_states=2, k=2, dtype=int)
+    o = sparse_vector(data={2: 1, 1: 1, 3: 1, 0: 1}, vector_length=2 ** 2, dtype=int)
     p = pickle.dumps(o)
     u = pickle.loads(p)
     assert str(u) == str(o)
@@ -254,17 +252,17 @@ def test_sv_pickling():
 def test_sparse_vector_div_vector(cast):
     # adds two vectors
     data1 = {2: 6, 3: 18}
-    v1 = sparse_vector(data=data1, num_states=2, k=2, dtype=cast)
+    v1 = sparse_vector(data=data1, vector_length=2 ** 2, dtype=cast)
 
     # factored by 3
     data2 = {2: 3, 3: 3}
-    v2 = sparse_vector(data=data2, num_states=2, k=2, dtype=cast)
+    v2 = sparse_vector(data=data2, vector_length=2 ** 2, dtype=cast)
     v3 = v1 / v2
     assert v3.data == {k: v / 3 for k, v in data1.items()}
 
     # different factors
     data2 = {2: 3, 3: 6}
-    v2 = sparse_vector(data=data2, num_states=2, k=2, dtype=cast)
+    v2 = sparse_vector(data=data2, vector_length=2 ** 2, dtype=cast)
     v3 = v1 / v2
     expect = {2: 2, 3: 3}
     assert v3.data == expect
@@ -278,7 +276,7 @@ def test_sparse_vector_div_vector(cast):
 def test_sparse_vector_div_scalar(cast):
     # adds two vectors
     data1 = {2: 6, 3: 18}
-    v1 = sparse_vector(data=data1, num_states=2, k=2, dtype=cast)
+    v1 = sparse_vector(data=data1, vector_length=2 ** 2, dtype=cast)
 
     # factored by 3
     v2 = v1 / 3

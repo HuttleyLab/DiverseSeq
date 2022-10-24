@@ -90,9 +90,8 @@ class unique_kmers:
 
 @define(slots=True)
 class sparse_vector(MutableSequence):
-    num_states: int
-    k: int
     data: PosDictType
+    vector_length: int
     default: Optional[NumType] = field(init=False)
     dtype: type = float
     source: str = None
@@ -101,8 +100,7 @@ class sparse_vector(MutableSequence):
     def __init__(
         self,
         *,
-        num_states: int,
-        k: int,
+        vector_length: int,
         data: PosDictType = None,
         dtype: type = float,
         source: str = None,
@@ -112,14 +110,13 @@ class sparse_vector(MutableSequence):
 
         Parameters
         ----------
-        num_states
+        vector_length
             num_states**k
         data
             dict of {k-mer index: NumType}
         dtype
         """
-        self.num_states = num_states
-        self.k = k
+        self.vector_length = vector_length
         self.dtype = dtype
 
         data = data or {}
@@ -147,7 +144,7 @@ class sparse_vector(MutableSequence):
             pass
 
     def __len__(self) -> int:
-        return self.num_states ** self.k
+        return self.vector_length
 
     def __iter__(self) -> NumType:
         yield from (self[i] for i in range(len(self)))
@@ -189,7 +186,7 @@ class sparse_vector(MutableSequence):
         )
         data = func({**self.data}, other)
         return self.__class__(
-            data=data, num_states=self.num_states, k=self.k, dtype=self.dtype
+            data=data, vector_length=self.vector_length, dtype=self.dtype
         )
 
     def __isub__(self, other):
@@ -218,7 +215,7 @@ class sparse_vector(MutableSequence):
         )
         data = func({**self.data}, other)
         return self.__class__(
-            data=data, num_states=self.num_states, k=self.k, dtype=self.dtype
+            data=data, vector_length=self.vector_length, dtype=self.dtype
         )
 
     def __iadd__(self, other):
@@ -248,9 +245,7 @@ class sparse_vector(MutableSequence):
         )
         # we are creating a new instance
         data = func({**self.data}, other)
-        return self.__class__(
-            data=data, num_states=self.num_states, k=self.k, dtype=float
-        )
+        return self.__class__(data=data, vector_length=self.vector_length, dtype=float)
 
     def __itruediv__(self, other):
         func = (
