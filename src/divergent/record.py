@@ -90,9 +90,9 @@ class unique_kmers:
 
 @define(slots=True)
 class sparse_vector(MutableSequence):
-    data: dict
     num_states: int
     k: int
+    data: PosDictType
     default: Optional[NumType] = field(init=False)
     dtype: type = float
     source: str = None
