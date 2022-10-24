@@ -2,6 +2,7 @@
 import contextlib
 
 from collections.abc import MutableSequence
+from math import fabs
 from typing import Dict, Optional, Union
 
 import numba
@@ -13,6 +14,7 @@ from cogent3.app import typing as c3_types
 from cogent3.core.alphabet import get_array_type
 from numpy import array
 from numpy import divmod as np_divmod
+from numpy import isclose as np_isclose
 from numpy import log2, ndarray, uint8, uint64
 from numpy import unique as np_unique
 from numpy import zeros
@@ -160,14 +162,25 @@ class sparse_vector(MutableSequence):
 
     def _sub_vector(self, data, other) -> dict:
         assert len(self) == len(other)
-        for pos, num in other.data.items():
-            data[pos] = self[pos] - num
+        for pos in other.data.keys() & data.keys():
+            val = self[pos] - other[pos]
+            if val < 0:
+                if not np_isclose(val, 0):
+                    raise ValueError(val)
+                val = fabs(val)
+            data[pos] = val
         return data
 
     def _sub_scalar(self, data, scalar) -> dict:
         scalar = self.dtype(scalar)
         for pos, num in data.items():
-            data[pos] -= scalar
+            val = data[pos] - scalar
+            if val < 0:
+                if not np_isclose(val, 0):
+                    raise ValueError(val)
+                val = fabs(val)
+            data[pos] = val
+
         return data
 
     def __sub__(self, other):
@@ -269,7 +282,8 @@ class sparse_vector(MutableSequence):
     @property
     def entropy(self):
         kfreqs = array(list(self.iter_nonzero()))
-        return -(kfreqs * log2(kfreqs)).sum()
+        # taking absolute value due to precision issues
+        return fabs(-(kfreqs * log2(kfreqs)).sum())
 
     def to_rich_dict(self):
         data = asdict(self)
