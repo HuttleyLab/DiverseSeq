@@ -163,3 +163,19 @@ class SummedRecords:
             self.size,
         )
         return self.total_jsd < j
+
+    @property
+    def mean_jsd(self):
+        return self.total_jsd / self.size
+
+    @property
+    def mean_delta_jsd(self):
+        total = fsum([fsum(r.delta_jsd for r in self.records), self.lowest.delta_jsd])
+        return total / (len(self.records) + 1)
+
+    def replaced_lowest(self, other: SeqRecord):
+        """returns new SummedRecords with other instead of lowest"""
+        summed_kfreqs = self.summed_kfreqs + other.kfreqs
+        summed_entropies = self.summed_entropies + other.entropy
+
+        return self._make_new([other] + self.records, summed_kfreqs, summed_entropies)

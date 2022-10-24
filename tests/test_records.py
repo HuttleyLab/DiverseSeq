@@ -77,3 +77,34 @@ def test_sub(seqcoll):
     freqs = {n: v.astype(float) / v.sum() for n, v in kcounts.items()}
     expect = jsd(*[freqs[name] for name in sr.iter_record_names()])
     assert_allclose(sr.total_jsd, expect)
+
+
+def test_mean_delta_jsd(seqcoll):
+    k = 1
+    kcounts = _get_kfreqs_per_seq(seqcoll, k=k)
+    records = [
+        SeqRecord(kcounts=kcounts[s.name], name=s.name, length=len(s))
+        for s in seqcoll.seqs
+    ]
+    sr_with_a = SummedRecords.from_records(records)
+    sr_without_a = SummedRecords.from_records([r for r in records if r.name != "a"])
+    assert sr_without_a.mean_delta_jsd > sr_with_a.mean_delta_jsd
+    one = SummedRecords.from_records([r for r in records if r.name not in "ac"])
+
+
+def test_replaced_lowest(seqcoll):
+    k = 1
+    kcounts = _get_kfreqs_per_seq(seqcoll, k=k)
+    records = _make_records(kcounts, seqcoll)
+    sr = SummedRecords.from_records(records[:-1])
+    lowest = sr.lowest
+    nsr = sr.replaced_lowest(records[-1])
+
+    assert nsr is not sr
+    assert sr.size == nsr.size == len(records) - 1
+    # make sure previous lowest not present at all
+    assert nsr.lowest is not lowest
+    for r in nsr.records:
+        assert r is not lowest
+    # make sure new record is present
+    assert any(r is records[-1] for r in nsr.records + [nsr.lowest])
