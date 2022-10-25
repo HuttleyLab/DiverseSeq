@@ -97,7 +97,10 @@ _seqdir = click.option(
     help="directory containing fasta formatted sequence files",
 )
 
-_click_command_opts = dict(no_args_is_help=True, context_settings={'show_default': True})
+_click_command_opts = dict(
+    no_args_is_help=True, context_settings={"show_default": True}
+)
+
 
 @main.command(**_click_command_opts)
 @_seqdir
@@ -278,11 +281,13 @@ def max(seqdir, outpath, size, fixed_size, k, parallel, limit, test_run, verbose
     from numpy.random import shuffle
 
     set_keepawake(keep_screen_awake=False)
-
-    paths = list(seqdir.glob("**/*.fa*"))
-    if not paths:
-        click.secho(f"{seqdir} contains no fasta paths", fg="red")
-        exit(1)
+    if not seqdir.is_file():
+        paths = list(seqdir.glob("**/*.fa*"))
+        if not paths:
+            click.secho(f"{seqdir} contains no fasta paths", fg="red")
+            exit(1)
+    else:
+        paths = dv_utils.get_seq_identifiers([seqdir])
 
     limit = 2 if test_run else limit or len(paths)
     paths = paths[:limit]
