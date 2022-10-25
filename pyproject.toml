@@ -41,6 +41,7 @@ test = [
 dev = [
     "black",
     "click",
+    "cog",
     "docformatter",
     "flit",
     "isort",
