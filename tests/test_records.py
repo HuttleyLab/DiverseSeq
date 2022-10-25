@@ -9,7 +9,7 @@ from cogent3.maths.measure import jsd
 from numpy.testing import assert_allclose
 
 from divergent.record import SeqRecord, kmer_counts
-from divergent.records import SummedRecords
+from divergent.records import SummedRecords, max_divergent
 from divergent.util import str2arr
 
 
@@ -119,3 +119,11 @@ def test_replaced_lowest(seqcoll):
         assert r is not lowest
     # make sure new record is present
     assert any(r is records[-1] for r in nsr.records + [nsr.lowest])
+
+
+def test_max_divergent(seqcoll):
+    k = 1
+    kcounts = _get_kfreqs_per_seq(seqcoll, k=k)
+    records = _make_records(kcounts, seqcoll)
+    got = max_divergent(records, size=2)
+    assert got.size == 2

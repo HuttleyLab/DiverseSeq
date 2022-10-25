@@ -72,11 +72,22 @@ def _delta_jsd(
     return result
 
 
+def _check_integrity(instance, attribute, records: list[SeqRecord]):
+    last = records[0]
+    for r in records[1:]:
+        if r.delta_jsd < last.delta_jsd:
+            raise RuntimeError
+
+
 @define
 class SummedRecords:
     """use the from_records clas method to construct the instance"""
 
-    records: list[SeqRecord]
+    # we need the records to have been sorted by delta_jsd
+    # following check is in place for now until fully tested
+    # todo delete when convinced no longer required
+
+    records: list[SeqRecord] = field(validator=_check_integrity)
     summed_kfreqs: sparse_vector
     summed_entropies: float
     total_jsd: float
@@ -179,3 +190,5 @@ class SummedRecords:
         summed_entropies = self.summed_entropies + other.entropy
 
         return self._make_new([other] + self.records, summed_kfreqs, summed_entropies)
+
+
