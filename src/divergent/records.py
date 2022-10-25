@@ -116,7 +116,10 @@ class SummedRecords:
         size = len(records)
         summed_kfreqs, summed_entropies = _summed_stats(records)
         total_jsd = _jsd(summed_kfreqs, summed_entropies, size)
-        records = sorted(_delta_jsd(summed_kfreqs, summed_entropies, records))
+        records = sorted(
+            _delta_jsd(summed_kfreqs, summed_entropies, records),
+            key=lambda x: x.delta_jsd,
+        )
         return cls(records, summed_kfreqs, summed_entropies, total_jsd)
 
     def _make_new(
@@ -133,7 +136,8 @@ class SummedRecords:
                 summed_kfreqs,
                 summed_entropies,
                 records,
-            )
+            ),
+            key=lambda x: x.delta_jsd,
         )
         return self.__class__(records, summed_kfreqs, summed_entropies, total_jsd)
 
@@ -190,5 +194,3 @@ class SummedRecords:
         summed_entropies = self.summed_entropies + other.entropy
 
         return self._make_new([other] + self.records, summed_kfreqs, summed_entropies)
-
-
