@@ -192,5 +192,4 @@ class SummedRecords:
         """returns new SummedRecords with other instead of lowest"""
         summed_kfreqs = self.summed_kfreqs + other.kfreqs
         summed_entropies = self.summed_entropies + other.entropy
-
         return self._make_new([other] + self.records, summed_kfreqs, summed_entropies)
