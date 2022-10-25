@@ -299,7 +299,7 @@ def max(seqdir, outpath, size, k, parallel, limit, test_run, verbose):
     sr = max_divergent(records, size=size, verbose=verbose > 0)
 
     names, deltas = list(
-        zip(*[(r.name, r.delta_jsd) for r in sr.records + [sr.lowest]])
+        zip(*[(r.name, r.delta_jsd) for r in [sr.lowest] + sr.records])
     )
     table = make_table(data={"names": names, "delta_jsd": deltas})
     outpath.parent.mkdir(parents=True, exist_ok=True)
