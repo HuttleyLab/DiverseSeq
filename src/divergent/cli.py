@@ -97,8 +97,9 @@ _seqdir = click.option(
     help="directory containing fasta formatted sequence files",
 )
 
+_click_command_opts = dict(no_args_is_help=True, context_settings={'show_default': True})
 
-@main.command(no_args_is_help=True)
+@main.command(**_click_command_opts)
 @_seqdir
 @_outdir
 @click.option("-k", type=int, default=7, help="k-mer size")
@@ -110,7 +111,7 @@ _seqdir = click.option(
 @click.option("-O", "--overwrite", is_flag=True, help="overwrite existing")
 @_verbose
 def seqs2kmers(seqdir, outdir, k, parallel, unique, limit, overwrite, verbose):
-    """write kmer data for seqs in seqdir"""
+    """write kmer data for seqs"""
     if overwrite and outdir.exists():
         shutil.rmtree(outdir, ignore_errors=True)
 
@@ -156,7 +157,7 @@ def seqs2kmers(seqdir, outdir, k, parallel, unique, limit, overwrite, verbose):
     unset_keepawake()
 
 
-@main.command(no_args_is_help=True)
+@main.command(**_click_command_opts)
 @click.option(
     "-i",
     "--indir",
@@ -170,7 +171,7 @@ def seqs2kmers(seqdir, outdir, k, parallel, unique, limit, overwrite, verbose):
 @click.option("-L", "--limit", type=int, help="number of records to process")
 @_verbose
 def sig_kmers(indir, seqdir, outdir, parallel, limit, verbose):
-    """signature k-mers uniquely identify each sequence.
+    """write k-mers that uniquely identify each sequence.
 
     Sequences that are redundant are excluded and written out as
     a tsv file to outdir.
@@ -204,7 +205,7 @@ def sig_kmers(indir, seqdir, outdir, parallel, limit, verbose):
     unset_keepawake()
 
 
-@main.command()
+@main.command(**_click_command_opts)
 @_seqdir
 @_outdir
 @click.option("-r", "--refk", type=Path, help="path to signature kmers from reference")
@@ -216,7 +217,7 @@ def sig_kmers(indir, seqdir, outdir, parallel, limit, verbose):
 )
 @click.option("-p", "--parallel", is_flag=True, help="run in parallel")
 def find_species(seqdir, outdir, refk, test_run, parallel):
-    """"""
+    """find occurrences of signature k-mers in query sequences"""
     from divergent.unique import matched_kmers
 
     set_keepawake(keep_screen_awake=False)
@@ -255,14 +256,14 @@ def find_species(seqdir, outdir, refk, test_run, parallel):
     unset_keepawake()
 
 
-@main.command()
+@main.command(**_click_command_opts)
 @_seqdir
 @_outpath
 @click.option("-z", "--size", default=7, type=int, help="fixed size of divergent set")
 @click.option(
     "-x", "--fixed_size", is_flag=True, help="result will have size number of seqs"
 )
-@click.option("-k", type=int, default=7, help="k-mer size")
+@click.option("-k", type=int, default=3, help="k-mer size")
 @click.option("-p", "--parallel", is_flag=True, help="run in parallel")
 @click.option("-L", "--limit", type=int, help="number of sequences to process")
 @click.option(
