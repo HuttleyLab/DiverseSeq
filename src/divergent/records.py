@@ -22,6 +22,7 @@ from math import fsum
 
 from attrs import define, field
 from numpy import isnan, ndarray
+from rich.progress import track
 
 from divergent.record import SeqRecord, sparse_vector
 
@@ -193,3 +194,47 @@ class SummedRecords:
         summed_kfreqs = self.summed_kfreqs + other.kfreqs
         summed_entropies = self.summed_entropies + other.entropy
         return self._make_new([other] + self.records, summed_kfreqs, summed_entropies)
+
+
+def max_divergent(
+    records: list[SeqRecord], size: int, verbose: bool = False
+) -> SummedRecords:
+    """returns SummedRecords that maximises mean delta_jsd
+
+    Parameters
+    ----------
+    records
+        list of SeqRecord instances
+    size
+        starting size of SummedRecords
+
+    Notes
+    -----
+    This is sensitive to the order of records.
+    """
+    size = size or 2
+    sr = SummedRecords.from_records(records[:size])
+
+    if len(records) <= size:
+        return sr
+
+    for r in track(records):
+        if r in sr:
+            continue
+
+        if not sr.increases_jsd(r):
+            continue
+
+        nsr = sr + r
+        sr = nsr if nsr.mean_delta_jsd > sr.mean_delta_jsd else sr.replaced_lowest(r)
+
+    size = sr.size
+    num_neg = sum(1 for r in [sr.lowest] + sr.records if r.delta_jsd < 0)
+    while sr.size > 2 and sr.lowest.delta_jsd < 0:
+        sr = SummedRecords.from_records(sr.records)
+    completed_size = sr.size
+    if verbose:
+        print(
+            f"Pruned {size - completed_size} records with delta_jsd < 0; original had {num_neg} negative"
+        )
+    return sr
