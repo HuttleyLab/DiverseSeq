@@ -5,7 +5,7 @@ from cogent3.maths.measure import jsd
 from numpy.testing import assert_allclose
 
 from divergent.record import SeqRecord, kmer_counts
-from divergent.records import SummedRecords, max_divergent
+from divergent.records import SummedRecords, max_divergent, most_divergent
 from divergent.util import str2arr
 
 
@@ -123,3 +123,11 @@ def test_max_divergent(seqcoll):
     records = _make_records(kcounts, seqcoll)
     got = max_divergent(records, size=2)
     assert got.size == 2
+
+
+def test_most_divergent(seqcoll):
+    k = 1
+    kcounts = _get_kfreqs_per_seq(seqcoll, k=k)
+    records = _make_records(kcounts, seqcoll)
+    got = most_divergent(records, size=3)
+    assert got.size == 3

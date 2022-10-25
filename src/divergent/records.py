@@ -239,3 +239,37 @@ def max_divergent(
             f"Pruned {size - completed_size} records with delta_jsd < 0; original had {num_neg} negative"
         )
     return sr
+
+
+def most_divergent(
+    records: list[SeqRecord], size: int, verbose: bool = False
+) -> SummedRecords:
+    """returns size most divergent records
+
+    Parameters
+    ----------
+    records
+        list of SeqRecord instances
+    size
+        starting size of SummedRecords
+
+    """
+    size = size or 2
+    sr = SummedRecords.from_records(records[:size])
+
+    if len(records) <= size:
+        return sr
+
+    for r in track(records):
+        if r in sr:
+            continue
+
+        if not sr.increases_jsd(r):
+            continue
+
+        sr = sr.replaced_lowest(r)
+
+    if verbose:
+        num_neg = sum(r.delta_jsd < 0 for r in [sr.lowest] + sr.records)
+        print(f"number negative is {num_neg}")
+    return sr

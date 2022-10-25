@@ -16,7 +16,7 @@ from divergent.record import (
     seq_to_record,
     seq_to_unique_kmers,
 )
-from divergent.records import max_divergent
+from divergent.records import max_divergent, most_divergent
 from divergent.unique import (
     get_signature_kmers,
     make_signature_table,
@@ -259,6 +259,9 @@ def find_species(seqdir, outdir, refk, test_run, parallel):
 @_seqdir
 @_outpath
 @click.option("-z", "--size", default=7, type=int, help="fixed size of divergent set")
+@click.option(
+    "-x", "--fixed_size", is_flag=True, help="result will have size number of seqs"
+)
 @click.option("-k", type=int, default=7, help="k-mer size")
 @click.option("-p", "--parallel", is_flag=True, help="run in parallel")
 @click.option("-L", "--limit", type=int, help="number of sequences to process")
@@ -269,7 +272,7 @@ def find_species(seqdir, outdir, refk, test_run, parallel):
     help="reduce number of paths and size of query seqs",
 )
 @_verbose
-def max(seqdir, outpath, size, k, parallel, limit, test_run, verbose):
+def max(seqdir, outpath, size, fixed_size, k, parallel, limit, test_run, verbose):
     """identify the seqs that maximise average delta entropy"""
     from numpy.random import shuffle
 
@@ -296,7 +299,8 @@ def max(seqdir, outpath, size, k, parallel, limit, test_run, verbose):
         records.append(result)
 
     shuffle(records)
-    sr = max_divergent(records, size=size, verbose=verbose > 0)
+    func = most_divergent if fixed_size else max_divergent
+    sr = func(records, size=size, verbose=verbose > 0)
 
     names, deltas = list(
         zip(*[(r.name, r.delta_jsd) for r in [sr.lowest] + sr.records])
