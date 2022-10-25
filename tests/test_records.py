@@ -1,7 +1,3 @@
-from collections import Counter
-from pathlib import Path
-
-import numpy
 import pytest
 
 from cogent3 import make_unaligned_seqs
