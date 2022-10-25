@@ -11,7 +11,12 @@ from scitrack import CachingLogger
 
 import divergent.util as dv_utils
 
-from divergent.record import seq_to_kmer_counts, seq_to_unique_kmers
+from divergent.record import (
+    seq_to_kmer_counts,
+    seq_to_record,
+    seq_to_unique_kmers,
+)
+from divergent.records import max_divergent
 from divergent.unique import (
     get_signature_kmers,
     make_signature_table,
@@ -245,6 +250,59 @@ def find_species(seqdir, outdir, refk, test_run, parallel):
     if test_run:
         print(repr(table))
         exit()
+    table.write(outpath)
+
+    unset_keepawake()
+
+
+@main.command()
+@_seqdir
+@_outpath
+@click.option("-z", "--size", default=7, type=int, help="fixed size of divergent set")
+@click.option("-k", type=int, default=7, help="k-mer size")
+@click.option("-p", "--parallel", is_flag=True, help="run in parallel")
+@click.option("-L", "--limit", type=int, help="number of sequences to process")
+@click.option(
+    "-T",
+    "--test_run",
+    is_flag=True,
+    help="reduce number of paths and size of query seqs",
+)
+@_verbose
+def max(seqdir, outpath, size, k, parallel, limit, test_run, verbose):
+    """identify the seqs that maximise average delta entropy"""
+    from numpy.random import shuffle
+
+    set_keepawake(keep_screen_awake=False)
+
+    paths = list(seqdir.glob("**/*.fa*"))
+    if not paths:
+        click.secho(f"{seqdir} contains no fasta paths", fg="red")
+        exit(1)
+
+    limit = 2 if test_run else limit or len(paths)
+    paths = paths[:limit]
+    app = dv_utils.seq_from_fasta() + seq_to_record(k=k, moltype="dna")
+    if parallel:
+        series = PAR.as_completed(app, paths, max_workers=6)
+    else:
+        series = map(app, paths)
+
+    records = []
+    for result in track(series, total=len(paths), update_period=1):
+        if not result:
+            print(result)
+            exit()
+        records.append(result)
+
+    shuffle(records)
+    sr = max_divergent(records, size=size, verbose=verbose > 0)
+
+    names, deltas = list(
+        zip(*[(r.name, r.delta_jsd) for r in sr.records + [sr.lowest]])
+    )
+    table = make_table(data={"names": names, "delta_jsd": deltas})
+    outpath.parent.mkdir(parents=True, exist_ok=True)
     table.write(outpath)
 
     unset_keepawake()

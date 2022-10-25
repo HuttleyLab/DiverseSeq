@@ -553,6 +553,31 @@ class seq_to_kmer_counts(_seq_to_kmers):
 
 
 @composable.define_app
+class seq_to_record(_seq_to_kmers):
+    def main(self, seq: c3_types.SeqType) -> SeqRecord:
+        kwargs = dict(
+            vector_length=len(self.canonical) ** self.k,
+            dtype=int,
+            source=getattr(seq, "source", None),
+            name=seq.name,
+        )
+        seq = self.seq2array(seq._seq)
+        if self.k > 7:
+            result = _seq_to_all_kmers(seq, self.canonical, self.k)
+            indices, counts = np_unique(result, return_counts=True)
+            counts = dict(zip(indices.tolist(), counts.tolist()))
+            del result
+        else:  # just make a dense array
+            counts = kmer_counts(seq, len(self.canonical), self.k)
+            counts = {i: c for i, c in enumerate(counts) if c}
+
+        kwargs["data"] = counts
+        return SeqRecord(
+            kcounts=sparse_vector(**kwargs), name=kwargs["name"], length=len(seq)
+        )
+
+
+@composable.define_app
 class seq_to_unique_kmers(_seq_to_kmers):
     def main(self, seq: c3_types.SeqType) -> unique_kmers:
         result = _seq_to_all_kmers(seq, self.canonical, self.k)

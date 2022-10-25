@@ -229,11 +229,12 @@ def max_divergent(
         sr = nsr if nsr.mean_delta_jsd > sr.mean_delta_jsd else sr.replaced_lowest(r)
 
     size = sr.size
-    num_neg = sum(1 for r in [sr.lowest] + sr.records if r.delta_jsd < 0)
+    num_neg = sum(r.delta_jsd < 0 for r in [sr.lowest] + sr.records)
     while sr.size > 2 and sr.lowest.delta_jsd < 0:
         sr = SummedRecords.from_records(sr.records)
-    completed_size = sr.size
+
     if verbose:
+        completed_size = sr.size
         print(
             f"Pruned {size - completed_size} records with delta_jsd < 0; original had {num_neg} negative"
         )
