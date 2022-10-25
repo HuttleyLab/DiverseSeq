@@ -29,7 +29,7 @@ def faster_load_fasta(path: c3_types.IdentifierType, label_func=_label_func) -> 
                     f"duplicated seq label {n!r} in {path}, but different seqs",
                     UserWarning,
                 )
-            result[n] = s
+            result[n] = s.replace("-", "-")
         return result
 
 
