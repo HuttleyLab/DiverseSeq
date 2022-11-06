@@ -197,7 +197,7 @@ class SummedRecords:
 
 
 def max_divergent(
-    records: list[SeqRecord], size: int, verbose: bool = False
+    records: list[SeqRecord], size: int, stat: str = "mean_jsd", verbose: bool = False
 ) -> SummedRecords:
     """returns SummedRecords that maximises mean delta_jsd
 
@@ -214,6 +214,8 @@ def max_divergent(
     """
     size = size or 2
     sr = SummedRecords.from_records(records[:size])
+    if stat not in ("mean_jsd", "mean_delta_jsd"):
+        raise ValueError(f"unknown value of stat {stat}")
 
     if len(records) <= size:
         return sr
@@ -226,7 +228,7 @@ def max_divergent(
             continue
 
         nsr = sr + r
-        sr = nsr if nsr.mean_delta_jsd > sr.mean_delta_jsd else sr.replaced_lowest(r)
+        sr = nsr if getattr(nsr, stat) > getattr(sr, stat) else sr.replaced_lowest(r)
 
     size = sr.size
     num_neg = sum(r.delta_jsd < 0 for r in [sr.lowest] + sr.records)
