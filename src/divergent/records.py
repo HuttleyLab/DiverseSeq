@@ -197,7 +197,10 @@ class SummedRecords:
 
 
 def max_divergent(
-    records: list[SeqRecord], size: int, stat: str = "mean_jsd", verbose: bool = False
+    records: list[SeqRecord],
+    size: int = 2,
+    stat: str = "mean_jsd",
+    verbose: bool = False,
 ) -> SummedRecords:
     """returns SummedRecords that maximises mean delta_jsd
 
