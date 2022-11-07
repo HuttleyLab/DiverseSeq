@@ -2,7 +2,7 @@
 import contextlib
 
 from collections.abc import MutableSequence
-from functools import lru_cache, singledispatch
+from functools import singledispatch
 from math import fabs
 from typing import Dict, Optional, Union
 
@@ -129,20 +129,16 @@ class sparse_vector(MutableSequence):
     def __setitem__(self, key: int, value: NumType):
         if np_isclose(value, 0):
             return
-        try:
+        with contextlib.suppress(AttributeError):
             key = key.item()
-        except AttributeError:
-            pass
         self.data[key] = self.dtype(value)
 
     def __getitem__(self, key: int) -> NumType:
         return self.data.get(key, self.default)
 
     def __delitem__(self, key: int):
-        try:
+        with contextlib.suppress(KeyError):
             del self.data[key]
-        except KeyError:
-            pass
 
     def __len__(self) -> int:
         return self.vector_length
