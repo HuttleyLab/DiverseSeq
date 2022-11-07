@@ -233,6 +233,8 @@ def max_divergent(
     size = sr.size
     num_neg = sum(r.delta_jsd < 0 for r in [sr.lowest] + sr.records)
     while sr.size >= size and sr.lowest.delta_jsd < 0:
+        # as the .records attribute has the top n-1 records, this reduces
+        # size by 1 on each iteration
         sr = SummedRecords.from_records(sr.records)
 
     if verbose:
