@@ -281,13 +281,13 @@ def max(seqdir, outpath, size, fixed_size, k, parallel, limit, test_run, verbose
     from numpy.random import shuffle
 
     set_keepawake(keep_screen_awake=False)
-    if not seqdir.is_file():
+    if seqdir.is_file():
+        paths = dv_utils.get_seq_identifiers([seqdir])
+    else:
         paths = list(seqdir.glob("**/*.fa*"))
         if not paths:
             click.secho(f"{seqdir} contains no fasta paths", fg="red")
             exit(1)
-    else:
-        paths = dv_utils.get_seq_identifiers([seqdir])
 
     limit = 2 if test_run else limit or len(paths)
     paths = paths[:limit]
