@@ -2,6 +2,7 @@ from collections import Counter
 from itertools import product
 from pathlib import Path
 
+import numpy
 import pytest
 
 from cogent3 import get_moltype, make_seq
