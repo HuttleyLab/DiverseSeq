@@ -23,7 +23,8 @@ from math import fsum
 from typing import Union
 
 from attrs import define, field
-from numpy import isnan, ndarray
+from numpy import isclose as np_isclose
+from numpy import isnan, log2, ndarray, zeros
 from rich.progress import track
 
 from divergent.record import SeqRecord, sparse_vector
@@ -63,11 +64,13 @@ def _(summed_freqs: ndarray, summed_entropy: float, n: int):
 def _summed_stats(records: list[SeqRecord]) -> tuple[sparse_vector, float]:
     # takes series of records and sums quantitative parts
     sv = records[0].kfreqs
-    vec = sparse_vector(vector_length=len(sv), dtype=float)
+    vec = zeros(len(sv), dtype=float)
     entropies = []
     for record in records:
         vec += record.kfreqs
         entropies.append(record.entropy)
+
+    vec = sparse_vector(data=vec, vector_length=len(vec), dtype=float)
     return vec, fsum(entropies)
 
 
@@ -79,9 +82,10 @@ def _delta_jsd(
     """measures contribution of each record to the total JSD"""
     n = len(records)
     total_jsd = _jsd(total_kfreqs, total_entropies, n)
+    total_kfreqs = total_kfreqs.array
     result = []
     for record in records:
-        summed_kfreqs = total_kfreqs - record.kfreqs
+        summed_kfreqs = total_kfreqs - record.kfreqs.array
         summed_entropies = total_entropies - record.entropy
         jsd = _jsd(summed_kfreqs, summed_entropies, n - 1)
         record.delta_jsd = total_jsd - jsd
