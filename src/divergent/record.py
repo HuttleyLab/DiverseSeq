@@ -3,7 +3,7 @@ import contextlib
 
 from collections.abc import MutableSequence
 from functools import singledispatch
-from math import fabs
+from math import fabs, isclose
 from typing import Dict, Optional, Union
 
 import numba
@@ -13,7 +13,7 @@ from cogent3 import get_moltype
 from cogent3.app import composable
 from cogent3.app import typing as c3_types
 from cogent3.core.alphabet import get_array_type
-from numpy import array
+from numpy import arange, array
 from numpy import divmod as np_divmod
 from numpy import isclose as np_isclose
 from numpy import log2, ndarray, uint8, uint64
@@ -27,13 +27,19 @@ NumType = Union[float, int]
 PosDictType = Dict[int, NumType]
 
 
-def _gettype(name):
+@singledispatch
+def _gettype(name) -> type:
     import numpy
 
     if name[-1].isdigit():
         return getattr(numpy, name)
     else:
         return {"int": int, "float": float}[name]
+
+
+@_gettype.register
+def _(name: type) -> type:
+    return name
 
 
 @define(slots=True)
@@ -118,6 +124,7 @@ class sparse_vector(MutableSequence):
         dtype
         """
         self.vector_length = vector_length
+        dtype = _gettype(dtype)
         self.dtype = dtype
 
         data = data or {}
