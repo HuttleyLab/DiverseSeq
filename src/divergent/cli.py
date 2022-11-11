@@ -262,11 +262,23 @@ def find_species(seqdir, outdir, refk, test_run, parallel):
 @main.command(**_click_command_opts)
 @_seqdir
 @_outpath
-@click.option("-z", "--size", default=7, type=int, help="fixed size of divergent set")
+@click.option(
+    "-z", "--min_size", default=7, type=int, help="minimum size of divergent set"
+)
+@click.option(
+    "-zp", "--max_size", default=None, type=int, help="maximum size of divergent set"
+)
 @click.option(
     "-x", "--fixed_size", is_flag=True, help="result will have size number of seqs"
 )
 @click.option("-k", type=int, default=3, help="k-mer size")
+@click.option(
+    "-st",
+    "--stat",
+    type=click.Choice(["total_jsd", "mean_delta_jsd", "mean_jsd"]),
+    default="mean_delta_jsd",
+    help="statistic to maximise",
+)
 @click.option("-p", "--parallel", is_flag=True, help="run in parallel")
 @click.option("-L", "--limit", type=int, help="number of sequences to process")
 @click.option(
@@ -276,7 +288,19 @@ def find_species(seqdir, outdir, refk, test_run, parallel):
     help="reduce number of paths and size of query seqs",
 )
 @_verbose
-def max(seqdir, outpath, size, fixed_size, k, parallel, limit, test_run, verbose):
+def max(
+    seqdir,
+    outpath,
+    min_size,
+    max_size,
+    fixed_size,
+    stat,
+    k,
+    parallel,
+    limit,
+    test_run,
+    verbose,
+):
     """identify the seqs that maximise average delta entropy"""
     from numpy.random import shuffle
 
@@ -305,8 +329,16 @@ def max(seqdir, outpath, size, fixed_size, k, parallel, limit, test_run, verbose
         records.append(result)
 
     shuffle(records)
-    func = most_divergent if fixed_size else max_divergent
-    sr = func(records, size=size, verbose=verbose > 0)
+    if fixed_size:
+        sr = most_divergent(records, size=min_size, verbose=verbose > 0)
+    else:
+        sr = max_divergent(
+            records,
+            min_size=min_size,
+            max_size=max_size,
+            stat=stat,
+            verbose=verbose > 0,
+        )
 
     names, deltas = list(
         zip(*[(r.name, r.delta_jsd) for r in [sr.lowest] + sr.records])
