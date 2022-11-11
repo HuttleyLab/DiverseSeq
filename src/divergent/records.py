@@ -18,7 +18,9 @@ identify the set of sequences that maximise delta-JSD
 SummedRecords is the container that simplifies these applications
 
 """
+from functools import singledispatch
 from math import fsum
+from typing import Union
 
 from attrs import define, field
 from numpy import isnan, ndarray
@@ -35,10 +37,27 @@ from divergent.record import SeqRecord, sparse_vector
 # the least contributor omitted)
 
 
-def _jsd(summed_freqs: sparse_vector, summed_entropy: float, n: int):
+@singledispatch
+def _jsd(
+    summed_freqs: Union[sparse_vector, ndarray], summed_entropy: float, n: int
+) -> float:
+    raise NotImplementedError
+
+
+@_jsd.register
+def _(summed_freqs: sparse_vector, summed_entropy: float, n: int):
     kfreqs = summed_freqs / n
     entropy = summed_entropy / n
     return kfreqs.entropy - entropy
+
+
+@_jsd.register
+def _(summed_freqs: ndarray, summed_entropy: float, n: int):
+    kfreqs = summed_freqs / n
+    entropy = summed_entropy / n
+    kfreqs = kfreqs[~np_isclose(kfreqs, 0)]
+    ke = -(kfreqs * log2(kfreqs)).sum()
+    return ke - entropy
 
 
 def _summed_stats(records: list[SeqRecord]) -> tuple[sparse_vector, float]:
