@@ -402,3 +402,19 @@ def test_kmer_freqs(seq, k):
     arr = seq2array(seq._seq)
     got = kmer_counts(arr, 4, k)
     assert (got == expect).all()
+
+
+def test_composable():
+    from cogent3.app.composable import __app_registry, define_app
+    from cogent3.util.misc import get_object_provenance
+
+    @define_app
+    def matched_sr(records: list[SeqRecord]) -> bool:
+        return True
+
+    sr = SeqRecord(kcounts=numpy.array([1, 2, 3, 4], dtype=int), name="a", length=10)
+    app = matched_sr()
+    got = app([sr])
+    assert got
+
+    __app_registry.pop(get_object_provenance(matched_sr), None)
