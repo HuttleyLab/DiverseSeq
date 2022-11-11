@@ -95,6 +95,27 @@ class unique_kmers:
         return indices_to_seqs(self.data, states, self.k)
 
 
+@singledispatch
+def _make_data(data) -> PosDictType:
+    raise NotImplementedError
+
+
+@_make_data.register
+def _(data: ndarray) -> PosDictType:
+    length = len(data)
+    return _arr_to_nonzero_dict(data)
+
+
+@_make_data.register
+def _(data: dict) -> PosDictType:
+    return {i: n for i, n in data.items() if not isclose(n, 0)}
+
+
+@_make_data.register
+def _(data: None) -> PosDictType:
+    return {}
+
+
 @define(slots=True)
 class sparse_vector(MutableSequence):
     data: PosDictType
@@ -127,9 +148,9 @@ class sparse_vector(MutableSequence):
         dtype = _gettype(dtype)
         self.dtype = dtype
 
-        data = data or {}
+        data = _make_data(data)
         self.default = dtype(0)
-        self.data = {i: n for i, n in data.items() if not np_isclose(n, 0)}
+        self.data = {**data}
         self.source = source
         self.name = name
 
