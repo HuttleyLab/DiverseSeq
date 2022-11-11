@@ -68,7 +68,7 @@ def _delta_jsd(
         record.delta_jsd = total_jsd - jsd
         if isnan(record.delta_jsd):
             print(f"{record.name!r} had a nan")
-            exit()
+            exit(1)
         result.append(record)
     return result
 
