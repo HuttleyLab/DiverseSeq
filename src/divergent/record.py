@@ -155,7 +155,7 @@ class sparse_vector(MutableSequence):
         self.name = name
 
     def __setitem__(self, key: int, value: NumType):
-        if np_isclose(value, 0):
+        if isclose(value, 0):
             return
         with contextlib.suppress(AttributeError):
             key = key.item()
