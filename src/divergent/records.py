@@ -202,7 +202,7 @@ def max_divergent(
     stat: str = "mean_jsd",
     verbose: bool = False,
 ) -> SummedRecords:
-    """returns SummedRecords that maximises mean delta_jsd
+    """returns SummedRecords that maximises mean stat
 
     Parameters
     ----------
@@ -211,13 +211,15 @@ def max_divergent(
     size
         starting size of SummedRecords
 
+    stat
+        either mean_delta_jsd, mean_jsd, total_jsd
     Notes
     -----
     This is sensitive to the order of records.
     """
     size = size or 2
     sr = SummedRecords.from_records(records[:size])
-    if stat not in ("mean_jsd", "mean_delta_jsd"):
+    if stat not in ("mean_jsd", "mean_delta_jsd", "total_jsd"):
         raise ValueError(f"unknown value of stat {stat}")
 
     if len(records) <= size:
