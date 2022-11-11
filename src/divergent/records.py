@@ -54,7 +54,7 @@ def _summed_stats(records: list[SeqRecord]) -> tuple[sparse_vector, float]:
 
 def _delta_jsd(
     total_kfreqs: sparse_vector,
-    total_entropies: ndarray,
+    total_entropies: float,
     records: list[SeqRecord],
 ) -> list[SeqRecord]:
     """measures contribution of each record to the total JSD"""
