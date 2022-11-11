@@ -140,7 +140,7 @@ def test_sparse_vector_add_zero(zero):
     # does not include
     expect = {2: 3.0, 3: 9.0}
     data = {1: zero, **expect}
-    v1 = sparse_vector(data=data, vector_length=2 ** 2, dtype=float)
+    v1 = sparse_vector(vector_length=2 ** 2, data=data, dtype=float)
     assert v1.data == expect
 
 
