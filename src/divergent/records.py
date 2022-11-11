@@ -217,8 +217,10 @@ class SummedRecords:
 
 def max_divergent(
     records: list[SeqRecord],
-    size: int = 2,
+    min_size: int = 2,
+    max_size: int = None,
     stat: str = "mean_jsd",
+    max_set: bool = True,
     verbose: bool = False,
 ) -> SummedRecords:
     """returns SummedRecords that maximises mean stat
@@ -227,24 +229,29 @@ def max_divergent(
     ----------
     records
         list of SeqRecord instances
-    size
+    min_size
         starting size of SummedRecords
-
+    max_size
+        defines upper limit of SummedRecords size
     stat
         either mean_delta_jsd, mean_jsd, total_jsd
+    max_set
+        postprocess to identify subset that maximises stat
     Notes
     -----
     This is sensitive to the order of records.
     """
-    size = size or 2
-    sr = SummedRecords.from_records(records[:size])
+    min_size = min_size or 2
+    max_size = max_size or len(records)
+    sr = SummedRecords.from_records(records[:min_size])
     if stat not in ("mean_jsd", "mean_delta_jsd", "total_jsd"):
         raise ValueError(f"unknown value of stat {stat}")
 
-    if len(records) <= size:
+    if len(records) <= min_size:
         return sr
 
-    for r in track(records):
+    series = track(records, transient=True) if verbose else records
+    for r in series:
         if r in sr:
             continue
 
@@ -253,18 +260,38 @@ def max_divergent(
 
         nsr = sr + r
         sr = nsr if getattr(nsr, stat) > getattr(sr, stat) else sr.replaced_lowest(r)
+        if sr.size > max_size:
+            sr = SummedRecords.from_records(sr.records)
 
-    size = sr.size
-    num_neg = sum(r.delta_jsd < 0 for r in [sr.lowest] + sr.records)
-    while sr.size >= size and sr.lowest.delta_jsd < 0:
-        # as the .records attribute has the top n-1 records, this reduces
-        # size by 1 on each iteration
-        sr = SummedRecords.from_records(sr.records)
+    if max_set:
+        sr = _maximal_stat(sr, verbose, stat, min_size)
+    elif verbose:
+        num_neg = sum(r.delta_jsd < 0 for r in [sr.lowest] + sr.records)
+        print(f"Records with delta_jsd < 0 is {num_neg}")
+    return sr
+
+
+def _maximal_stat(
+    sr: SummedRecords, verbose: bool, stat: str, size: int
+) -> SummedRecords:
+    if sr.size == 2:
+        return sr
+
+    results = {getattr(sr, stat): sr}
+    orig_size = sr.size
+    orig_stat = getattr(sr, stat)
+
+    while sr.size > size:
+        sr = sr.from_records(sr.records)
+        results[getattr(sr, stat)] = sr
+
+    sr = results[max(results)]
 
     if verbose:
-        completed_size = sr.size
         print(
-            f"Pruned {size - completed_size} records with delta_jsd < 0; original had {num_neg} negative"
+            f"Reduced size from {orig_size} to {sr.size}",
+            f" Increased {stat} from {orig_stat:.3f} to {getattr(sr, stat):.3f}",
+            sep="\n",
         )
     return sr
 
