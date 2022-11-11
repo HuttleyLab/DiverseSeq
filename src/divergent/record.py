@@ -527,8 +527,10 @@ class SeqRecord:
 
     @property
     def kfreqs(self):
-        kcounts = self.kcounts
-        return kcounts / kcounts.sum()
+        kcounts = self.kcounts.array
+        kcounts = kcounts.astype(float)
+        kfreqs = kcounts / kcounts.sum()
+        return sparse_vector(data=kfreqs, vector_length=len(kfreqs), dtype=float)
 
 
 class _seq_to_kmers:
