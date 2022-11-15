@@ -1,5 +1,8 @@
 from itertools import product
+from pathlib import Path
 from statistics import mean
+
+import click
 
 from cogent3 import make_table
 from cogent3.app import io
@@ -107,7 +110,13 @@ class assess_distances:
 
 
 def run(
-    stat, max_set, k: int = 4, min_size: int = 7, dist_size: int = 1000, limit=None
+    aln_dir: Path,
+    stat,
+    max_set,
+    k: int = 4,
+    min_size: int = 7,
+    dist_size: int = 1000,
+    limit=None,
 ):
     set_keepawake(keep_screen_awake=False)
 
@@ -116,9 +125,7 @@ def run(
     make_distn = assess_distances(dvgnt, dist_size=dist_size)
 
     app = loader + make_distn
-    dstore = io.get_data_store(
-        "~/repos/DataSets/mammals-aligned", suffix="fa", limit=limit
-    )
+    dstore = io.get_data_store(aln_dir, suffix="fa", limit=limit)
 
     results = []
     pvals = []
@@ -131,10 +138,17 @@ def run(
 
     unset_keepawake()
 
-    return result, pvals
+    return results, pvals
 
 
-def main():
+_click_command_opts = dict(
+    no_args_is_help=True, context_settings={"show_default": True}
+)
+
+
+@click.command(**_click_command_opts)
+@click.argument("seqdir", type=Path)
+def main(seqdir):
     settings = list(
         product(
             range(2, 9, 2), ("mean_jsd", "mean_delta_jsd", "total_jsd"), (True, False)
@@ -145,13 +159,13 @@ def main():
     rows = []
     for config in track(settings, description="Working on setting..."):
         setting = dict(zip(order, config))
-        result, pvals = run(min_size=5, dist_size=1000, **setting)
+        result, pvals = run(seqdir, min_size=5, dist_size=1000, **setting)
         size = len(result["divergent"])
         rows.append(list(config) + [size] + [sum(p < 0.1 for p in pvals), len(pvals)])
 
     table = make_table(header=list(order) + ["size", "p-value<0.1", "num"], data=rows)
     print(table)
-    table.write("jsd_v_paralinear-mean.tsv")
+    table.write("jsd_v_dist.tsv")
 
 
 if __name__ == "__main__":
