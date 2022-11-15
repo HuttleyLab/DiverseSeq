@@ -241,6 +241,7 @@ def max_divergent(
         either mean_delta_jsd, mean_jsd, total_jsd
     max_set
         postprocess to identify subset that maximises stat
+
     Notes
     -----
     This is sensitive to the order of records.
@@ -248,8 +249,6 @@ def max_divergent(
     min_size = min_size or 2
     max_size = max_size or len(records)
     sr = SummedRecords.from_records(records[:min_size])
-    if stat not in ("mean_jsd", "mean_delta_jsd", "total_jsd"):
-        raise ValueError(f"unknown value of stat {stat}")
 
     if len(records) <= min_size:
         return sr
