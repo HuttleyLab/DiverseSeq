@@ -168,7 +168,9 @@ def main():
     pools = "balanced", "imbalanced"
     settings = list(product(pools, stats))
     series = PAR.as_completed(app, settings, max_workers=6)
-    for t in track(series, total=len(settings), description=f"{config['seq_len']}bp sim"):
+    for t in track(
+        series, total=len(settings), description=f"{config['seq_len']}bp sim"
+    ):
         if not t:
             print(t)
         result_tables.append(t)
