@@ -210,7 +210,7 @@ class SummedRecords:
     @property
     def mean_delta_jsd(self):
         total = fsum([fsum(r.delta_jsd for r in self.records), self.lowest.delta_jsd])
-        return total / (len(self.records) + 1)
+        return total / self.size
 
     def replaced_lowest(self, other: SeqRecord):
         """returns new SummedRecords with other instead of lowest"""
@@ -246,7 +246,9 @@ def max_divergent(
     -----
     This is sensitive to the order of records.
     """
-    min_size = min_size or 2
+    if stat not in ("mean_jsd", "mean_delta_jsd", "total_jsd"):
+        raise ValueError(f"unknown value of stat {stat}")
+
     max_size = max_size or len(records)
     sr = SummedRecords.from_records(records[:min_size])
 
@@ -277,7 +279,7 @@ def max_divergent(
 def _maximal_stat(
     sr: SummedRecords, verbose: bool, stat: str, size: int
 ) -> SummedRecords:
-    if sr.size == 2:
+    if sr.size == size:
         return sr
 
     results = {getattr(sr, stat): sr}
