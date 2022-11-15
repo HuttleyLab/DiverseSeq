@@ -89,12 +89,12 @@ class assess_distances:
         num = len(divergent)
         combinations = get_combinations(aln.names, num, self.dist_size)
 
-        stats = {"observed": [True], "min(dist)": [get_mean(divergent)]}
+        stats = {"observed": [True], "mean(dist)": [get_mean(divergent)]}
         for names in combinations:
             stats["observed"].append(False)
-            stats["min(dist)"].append(get_mean(names))
+            stats["mean(dist)"].append(get_mean(names))
 
-        dists = stats["min(dist)"]
+        dists = stats["mean(dist)"]
         obs = dists[0]
         gt = sum(v >= obs for v in dists[1:])
         return {
