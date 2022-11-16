@@ -151,7 +151,7 @@ _click_command_opts = dict(
 def main(seqdir):
     settings = list(
         product(
-            range(2, 9, 2), ("mean_jsd", "mean_delta_jsd", "total_jsd"), (True, False)
+            range(2, 8), ("mean_jsd", "mean_delta_jsd", "total_jsd"), (True, False)
         )
     )
 
