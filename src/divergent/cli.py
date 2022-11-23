@@ -4,7 +4,7 @@ from pathlib import Path
 
 import click
 
-from cogent3 import get_moltype, make_table
+from cogent3 import make_table
 from cogent3.util import parallel as PAR
 from rich.progress import track
 from scitrack import CachingLogger
@@ -304,6 +304,10 @@ def max(
     """identify the seqs that maximise average delta entropy"""
     from numpy.random import shuffle
 
+    if max_size is not None and min_size > max_size:
+        click.secho(f"{min_size=} is greater than {max_size}", fg="red")
+        exit(1)
+
     set_keepawake(keep_screen_awake=False)
     if seqdir.is_file():
         paths = dv_utils.get_seq_identifiers([seqdir])
@@ -343,7 +347,7 @@ def max(
     names, deltas = list(
         zip(*[(r.name, r.delta_jsd) for r in [sr.lowest] + sr.records])
     )
-    table = make_table(data={"names": names, "delta_jsd": deltas})
+    table = make_table(data={"names": names, stat: deltas})
     outpath.parent.mkdir(parents=True, exist_ok=True)
     table.write(outpath)
 
