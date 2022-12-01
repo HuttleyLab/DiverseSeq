@@ -2,17 +2,10 @@ from functools import singledispatch
 
 from numpy import intersect1d, ndarray, union1d
 
-from divergent.record import unique_kmers
-
 
 @singledispatch
 def _intersect_union(rec1, rec2) -> tuple[int, int]:
     raise NotImplementedError
-
-
-@_intersect_union.register(unique_kmers)
-def _(rec1: unique_kmers, rec2: unique_kmers) -> tuple[int, int]:
-    return _intersect_union(rec1.data, rec2.data)
 
 
 @_intersect_union.register(set)

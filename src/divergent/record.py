@@ -49,59 +49,6 @@ def _arr_to_nonzero_dict(data):
     return data
 
 
-@define(slots=True)
-class unique_kmers:
-    data: ndarray
-    num_states: int
-    k: int
-    source: str = None
-    name: str = None
-
-    def __init__(
-        self,
-        *,
-        num_states: int,
-        k: int,
-        data: ndarray = None,
-        source: str = None,
-        name: str = None,
-    ):
-        """
-
-        Parameters
-        ----------
-        num_states
-            num_states
-        k
-            length of k-mer
-        data
-            dict of {k-mer index: NumType}
-        """
-        self.num_states = num_states
-        self.k = k
-        self.data = array(
-            [] if data is None else data, dtype=get_array_type(num_states ** k)
-        )
-        self.source = source
-        self.name = name
-
-    def __len__(self):
-        return len(self.data)
-
-    def __getstate__(self):
-        return asdict(self)
-
-    def __setstate__(self, data):
-        for k, v in data.items():
-            setattr(self, k, v)
-        return self
-
-    def to_kmer_strings(self, states: str) -> list[str]:
-        with contextlib.suppress(AttributeError):
-            states = states.encode("utf8")
-        return indices_to_seqs(self.data, states, self.k)
-
-
 @singledispatch
 def _make_data(data) -> PosDictType:
     raise NotImplementedError
@@ -610,21 +557,6 @@ class seq_to_record(_seq_to_kmers):
         )
 
 
-@composable.define_app
-class seq_to_unique_kmers(_seq_to_kmers):
-    def main(self, seq: c3_types.SeqType) -> unique_kmers:
-        result = _seq_to_all_kmers(seq, self.canonical, self.k)
-        kwargs = dict(
-            num_states=len(self.canonical),
-            k=self.k,
-            source=getattr(seq, "source", None),
-            name=seq.name,
-        )
-        kwargs["data"] = np_unique(result)
-        del result
-        return unique_kmers(**kwargs)
-
-
 def _get_canonical_states(moltype: str) -> bytes:
     moltype = get_moltype(moltype)
     canonical = list(moltype.alphabet)
@@ -644,8 +576,3 @@ def _seq_to_all_kmers(seq: ndarray, states: bytes, k: int) -> ndarray:
     result = zeros(len(seq) - k + 1, dtype=dtype)
     result = kmer_indices(seq, result, num_states, k)
     return result
-
-
-@composable.define_app
-def indices2str(r: unique_kmers, states: str) -> tuple[str, str]:
-    return r.name.rsplit(".", maxsplit=1)[0], ",".join(r.to_kmer_strings(states))

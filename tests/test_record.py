@@ -27,7 +27,6 @@ from divergent.record import (
     kmer_indices,
     seq_to_kmer_counts,
     sparse_vector,
-    unique_kmers,
 )
 from divergent.util import str2arr
 
@@ -318,24 +317,6 @@ def test_coord2index_fail():
     # dimension of coords inconsistent with coeffs
     with pytest.raises(ValueError):
         coord_to_index(coord, coeffs)
-
-
-def test_unique_kmer_pickling():
-    import pickle
-
-    kwargs = dict(num_states=4, k=2, name="abc", source="abc", data=array([0, 2, 3]))
-    o = unique_kmers(**kwargs)
-    p = pickle.dumps(o)
-    u = pickle.loads(p)
-    assert str(o) == str(u)
-
-
-def test_unique_kmer_len():
-    o = unique_kmers(num_states=4, k=2, name="abc", source="abc", data=array([0, 2, 3]))
-    assert len(o) == 3
-
-    o = unique_kmers(num_states=4, k=2, name="abc", source="abc")
-    assert len(o) == 0
 
 
 _seqs = ("ACGGCGGTGCA", "ACGGNGGTGCA", "ANGGCGGTGNA")
