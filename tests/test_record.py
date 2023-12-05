@@ -19,6 +19,7 @@ from numpy.testing import assert_allclose
 
 from divergent.record import (
     SeqRecord,
+    _gettype,
     coord_conversion_coeffs,
     coord_to_index,
     index_to_coord,
@@ -399,3 +400,18 @@ def test_composable():
     assert got
 
     __app_registry.pop(get_object_provenance(matched_sr), None)
+
+
+dtype_name = lambda x: numpy.dtype(x).name
+
+
+@pytest.mark.parametrize(
+    "dtype", ("int", "float", dtype_name(numpy.int32), dtype_name(numpy.float64))
+)
+def test__gettype(dtype):
+    if dtype[-1].isdigit():
+        expect = getattr(numpy, dtype)
+    else:
+        expect = int if dtype == "int" else float
+    got = _gettype(dtype)
+    assert got == expect

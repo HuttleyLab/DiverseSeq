@@ -29,6 +29,11 @@ PosDictType = Dict[int, NumType]
 
 @singledispatch
 def _gettype(name) -> type:
+    raise NotImplementedError
+
+
+@_gettype.register
+def _(name: str) -> type:
     import numpy
 
     if name[-1].isdigit():
