@@ -42,13 +42,6 @@ def _(name: type) -> type:
     return name
 
 
-def _arr_to_nonzero_dict(data):
-    length = len(data)
-    not_zero = ~np_isclose(data, 0.0)
-    data = dict(zip(arange(length)[not_zero], data[not_zero]))
-    return data
-
-
 @singledispatch
 def _make_data(data) -> PosDictType:
     raise NotImplementedError
