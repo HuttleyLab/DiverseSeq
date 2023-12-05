@@ -43,7 +43,7 @@ def _(name: type) -> type:
 
 
 @singledispatch
-def _make_data(data) -> PosDictType:
+def _make_data(data, size: int | None = None, dtype: type = int) -> ndarray:
     raise NotImplementedError
 
 
@@ -274,7 +274,7 @@ def coord_to_index(coord, coeffs):
 
 
 @numba.jit(nopython=True)
-def index_to_coord(index, coeffs):
+def index_to_coord(index, coeffs):  # pragma: no cover
     """converts a 1D index into a multi-dimensional coordinate"""
     ndim = len(coeffs)
     coord = zeros(ndim, dtype=uint64)
@@ -300,7 +300,9 @@ def indices_to_seqs(indices: ndarray, states: bytes, k: int) -> list[str]:
 
 
 @numba.jit(nopython=True)
-def indices_to_bytes(indices: ndarray, states: bytes, k: int) -> ndarray:
+def indices_to_bytes(
+    indices: ndarray, states: bytes, k: int
+) -> ndarray:  # pragma: no cover
     """convert indices from k-dim into bytes
 
         Parameters
@@ -339,7 +341,9 @@ def indices_to_bytes(indices: ndarray, states: bytes, k: int) -> ndarray:
 
 
 @numba.jit(nopython=True)
-def kmer_indices(seq: ndarray, result: ndarray, num_states: int, k: int) -> ndarray:
+def kmer_indices(
+    seq: ndarray, result: ndarray, num_states: int, k: int
+) -> ndarray:  # pragma: no cover
     """return 1D indices for valid k-mers
 
     Parameters
@@ -380,7 +384,7 @@ def kmer_indices(seq: ndarray, result: ndarray, num_states: int, k: int) -> ndar
 
 
 @numba.jit(nopython=True)
-def kmer_counts(seq: ndarray, num_states: int, k: int) -> ndarray:
+def kmer_counts(seq: ndarray, num_states: int, k: int) -> ndarray:  # pragma: no cover
     """return freqs of valid k-mers using 1D indices
 
     Parameters
