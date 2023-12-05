@@ -53,19 +53,23 @@ def _make_data(data, size: int | None = None, dtype: type = int) -> ndarray:
 
 
 @_make_data.register
-def _(data: ndarray) -> PosDictType:
-    length = len(data)
-    return _arr_to_nonzero_dict(data)
+def _(data: ndarray, size: int | None = None, dtype: type = int) -> ndarray:
+    return data
 
 
 @_make_data.register
-def _(data: dict) -> PosDictType:
-    return {i: n for i, n in data.items() if not isclose(n, 0)}
+def _(data: None, size: int | None = None, dtype: type = int) -> ndarray:
+    return numpy.zeros(size, dtype=dtype)
 
 
 @_make_data.register
-def _(data: None) -> PosDictType:
-    return {}
+def _(data: dict, size: int | None = None, dtype: type = int) -> ndarray:
+    result = numpy.zeros(size, dtype=dtype)
+    for i, n in data.items():
+        if isclose(n, 0):
+            continue
+        result[i] = n
+    return result
 
 
 @define(slots=True)
