@@ -27,7 +27,7 @@ from divergent.record import (
     kmer_counts,
     kmer_indices,
     seq_to_kmer_counts,
-    sparse_vector,
+    vector,
 )
 from divergent.util import str2arr
 
@@ -102,88 +102,99 @@ def test_sparse_vector_create():
 
     data = {2: 3, 3: 9}
     # to constructor
-    v1 = sparse_vector(data=data, vector_length=2**2, dtype=int)
+    v1 = vector(data=data, vector_length=2**2, dtype=int)
     expect = array([0, 0, 3, 9])
-    assert_allclose(v1.array, expect)
+    assert_allclose(v1.data, expect)
 
     # or via set item individually
-    v2 = sparse_vector(vector_length=2**2)
+    v2 = vector(vector_length=2**2)
     for index, count in data.items():
         v2[index] = count
 
-    assert v1.data == v2.data
+    assert (v1.data == v2.data).all()
 
 
 @pytest.mark.parametrize("cast", (float, int))
 def test_sparse_vector_add_vector(cast):
     # adds two vectors
     data = {2: 3, 3: 9}
-    v1 = sparse_vector(data=data, vector_length=2**2, dtype=cast)
+    v1 = vector(data=data, vector_length=2**2, dtype=cast)
 
     # add to zero vector
-    v0 = sparse_vector(vector_length=2**2, dtype=cast)
+    v0 = vector(vector_length=2**2, dtype=cast)
     v_ = v1 + v0
-    assert v_.data == v1.data
+    assert (v_.data == v1.data).all()
     assert v_.data is not v1.data
 
     # add to self
     v3 = v1 + v1
-    assert v3.data == {k: v * 2 for k, v in data.items()}
+    assert (v3.data == v1.data * 2).all()
 
     # add in-place
     v1 += v1
-    assert v1.data == {k: v * 2 for k, v in data.items()}
+    assert (v1.data == v3.data).all()
 
 
 @pytest.mark.parametrize("zero", (0, 0.0, nextafter(0.0, 1.0) / 2))
 def test_sparse_vector_add_zero(zero):
     # does not include
     expect = {2: 3.0, 3: 9.0}
-    data = {1: zero, **expect}
-    v1 = sparse_vector(vector_length=2**2, data=data, dtype=float)
-    assert v1.data == expect
+    expect = numpy.zeros(4, dtype=float)
+    expect[2] = 3.0
+    expect[3] = 9.0
+    data = expect[:]
+    data[1] = 0.0
+    v1 = vector(vector_length=2**2, data=data, dtype=float)
+    assert (v1.data == expect).all()
 
 
 @pytest.mark.parametrize("cast", (float, int))
 def test_sparse_vector_add_scalar(cast):
     # adds two vectors
     data = {2: 3, 3: 9}
-    v1 = sparse_vector(data=data, vector_length=2**2, dtype=cast)
+    v1 = vector(data=data, vector_length=2**2, dtype=cast)
 
     # add to zero vector
-    v0 = sparse_vector(vector_length=2**2, dtype=cast)
+    v0 = vector(vector_length=2**2, dtype=cast)
     v_ = v1 + 0
-    assert v_.data == v1.data
+    assert (v_.data == v1.data).all()
     assert v_.data is not v1.data
 
     # add in place
+    expect = v1.data[:]
+    expect += 5
     v1 += 5
-    assert v1.data == {k: v + 5 for k, v in data.items()}
+    assert (v1.data == expect).all()
 
 
 @pytest.mark.parametrize("cast", (float, int))
 def test_sparse_vector_sub_vector(cast):
     # sub two vectors
     data = {2: 3, 3: 9}
-    v1 = sparse_vector(data=data, vector_length=2**2, dtype=cast)
+    v1 = vector(data=data, vector_length=2**2, dtype=cast)
     # sub self
     v3 = v1 - v1
-    assert v3.data == {}
+    assert_allclose(v3.data, 0)
 
     data2 = {2: 3, 3: 10}
-    v2 = sparse_vector(data=data2, vector_length=2**2, dtype=cast)
+    v2 = vector(data=data2, vector_length=2**2, dtype=cast)
     v3 = v2 - v1
-    assert v3.data == {3: cast(1)}
+    expect = numpy.zeros(4, dtype=cast)
+    expect[3] = cast(1)
+    assert (v3.data == expect).all()
 
     # sub in-place
+    orig = v1
+    expect = v1.data - v2.data
     v1 -= v2
-    assert v1.data == {k: v - data2[k] for k, v in data.items()}
+    assert v1 is orig
+    assert (v1.data == expect).all()
 
     # negative allowed
     data = {2: 3, 3: 9}
-    v1 = sparse_vector(data=data, vector_length=2**2, dtype=cast)
+    v1 = vector(data=data, vector_length=2**2, dtype=cast)
     data2 = {2: 6, 3: 10}
-    v2 = sparse_vector(data=data2, vector_length=2**2, dtype=cast)
+    v2 = vector(data=data2, vector_length=2**2, dtype=cast)
     v3 = v1 - v2
     assert v3[2] == -3
 
@@ -192,47 +203,48 @@ def test_sparse_vector_sub_vector(cast):
 def test_sparse_vector_sub_scalar(cast):
     # subtracts two vectors
     data = {2: 3, 3: 9}
-    v1 = sparse_vector(data=data, vector_length=2**2, dtype=cast)
+    v1 = vector(data=data, vector_length=2**2, dtype=cast)
 
     # subtract zero
     v_ = v1 - 0
-    assert v_.data == v1.data
+    assert (v_.data == v1.data).all()
     assert v_.data is not v1.data
 
     # subtract in place
+    expect = v1.data - 2
     v1 -= 2
-    assert v1.data == {k: v - 2 for k, v in data.items()}
+    assert (v1.data == expect).all()
 
 
 @pytest.mark.parametrize("cast", (float, int))
 def test_sparse_vector_sub_elementwise(cast):
     data = {2: 3, 3: 9}
-    v2 = sparse_vector(data=data, vector_length=2**2, dtype=cast)
+    v2 = vector(data=data, vector_length=2**2, dtype=cast)
     v2[1] -= 99
     assert v2[1] == -99
-    assert type(v2[1]) == cast
+    text = "float" if cast == float else "int"
+    assert v2[1].dtype.name.startswith(text)
 
 
 @pytest.mark.parametrize("cast", (float, int))
 def test_sparse_vector_elementwise(cast):
     data = {2: 3, 3: 9}
-    v2 = sparse_vector(data=data, vector_length=2**2, dtype=cast)
+    v2 = vector(data=data, vector_length=2**2, dtype=cast)
     v2[1] += 99
     assert v2[1] == 99
-    assert type(v2[1]) == cast
-    del v2[1]
-    assert v2[1] == 0
-    assert type(v2[1]) == cast
+
+    text = "float" if cast == float else "int"
+    assert v2[1].dtype.name.startswith(text)
 
 
 def test_sparse_vector_sum():
-    sv = sparse_vector(vector_length=2**2, dtype=int)
+    sv = vector(vector_length=2**2, dtype=int)
     assert sv.sum() == 0
 
 
 def test_sparse_vector_iter_nonzero():
     data = {3: 9, 2: 3}
-    sv = sparse_vector(data=data, vector_length=4**2, dtype=int)
+    sv = vector(data=data, vector_length=4**2, dtype=int)
     got = list(sv.iter_nonzero())
     assert got == [3, 9]
 
@@ -240,7 +252,7 @@ def test_sparse_vector_iter_nonzero():
 def test_sv_iter():
     from numpy import array
 
-    sv = sparse_vector(data={2: 1, 1: 1, 3: 1, 0: 1}, vector_length=2**2, dtype=int)
+    sv = vector(data={2: 1, 1: 1, 3: 1, 0: 1}, vector_length=2**2, dtype=int)
     sv /= sv.sum()
     got = list(sv.iter_nonzero())
     assert_allclose(got, 0.25)
@@ -250,7 +262,7 @@ def test_sv_iter():
 def test_sv_pickling():
     import pickle
 
-    o = sparse_vector(data={2: 1, 1: 1, 3: 1, 0: 1}, vector_length=2**2, dtype=int)
+    o = vector(data={2: 1, 1: 1, 3: 1, 0: 1}, vector_length=2**2, dtype=int)
     p = pickle.dumps(o)
     u = pickle.loads(p)
     assert str(u) == str(o)
@@ -260,41 +272,44 @@ def test_sv_pickling():
 def test_sparse_vector_div_vector(cast):
     # adds two vectors
     data1 = {2: 6, 3: 18}
-    v1 = sparse_vector(data=data1, vector_length=2**2, dtype=cast)
+    v1 = vector(data=data1, vector_length=2**2, dtype=cast)
 
     # factored by 3
     data2 = {2: 3, 3: 3}
-    v2 = sparse_vector(data=data2, vector_length=2**2, dtype=cast)
+    v2 = vector(data=data2, vector_length=2**2, dtype=cast)
+    expect = numpy.nan_to_num(v1.data / v2.data, nan=0.0)
     v3 = v1 / v2
-    assert v3.data == {k: v / 3 for k, v in data1.items()}
+    assert (v3.data == expect).all()
 
     # different factors
     data2 = {2: 3, 3: 6}
-    v2 = sparse_vector(data=data2, vector_length=2**2, dtype=cast)
+    v2 = vector(data=data2, vector_length=2**2, dtype=cast)
     v3 = v1 / v2
-    expect = {2: 2, 3: 3}
-    assert v3.data == expect
+    expect = numpy.nan_to_num(v1.data / v2.data, nan=0.0)
+    assert (v3.data == expect).all()
 
     # div in-place
+    orig = v1
     v1 /= v2
-    assert v1.data == expect
+    assert v1 is orig
+    assert (v1.data == expect).all()
 
 
 @pytest.mark.parametrize("cast", (float, int))
 def test_sparse_vector_div_scalar(cast):
     # adds two vectors
     data1 = {2: 6, 3: 18}
-    v1 = sparse_vector(data=data1, vector_length=2**2, dtype=cast)
+    v1 = vector(data=data1, vector_length=2**2, dtype=cast)
 
     # factored by 3
     v2 = v1 / 3
-    expect = {k: v / 3 for k, v in data1.items()}
-    assert v2.data == expect
-    assert v2.data is not v1.data
+    expect = numpy.nan_to_num(v1.data / 3, nan=0.0)
+    assert (v2.data == expect).all()
+    assert v2 is not v1
 
     # div in-place
     v1 /= 3
-    assert v1.data == expect
+    assert (v1.data == expect).all()
 
 
 @pytest.mark.parametrize("num_states,ndim", ((2, 1), (4, 2), (4, 4)))

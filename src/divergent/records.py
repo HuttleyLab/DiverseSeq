@@ -27,7 +27,7 @@ from numpy import isclose as np_isclose
 from numpy import isnan, log2, ndarray, zeros
 from rich.progress import track
 
-from divergent.record import SeqRecord, sparse_vector
+from divergent.record import SeqRecord, vector
 
 
 # needs a jsd method for a new sequence
@@ -39,14 +39,12 @@ from divergent.record import SeqRecord, sparse_vector
 
 
 @singledispatch
-def _jsd(
-    summed_freqs: Union[sparse_vector, ndarray], summed_entropy: float, n: int
-) -> float:
+def _jsd(summed_freqs: Union[vector, ndarray], summed_entropy: float, n: int) -> float:
     raise NotImplementedError
 
 
 @_jsd.register
-def _(summed_freqs: sparse_vector, summed_entropy: float, n: int):
+def _(summed_freqs: vector, summed_entropy: float, n: int):
     kfreqs = summed_freqs / n
     entropy = summed_entropy / n
     return kfreqs.entropy - entropy
@@ -61,7 +59,7 @@ def _(summed_freqs: ndarray, summed_entropy: float, n: int):
     return ke - entropy
 
 
-def _summed_stats(records: list[SeqRecord]) -> tuple[sparse_vector, float]:
+def _summed_stats(records: list[SeqRecord]) -> tuple[vector, float]:
     # takes series of records and sums quantitative parts
     sv = records[0].kfreqs
     vec = zeros(len(sv), dtype=float)
@@ -70,22 +68,22 @@ def _summed_stats(records: list[SeqRecord]) -> tuple[sparse_vector, float]:
         vec += record.kfreqs
         entropies.append(record.entropy)
 
-    vec = sparse_vector(data=vec, vector_length=len(vec), dtype=float)
+    vec = vector(data=vec, vector_length=len(vec), dtype=float)
     return vec, fsum(entropies)
 
 
 def _delta_jsd(
-    total_kfreqs: sparse_vector,
+    total_kfreqs: vector,
     total_entropies: float,
     records: list[SeqRecord],
 ) -> list[SeqRecord]:
     """measures contribution of each record to the total JSD"""
     n = len(records)
     total_jsd = _jsd(total_kfreqs, total_entropies, n)
-    total_kfreqs = total_kfreqs.array
+    total_kfreqs = total_kfreqs.data
     result = []
     for record in records:
-        summed_kfreqs = total_kfreqs - record.kfreqs.array
+        summed_kfreqs = total_kfreqs - record.kfreqs.data
         summed_entropies = total_entropies - record.entropy
         jsd = _jsd(summed_kfreqs, summed_entropies, n - 1)
         record.delta_jsd = total_jsd - jsd
@@ -112,7 +110,7 @@ class SummedRecords:
     # todo delete when convinced no longer required
 
     records: list[SeqRecord] = field(validator=_check_integrity)
-    summed_kfreqs: sparse_vector
+    summed_kfreqs: vector
     summed_entropies: float
     total_jsd: float
     size: int = field(init=False)
@@ -122,7 +120,7 @@ class SummedRecords:
     def __init__(
         self,
         records: list[SeqRecord],
-        summed_kfreqs: sparse_vector,
+        summed_kfreqs: vector,
         summed_entropies: float,
         total_jsd: float,
     ):
@@ -149,7 +147,7 @@ class SummedRecords:
     def _make_new(
         self,
         records: list[:SeqRecord],
-        summed_kfreqs: sparse_vector,
+        summed_kfreqs: vector,
         summed_entropies: float,
     ):
         """summed are totals from all records"""

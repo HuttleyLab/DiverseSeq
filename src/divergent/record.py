@@ -1,7 +1,4 @@
 """defines basic data type for storing an individual sequence record"""
-import contextlib
-
-from collections.abc import MutableSequence
 from functools import singledispatch
 from math import fabs, isclose
 from typing import Dict, Optional, Union
@@ -13,10 +10,9 @@ from cogent3 import get_moltype
 from cogent3.app import composable
 from cogent3.app import typing as c3_types
 from cogent3.core.alphabet import get_array_type
-from numpy import arange, array
+from numpy import array
 from numpy import divmod as np_divmod
-from numpy import isclose as np_isclose
-from numpy import log2, ndarray, uint8, uint64
+from numpy import errstate, log2, nan_to_num, ndarray, uint8, uint64
 from numpy import unique as np_unique
 from numpy import zeros
 
@@ -59,12 +55,12 @@ def _(data: ndarray, size: int | None = None, dtype: type = int) -> ndarray:
 
 @_make_data.register
 def _(data: None, size: int | None = None, dtype: type = int) -> ndarray:
-    return numpy.zeros(size, dtype=dtype)
+    return zeros(size, dtype=dtype)
 
 
 @_make_data.register
 def _(data: dict, size: int | None = None, dtype: type = int) -> ndarray:
-    result = numpy.zeros(size, dtype=dtype)
+    result = zeros(size, dtype=dtype)
     for i, n in data.items():
         if isclose(n, 0):
             continue
@@ -73,8 +69,8 @@ def _(data: dict, size: int | None = None, dtype: type = int) -> ndarray:
 
 
 @define(slots=True)
-class sparse_vector(MutableSequence):
-    data: PosDictType
+class vector:
+    data: ndarray
     vector_length: int
     default: Optional[NumType] = field(init=False)
     dtype: type = float
@@ -85,7 +81,7 @@ class sparse_vector(MutableSequence):
         self,
         *,
         vector_length: int,
-        data: PosDictType = None,
+        data: ndarray = None,
         dtype: type = float,
         source: str = None,
         name: str = None,
@@ -104,31 +100,23 @@ class sparse_vector(MutableSequence):
         dtype = _gettype(dtype)
         self.dtype = dtype
 
-        data = _make_data(data)
+        data = _make_data(data, size=vector_length, dtype=dtype)
         self.default = dtype(0)
-        self.data = {**data}
+        self.data = data
         self.source = source
         self.name = name
 
     def __setitem__(self, key: int, value: NumType):
-        if isclose(value, 0):
-            return
-        with contextlib.suppress(AttributeError):
-            key = key.item()
-        self.data[key] = self.dtype(value)
+        self.data[key] = value
 
     def __getitem__(self, key: int) -> NumType:
-        return self.data.get(key, self.default)
-
-    def __delitem__(self, key: int):
-        with contextlib.suppress(KeyError):
-            del self.data[key]
+        return self.data[key]
 
     def __len__(self) -> int:
-        return self.vector_length
+        return len(self.data)
 
     def __iter__(self) -> NumType:
-        yield from (self[i] for i in range(len(self)))
+        yield from self.data
 
     def __getstate__(self):
         return asdict(self)
@@ -138,120 +126,54 @@ class sparse_vector(MutableSequence):
             setattr(self, k, v)
         return self
 
-    def _sub_vector(self, data, other) -> dict:
-        assert len(self) == len(other)
-        for pos in other.data.keys() & data.keys():
-            val = self[pos] - other[pos]
-            val = 0 if isclose(val, 0) else val
-            data[pos] = val
-        return data
-
-    def _sub_scalar(self, data, scalar) -> dict:
-        scalar = self.dtype(scalar)
-        for pos, num in data.items():
-            val = data[pos] - scalar
-            val = 0 if isclose(val, 0) else val
-            data[pos] = val
-
-        return data
-
     def __sub__(self, other):
-        func = (
-            self._sub_vector if isinstance(other, self.__class__) else self._sub_scalar
-        )
-        data = func({**self.data}, other)
+        data = self.data - other
         return self.__class__(
             data=data, vector_length=self.vector_length, dtype=self.dtype
         )
 
     def __isub__(self, other):
-        func = (
-            self._sub_vector if isinstance(other, self.__class__) else self._sub_scalar
-        )
-        self.data = func(self.data, other)
+        self.data -= other
         return self
-
-    def _add_vector(self, data, other) -> dict:
-        assert len(self) == len(other)
-        for pos, num in other.data.items():
-            data[pos] = self[pos] + num
-        return data
-
-    def _add_scalar(self, data, scalar) -> dict:
-        scalar = self.dtype(scalar)
-        for pos, num in data.items():
-            data[pos] += scalar
-        return data
 
     def __add__(self, other):
         # we are creating a new instance
-        func = (
-            self._add_vector if isinstance(other, self.__class__) else self._add_scalar
-        )
-        data = func({**self.data}, other)
+        data = self.data + other
         return self.__class__(
             data=data, vector_length=self.vector_length, dtype=self.dtype
         )
 
     def __iadd__(self, other):
-        func = (
-            self._add_vector if isinstance(other, self.__class__) else self._add_scalar
-        )
-        self.data = func(self.data, other)
+        self.data += other
         return self
 
-    def _truediv_vector(self, data, other) -> dict:
-        assert len(self) == len(other)
-        for pos, num in other.data.items():
-            data[pos] = self[pos] / num
-        return data
-
-    def _truediv_scalar(self, data, scalar) -> dict:
-        scalar = self.dtype(scalar)
-        for pos, num in data.items():
-            data[pos] = self[pos] / scalar
-        return data
-
     def __truediv__(self, other):
-        func = (
-            self._truediv_vector
-            if isinstance(other, self.__class__)
-            else self._truediv_scalar
-        )
         # we are creating a new instance
-        data = func({**self.data}, other)
+        with errstate(divide="ignore", invalid="ignore"):
+            data = nan_to_num(self.data / other, nan=0.0, copy=False)
         return self.__class__(data=data, vector_length=self.vector_length, dtype=float)
 
     def __itruediv__(self, other):
-        func = (
-            self._truediv_vector
-            if isinstance(other, self.__class__)
-            else self._truediv_scalar
-        )
-        self.data = func(self.data, other)
+        with errstate(divide="ignore", invalid="ignore"):
+            data = nan_to_num(self.data / other, nan=0.0, copy=False)
         self.dtype = float
+        self.data = data
         return self
 
-    def insert(self, index: int, value: NumType) -> None:
-        self[index] = value
-
     def sum(self):
-        return sum(self.data.values())
-
-    @property
-    def array(self) -> ndarray:
-        arr = zeros(len(self), dtype=self.dtype)
-
-        for index, val in self.data.items():
-            arr[index] = val
-        return arr
+        return self.data.sum()
 
     def iter_nonzero(self) -> NumType:
-        yield from (v for _, v in sorted(self.data.items()))
+        yield from (v for v in self.data if v)
 
     @property
     def entropy(self):
-        kfreqs = array(list(self.iter_nonzero()))
+        non_zero = self.data[self.data > 0]
+        if self.dtype == float:
+            kfreqs = non_zero
+        else:
+            kfreqs = non_zero / non_zero.sum()
+
         # taking absolute value due to precision issues
         return fabs(-(kfreqs * log2(kfreqs)).sum())
 
@@ -439,20 +361,20 @@ def _gt_zero(instance, attribute, value):
 
 
 @singledispatch
-def _make_kcounts(data) -> sparse_vector:
+def _make_kcounts(data) -> vector:
     raise TypeError(f"type {type(data)} not supported")
 
 
 @_make_kcounts.register
 def _(data: ndarray):
     nonzero = {i: v for i, v in enumerate(data.tolist()) if v}
-    return sparse_vector(
+    return vector(
         vector_length=len(data), data=nonzero, dtype=_gettype(data.dtype.name)
     )
 
 
 @_make_kcounts.register
-def _(data: sparse_vector):
+def _(data: vector):
     return data
 
 
@@ -460,7 +382,7 @@ def _(data: sparse_vector):
 class SeqRecord:
     """representation of a single sequence as kmer counts"""
 
-    kcounts: sparse_vector = field(eq=False, converter=_make_kcounts)
+    kcounts: vector = field(eq=False, converter=_make_kcounts)
     name: str = field(validator=validators.instance_of(str), eq=True)
     length: int = field(validator=[validators.instance_of(int), _gt_zero], eq=True)
     delta_jsd: float = field(
@@ -480,10 +402,10 @@ class SeqRecord:
 
     @property
     def kfreqs(self):
-        kcounts = self.kcounts.array
+        kcounts = self.kcounts.data
         kcounts = kcounts.astype(float)
         kfreqs = kcounts / kcounts.sum()
-        return sparse_vector(data=kfreqs, vector_length=len(kfreqs), dtype=float)
+        return vector(data=kfreqs, vector_length=len(kfreqs), dtype=float)
 
 
 class _seq_to_kmers:
@@ -517,7 +439,7 @@ class _seq_to_kmers:
 
 @composable.define_app
 class seq_to_kmer_counts(_seq_to_kmers):
-    def main(self, seq: c3_types.SeqType) -> sparse_vector:
+    def main(self, seq: c3_types.SeqType) -> vector:
         kwargs = dict(
             vector_length=len(self.canonical) ** self.k,
             dtype=int,
@@ -535,7 +457,7 @@ class seq_to_kmer_counts(_seq_to_kmers):
             counts = {i: c for i, c in enumerate(counts) if c}
 
         kwargs["data"] = counts
-        return sparse_vector(**kwargs)
+        return vector(**kwargs)
 
 
 @composable.define_app
@@ -558,9 +480,7 @@ class seq_to_record(_seq_to_kmers):
             counts = {i: c for i, c in enumerate(counts) if c}
 
         kwargs["data"] = counts
-        return SeqRecord(
-            kcounts=sparse_vector(**kwargs), name=kwargs["name"], length=len(seq)
-        )
+        return SeqRecord(kcounts=vector(**kwargs), name=kwargs["name"], length=len(seq))
 
 
 def _get_canonical_states(moltype: str) -> bytes:
