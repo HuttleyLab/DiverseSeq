@@ -518,7 +518,7 @@ class seq_to_kmer_counts(_seq_to_kmers):
             source=getattr(seq, "source", None),
             name=seq.name,
         )
-        seq = self.seq2array(seq._seq)
+        seq = self.seq2array(str(seq))
         if self.k > 7:
             result = _seq_to_all_kmers(seq, self.canonical, self.k)
             indices, counts = np_unique(result, return_counts=True)
@@ -541,7 +541,7 @@ class seq_to_record(_seq_to_kmers):
             source=getattr(seq, "source", None),
             name=seq.name,
         )
-        seq = self.seq2array(seq._seq)
+        seq = self.seq2array(str(seq))
         if self.k > 7:
             result = _seq_to_all_kmers(seq, self.canonical, self.k)
             indices, counts = np_unique(result, return_counts=True)
