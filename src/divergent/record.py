@@ -268,19 +268,19 @@ class sparse_vector(MutableSequence):
         return cls(**data)
 
 
-@numba.jit
+@numba.jit(nopython=True)
 def coord_conversion_coeffs(num_states, k):
     """coefficients for multi-dimensional coordinate conversion into 1D index"""
     return array([num_states ** (i - 1) for i in range(k, 0, -1)])
 
 
-@numba.jit
+@numba.jit(nopython=True)
 def coord_to_index(coord, coeffs):
     """converts a multi-dimensional coordinate into a 1D index"""
     return (coord * coeffs).sum()
 
 
-@numba.jit
+@numba.jit(nopython=True)
 def index_to_coord(index, coeffs):
     """converts a 1D index into a multi-dimensional coordinate"""
     ndim = len(coeffs)
@@ -306,7 +306,7 @@ def indices_to_seqs(indices: ndarray, states: bytes, k: int) -> list[str]:
     return [bytearray(kmer).decode("utf8") for kmer in arr]
 
 
-@numba.jit
+@numba.jit(nopython=True)
 def indices_to_bytes(indices: ndarray, states: bytes, k: int) -> ndarray:
     """convert indices from k-dim into bytes
 
@@ -345,7 +345,7 @@ def indices_to_bytes(indices: ndarray, states: bytes, k: int) -> ndarray:
     return result
 
 
-@numba.jit
+@numba.jit(nopython=True)
 def kmer_indices(seq: ndarray, result: ndarray, num_states: int, k: int) -> ndarray:
     """return 1D indices for valid k-mers
 
@@ -386,7 +386,7 @@ def kmer_indices(seq: ndarray, result: ndarray, num_states: int, k: int) -> ndar
     return result[:result_idx]
 
 
-@numba.jit
+@numba.jit(nopython=True)
 def kmer_counts(seq: ndarray, num_states: int, k: int) -> ndarray:
     """return freqs of valid k-mers using 1D indices
 
@@ -407,7 +407,7 @@ def kmer_counts(seq: ndarray, num_states: int, k: int) -> ndarray:
     result
     """
     coeffs = coord_conversion_coeffs(num_states, k)
-    kfreqs = zeros(num_states ** k, dtype=uint64)
+    kfreqs = zeros(num_states**k, dtype=uint64)
     skip_until = 0
     for i in range(k):
         if seq[i] >= num_states:
@@ -570,7 +570,7 @@ def _seq_to_all_kmers(seq: ndarray, states: bytes, k: int) -> ndarray:
     """return all valid k-mers from seq"""
     # positions with non-canonical characters are assigned value outside range
     num_states = len(states)
-    dtype = get_array_type(num_states ** k)
+    dtype = get_array_type(num_states**k)
 
     # k-mers that include an index for ambiguity character are excluded
     result = zeros(len(seq) - k + 1, dtype=dtype)
