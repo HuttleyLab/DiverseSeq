@@ -62,9 +62,7 @@ class bundle_data:
     def __init__(self):
         self.prep = pickle_data() + blosc_compress()
 
-    T = Union["sparse_vector", "unique_kmers"]
-
-    def main(self, data: T) -> tuple[bytes, str]:
+    def main(self, data: "vector") -> tuple[bytes, str]:
         source = data.source
         return self.prep(data), source
 
