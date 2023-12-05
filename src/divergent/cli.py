@@ -52,6 +52,7 @@ _verbose = click.option(
     help="is an integer indicating number of cl occurrences",
 )
 
+
 # you can define custom parsers / validators
 def _parse_csv_arg(*args) -> list:
     return args[-1].split(",")

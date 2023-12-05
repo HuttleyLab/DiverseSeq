@@ -113,7 +113,6 @@ def run(seqdir, outpath, limit, parallel):
 @main.command(**_click_command_opts)
 @click.argument("seqdir", type=Path)
 def profile(seqdir):
-
     settings = 7, 10, 1
     seqs = _load_all_seqs(seqdir, 100)
     app = timed_run(seqs)

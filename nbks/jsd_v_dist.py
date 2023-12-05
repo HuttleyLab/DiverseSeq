@@ -150,9 +150,7 @@ _click_command_opts = dict(
 @click.argument("seqdir", type=Path)
 def main(seqdir):
     settings = list(
-        product(
-            range(2, 8), ("mean_jsd", "mean_delta_jsd", "total_jsd"), (True, False)
-        )
+        product(range(2, 8), ("mean_jsd", "mean_delta_jsd", "total_jsd"), (True, False))
     )
 
     order = "k", "stat", "max_set"
