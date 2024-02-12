@@ -50,10 +50,7 @@ Options:
   --help     Show this message and exit.
 
 Commands:
-  find-species  find occurrences of signature k-mers in query sequences
-  max           identify the seqs that maximise average delta entropy
-  seqs2kmers    write kmer data for seqs
-  sig-kmers     write k-mers that uniquely identify each sequence.
+  max  identify the seqs that maximise average delta entropy
 
 ```
 <!-- [[[end]]] -->

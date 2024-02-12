@@ -10,7 +10,7 @@ authors = [
 keywords = ["biology", "genomics", "statistics", "phylogeny", "evolution", "bioinformatics"]
 readme = "README.md"
 license = { file = "LICENSE" }
-requires-python = ">=3.10,<3.12"
+requires-python = ">=3.10,<3.13"
 dependencies = ["attrs",
     "blosc2",
     "click",
@@ -49,7 +49,7 @@ test = [
 dev = [
     "black",
     "click",
-    "cog",
+    "cogapp",
     "docformatter",
     "flit",
     "isort",
