@@ -1,5 +1,3 @@
-import shutil
-
 from pathlib import Path
 
 import click
@@ -15,13 +13,14 @@ from divergent.record import seq_to_record
 from divergent.records import max_divergent, most_divergent
 
 
+def _do_nothing_func(*args, **kwargs):
+    ...
+
+
 try:
     from wakepy import set_keepawake, unset_keepawake
 except (ImportError, NotImplementedError):
     # may not be installed, or on linux where this library doesn't work
-    def _do_nothing_func(*args, **kwargs):
-        ...
-
     set_keepawake, unset_keepawake = _do_nothing_func, _do_nothing_func
 
 
@@ -41,7 +40,7 @@ LOGGER = CachingLogger()
 @click.group()
 @click.version_option(__version__)  # add version option
 def main():
-    """dvgt -- alignment free measurement of divergent sequences"""
+    """dvgt -- alignment free detection of most divergent sequences using JSD"""
     pass
 
 
@@ -135,7 +134,7 @@ def max(
     test_run,
     verbose,
 ):
-    """identify the seqs that maximise average delta entropy"""
+    """identify the seqs that maximise average delta JSD"""
     from numpy.random import shuffle
 
     if max_size is not None and min_size > max_size:

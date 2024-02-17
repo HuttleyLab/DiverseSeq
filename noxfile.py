@@ -1,5 +1,3 @@
-import pathlib
-
 import nox
 
 
@@ -13,6 +11,7 @@ def test(session):
     session.run(
         "pytest",
         "-x",
+        *session.posargs,  # propagates sys.argv to pytest
     )
 
 
