@@ -96,7 +96,6 @@ def test_mean_delta_jsd(seqcoll):
     sr_with_a = SummedRecords.from_records(records)
     sr_without_a = SummedRecords.from_records([r for r in records if r.name != "a"])
     assert sr_without_a.mean_delta_jsd > sr_with_a.mean_delta_jsd
-    one = SummedRecords.from_records([r for r in records if r.name not in "ac"])
 
 
 def test_replaced_lowest(seqcoll):

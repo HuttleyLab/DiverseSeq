@@ -2,7 +2,7 @@ import pickle
 import warnings
 
 from pathlib import Path
-from typing import Any, Union
+from typing import Any
 
 import blosc2
 

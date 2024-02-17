@@ -5,7 +5,7 @@ from pathlib import Path
 import numpy
 import pytest
 
-from cogent3 import get_moltype, make_seq
+from cogent3 import make_seq
 from numpy import (
     array,
     nextafter,
@@ -155,7 +155,6 @@ def test_sparse_vector_add_scalar(cast):
     v1 = vector(data=data, vector_length=2**2, dtype=cast)
 
     # add to zero vector
-    v0 = vector(vector_length=2**2, dtype=cast)
     v_ = v1 + 0
     assert (v_.data == v1.data).all()
     assert v_.data is not v1.data
@@ -250,13 +249,10 @@ def test_sparse_vector_iter_nonzero():
 
 
 def test_sv_iter():
-    from numpy import array
-
     sv = vector(data={2: 1, 1: 1, 3: 1, 0: 1}, vector_length=2**2, dtype=int)
     sv /= sv.sum()
     got = list(sv.iter_nonzero())
     assert_allclose(got, 0.25)
-    arr = array(got)
 
 
 def test_sv_pickling():
@@ -342,8 +338,6 @@ _ks = (1, 2, 3)
 @pytest.mark.parametrize("seq,k", tuple(product(_seqs, _ks)))
 def test_seq2kmers(seq, k):
     dtype = uint64
-
-    dna = get_moltype("dna")
 
     seq2array = str2arr()
     indices = seq2array(seq)
