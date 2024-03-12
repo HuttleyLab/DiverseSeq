@@ -1,6 +1,8 @@
+from os.path import exists
 from pathlib import Path
 
 import click
+import h5py
 
 from cogent3 import make_table
 from cogent3.util import parallel as PAR
@@ -142,21 +144,11 @@ def max(
         exit(1)
 
     set_keepawake(keep_screen_awake=False)
-    if seqdir.is_file():
-        paths = dv_utils.get_seq_identifiers([seqdir])
-    else:
-        paths = list(seqdir.glob("**/*.fa*"))
-        if not paths:
-            click.secho(f"{seqdir} contains no fasta paths", fg="red")
-            exit(1)
 
     limit = 2 if test_run else limit or len(paths)
     paths = paths[:limit]
     app = dv_utils.seq_from_fasta() + seq_to_record(k=k, moltype="dna")
-    if parallel:
-        series = PAR.as_completed(app, paths, max_workers=6)
-    else:
-        series = map(app, paths)
+
 
     records = []
     for result in track(series, total=len(paths), update_period=1):
@@ -183,6 +175,88 @@ def max(
     table = make_table(data={"names": names, stat: deltas})
     outpath.parent.mkdir(parents=True, exist_ok=True)
     table.write(outpath)
+
+    unset_keepawake()
+
+
+@main.command(**_click_command_opts)
+@_seqdir
+@click.option(
+    "-o",
+    "--outpath",
+    type=Path,
+    help="location to write processed seqs as HDF5",
+)
+@click.option("-p", "--parallel", is_flag=True, default=False, help="run in parallel")
+@click.option(
+    "-F",
+    "--force_overwrite",
+    is_flag=True,
+    default=False,
+    help="Overwrite existing file if it exists",
+)
+@click.option(
+    "-m",
+    "--moltype",
+    type=click.Choice(["dna", "rna"]),
+    default="dna",
+    help="Molecular type of sequences, defaults to DNA",
+)
+def prep(seqdir, outpath, parallel, force_overwrite, moltype):
+    """Writes processed sequences to an HDF5 file."""
+
+    set_keepawake(keep_screen_awake=False)
+
+    if seqdir.is_file():
+        paths = dv_utils.get_seq_identifiers([seqdir])
+    else:
+        paths = list(seqdir.glob("**/*.fa*"))
+        if not paths:
+            click.secho(f"{seqdir} contains no fasta paths", fg="red")
+            exit(1)
+
+    outpath_h5 = f"{outpath}.h5"
+
+    app = dv_utils.seq_from_fasta() + dv_utils._seqs_to_array()
+
+    if parallel:
+        workers = PAR.get_size() - 1
+        series = PAR.as_completed(app, paths, max_workers=workers)
+    else:
+        series = map(app, paths)
+
+    records = []
+    for result in track(series, total=len(paths), update_period=1):
+        if not result:
+            print(result)
+            exit()
+        records.append(result)
+
+    write_mode = "w" if force_overwrite else "w-"
+
+    try:
+        with h5py.File(outpath_h5, mode=write_mode) as f:
+            for name, seq in records:
+                dataset = f.create_dataset(
+                    name=name,
+                    data=seq,
+                    dtype="u1",
+                )
+                dataset.attrs["moltype"] = moltype
+            num_records = len(f.keys())
+    except FileExistsError:
+        click.secho(
+            f"FileExistsError: Unable to create file at {outpath_h5} because a file "
+            f"with the same name already exists. Please choose a different "
+            f"name or use the -F flag to force overwrite the existing file.",
+            fg="red",
+        )
+        exit(1)
+
+    click.secho(
+        f"Successfully processed {num_records} sequences and wrote to {outpath_h5}",
+        fg="green",
+    )
 
     unset_keepawake()
 
