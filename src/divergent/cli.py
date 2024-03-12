@@ -3,8 +3,10 @@ from pathlib import Path
 
 import click
 import h5py
+import itertools
 
-from cogent3 import make_table
+from cogent3 import make_table, get_moltype
+from cogent3.core.alignment import SequenceCollection
 from cogent3.util import parallel as PAR
 from rich.progress import track
 from scitrack import CachingLogger
@@ -81,21 +83,19 @@ def _make_outpath(outdir, path, k):
     return outdir / f"{path.stem.split('.')[0]}-{k}-mer.json.blosc2"
 
 
-_seqdir = click.option(
-    "-s",
-    "--seqdir",
-    required=True,
-    type=Path,
-    help="directory containing fasta formatted sequence files",
-)
-
 _click_command_opts = dict(
     no_args_is_help=True, context_settings={"show_default": True}
 )
 
 
 @main.command(**_click_command_opts)
-@_seqdir
+@click.option(
+    "-s",
+    "--seqfile",
+    required=True,
+    type=Path,
+    help="HDF5 file containing sequences, must have been processed by the 'prep' command",
+)
 @_outpath
 @click.option(
     "-z", "--min_size", default=7, type=int, help="minimum size of divergent set"
@@ -124,7 +124,7 @@ _click_command_opts = dict(
 )
 @_verbose
 def max(
-    seqdir,
+    seqfile,
     outpath,
     min_size,
     max_size,
@@ -143,15 +143,37 @@ def max(
         click.secho(f"{min_size=} is greater than {max_size}", fg="red")
         exit(1)
 
+    if not seqfile.suffix == ".h5":
+        click.secho(
+            f"Sequence data needs to be preprocessed, run 'dvgt prep {seqfile}' "
+             "to prepare the sequence data",
+            fg="red",
+        )
+        exit(1)
+    
     set_keepawake(keep_screen_awake=False)
 
-    limit = 2 if test_run else limit or len(paths)
-    paths = paths[:limit]
-    app = dv_utils.seq_from_fasta() + seq_to_record(k=k, moltype="dna")
-
+    with h5py.File(seqfile, mode="r") as f:
+        limit = 2 if test_run else limit or len(f.keys())
+        orig_moltype = get_moltype(f.attrs["moltype"])
+        to_str = dv_utils.arr2str()
+        
+        seqs = []
+        for name, dset in itertools.islice(f.items(), limit):
+            seq = dset[...]
+            recapitulated = to_str(seq)
+            seqs.append(orig_moltype.make_seq(recapitulated, name=name))
+    
+    make_records = seq_to_record(k=k, moltype=orig_moltype)
+   
+    if parallel:
+        workers = PAR.get_size() - 1
+        series =  PAR.as_completed(make_records, seqs, max_workers=workers)
+    else:
+        series = map(make_records, seqs)
 
     records = []
-    for result in track(series, total=len(paths), update_period=1):
+    for result in track(series, total=len(seqs), update_period=1):
         if not result:
             print(result)
             exit()
@@ -180,7 +202,13 @@ def max(
 
 
 @main.command(**_click_command_opts)
-@_seqdir
+@click.option(
+    "-s",
+    "--seqdir",
+    required=True,
+    type=Path,
+    help="directory containing fasta formatted sequence files",
+)
 @click.option(
     "-o",
     "--outpath",
@@ -215,9 +243,12 @@ def prep(seqdir, outpath, parallel, force_overwrite, moltype):
             click.secho(f"{seqdir} contains no fasta paths", fg="red")
             exit(1)
 
+    # if no outpath is provided, write to the same location as the input sequences
+    if outpath is None: 
+        outpath = seqdir.name.split(".")[0]
     outpath_h5 = f"{outpath}.h5"
 
-    app = dv_utils.seq_from_fasta() + dv_utils._seqs_to_array()
+    app = dv_utils.seq_from_fasta() + dv_utils.seq_to_array()
 
     if parallel:
         workers = PAR.get_size() - 1
@@ -236,13 +267,15 @@ def prep(seqdir, outpath, parallel, force_overwrite, moltype):
 
     try:
         with h5py.File(outpath_h5, mode=write_mode) as f:
+            # only support collection of seqs of the same moltype, 
+            # so moltype can be stored as a top level attribute
+            f.attrs["moltype"] = moltype
             for name, seq in records:
-                dataset = f.create_dataset(
+                f.create_dataset(
                     name=name,
                     data=seq,
                     dtype="u1",
                 )
-                dataset.attrs["moltype"] = moltype
             num_records = len(f.keys())
     except FileExistsError:
         click.secho(
