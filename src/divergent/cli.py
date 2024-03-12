@@ -1,12 +1,11 @@
-from os.path import exists
+import itertools
+
 from pathlib import Path
 
 import click
 import h5py
-import itertools
 
-from cogent3 import make_table, get_moltype
-from cogent3.core.alignment import SequenceCollection
+from cogent3 import get_moltype, make_table
 from cogent3.util import parallel as PAR
 from rich.progress import track
 from scitrack import CachingLogger
@@ -146,29 +145,29 @@ def max(
     if not seqfile.suffix == ".h5":
         click.secho(
             f"Sequence data needs to be preprocessed, run 'dvgt prep {seqfile}' "
-             "to prepare the sequence data",
+            "to prepare the sequence data",
             fg="red",
         )
         exit(1)
-    
+
     set_keepawake(keep_screen_awake=False)
 
     with h5py.File(seqfile, mode="r") as f:
         limit = 2 if test_run else limit or len(f.keys())
         orig_moltype = get_moltype(f.attrs["moltype"])
         to_str = dv_utils.arr2str()
-        
+
         seqs = []
         for name, dset in itertools.islice(f.items(), limit):
             seq = dset[...]
             recapitulated = to_str(seq)
             seqs.append(orig_moltype.make_seq(recapitulated, name=name))
-    
+
     make_records = seq_to_record(k=k, moltype=orig_moltype)
-   
+
     if parallel:
         workers = PAR.get_size() - 1
-        series =  PAR.as_completed(make_records, seqs, max_workers=workers)
+        series = PAR.as_completed(make_records, seqs, max_workers=workers)
     else:
         series = map(make_records, seqs)
 
@@ -244,7 +243,7 @@ def prep(seqdir, outpath, parallel, force_overwrite, moltype):
             exit(1)
 
     # if no outpath is provided, write to the same location as the input sequences
-    if outpath is None: 
+    if outpath is None:
         outpath = seqdir.name.split(".")[0]
     outpath_h5 = f"{outpath}.h5"
 
@@ -267,7 +266,7 @@ def prep(seqdir, outpath, parallel, force_overwrite, moltype):
 
     try:
         with h5py.File(outpath_h5, mode=write_mode) as f:
-            # only support collection of seqs of the same moltype, 
+            # only support collection of seqs of the same moltype,
             # so moltype can be stored as a top level attribute
             f.attrs["moltype"] = moltype
             for name, seq in records:

@@ -5,13 +5,11 @@ from pathlib import Path
 from typing import Any
 
 import blosc2
-import h5py
 
 from attrs import define
 from cogent3 import get_moltype, make_seq, make_table, open_
 from cogent3.app import composable
 from cogent3.app import typing as c3_types
-from cogent3.core.alignment import SequenceCollection
 from cogent3.parse.fasta import MinimalFastaParser
 from numpy import array, ndarray, uint8
 
