@@ -2,22 +2,48 @@
 
 ## Identifying the sequences that maximise Jensen-Shannon
 
-### Maximise average delta JSD
+### `dvgt prep`: Preparing the sequence data
 
-The input can be a single file (as below) or a directory full of files. In either case, the k-mer frequencies of the sequences are used to maximise the delta jsd values. This command will start with 10 sequences and use 3-mers. It will generate a tsv file with only sequences that have a +ve delta jsd. The `-v` flag displays some additional output.
-```
-$ dvgt max -s ~/repos/Cogent3/tests/data/brca1.fasta -o ~/Desktop/Outbox/delme/delme.tsv -k 3 -v -z 10 
-```
+The sequences need to be processed before running the `max` command. This is done with the `prep` command. 
 
-The following command takes a directory that has over 1k fasta files of bacterial genomes. The computations are as above except the `-p` flag indicates the reading of data will be done in parallell using 6 cores.
-```
-$ dvgt max -s soil_reference_genomes_fasta -o ~/Desktop/Outbox/delme/delme.tsv -p -k 3 -v 
+#### Typical usage:
+
+```bash
+dvgt prep -s <seqdir> -o <outpath> -p
 ```
 
-The following command is the same as above except the `-x` flag means strictly 10 sequences will be output.
+#### Argument details:
+
+- `-s`, `--seqdir`: Sequences can be a single fasta file or a directory full of fasta files. 
+
+- `-o`, `--outpath`: Location to write processed sequences as HDF5.
+- `-p`, `--parallel`: If set, run in parallel.
+- `-F`, `--force_overwrite`: If set, overwrite existing output file if it exists.
+- `-m`,` --moltype`: Molecular type of sequences, defaults to DNA.
+
+### `dvgt max`: Maximise average delta JSD
+
+Once the sequence data has been prepared using `dvgt prep`, the `max` command can be used to identify the sequences that maximise the Jensen-Shannon divergence. The kmer frequencies of the sequences are used to determine the Jensen-Shannon divergence
+
+#### Typical usage:
+
+```bash
+dvgt max -s <seqfile> -o <outpath> -p -z 10 
 ```
-$ dvgt max -s soil_reference_genomes_fasta -o ~/Desktop/Outbox/delme/delme.tsv -p -k 3 -z 10 -x 
-```
+
+#### Argument Details
+
+- `-s`, `--seqfile`: HDF5 file containing sequences, must have been processed by the `prep` command.
+- `-o`, `--outpath`: Path to write the output table.
+- `-z`, `--min_size`: Minimum size of divergent set (default: 7).
+- `-zp`, `--max_size`: Maximum size of divergent set.
+- `-x`, `--fixed_size`: Result will have a fixed size number of sequences.
+- `-k`: k-mer size (default: 3).
+- `-st`, `--stat`: Statistic to maximise (choices: total_jsd, mean_delta_jsd, mean_jsd; default: mean_delta_jsd).
+- `-p`, `--parallel`: Run in parallel.
+- `-L`, `--limit`: Number of sequences to process.
+- `-T`, `--test_run`: Reduce number of paths and size of query sequences.
+- `-v`, `--verbose`: Increase verbosity.
 
 ## Running the tests
 
@@ -50,7 +76,8 @@ Options:
   --help     Show this message and exit.
 
 Commands:
-  max  identify the seqs that maximise average delta entropy
+  prep  writes processed sequences to an HDF5 file
+  max  identify the seqs that maximise average delta 
 
 ```
 <!-- [[[end]]] -->
