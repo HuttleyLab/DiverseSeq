@@ -275,12 +275,13 @@ def prep(seqdir, outpath, parallel, force_overwrite, moltype):
         f.attrs["moltype"] = moltype
         f.attrs["source"] = str(seqdir)
 
-        for name, seq in records:
-            f.create_dataset(
-                name=name,
-                data=seq,
+        for record in records:
+            dset = f.create_dataset(
+                name=record['name'],
+                data=record['data'],
                 dtype="u1",
             )
+            dset.attrs["source"] = str(record["source"])
         num_records = len(f.keys())
 
     click.secho(

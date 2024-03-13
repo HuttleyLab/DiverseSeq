@@ -29,7 +29,7 @@ def faster_load_fasta(path: c3_types.IdentifierType, label_func=_label_func) -> 
                     f"duplicated seq label {n!r} in {path}, but different seqs",
                     UserWarning,
                 )
-            result[n] = s.replace("-", "-")
+            result[n] = s.replace("-", "")
         return result
 
 
@@ -191,4 +191,4 @@ class arr2str:
 @composable.define_app
 def seq_to_array(seq: c3_types.SeqType) -> tuple:
     as_indices = str2arr()
-    return (seq.name, as_indices(str(seq)))
+    return {"name": seq.name, "source": seq.source, "data": as_indices(str(seq))}
