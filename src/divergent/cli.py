@@ -82,6 +82,14 @@ def _make_outpath(outdir, path, k):
     return outdir / f"{path.stem.split('.')[0]}-{k}-mer.json.blosc2"
 
 
+def execute_tasks(func, tasks, parallel):
+    if parallel:
+        workers = PAR.get_size() - 1
+        return PAR.as_completed(func, tasks, max_workers=workers)
+    else:
+        return map(func, tasks)
+
+
 _click_command_opts = dict(
     no_args_is_help=True, context_settings={"show_default": True}
 )
@@ -144,7 +152,8 @@ def max(
 
     if not seqfile.suffix == ".h5":
         click.secho(
-            f"Sequence data needs to be preprocessed, run 'dvgt prep {seqfile}' "
+            f"Sequence data needs to be preprocessed, run 'dvgt prep -s "
+            "<path_to_your_seqs.fasta> -o <path_to_write_processed_seqs.h5>' "
             "to prepare the sequence data",
             fg="red",
         )
@@ -164,12 +173,7 @@ def max(
             seqs.append(orig_moltype.make_seq(recapitulated, name=name))
 
     make_records = seq_to_record(k=k, moltype=orig_moltype)
-
-    if parallel:
-        workers = PAR.get_size() - 1
-        series = PAR.as_completed(make_records, seqs, max_workers=workers)
-    else:
-        series = map(make_records, seqs)
+    series = execute_tasks(make_records, seqs, parallel)
 
     records = []
     for result in track(series, total=len(seqs), update_period=1):
@@ -245,13 +249,8 @@ def prep(seqdir, outpath, parallel, force_overwrite, moltype):
 
     outpath_h5 = outpath.with_suffix(".h5")
 
-    app = dv_utils.seq_from_fasta(moltype=moltype) + dv_utils.seq_to_array()
-
-    if parallel:
-        workers = PAR.get_size() - 1
-        series = PAR.as_completed(app, paths, max_workers=workers)
-    else:
-        series = map(app, paths)
+    fasta_to_array = dv_utils.seq_from_fasta(moltype=moltype) + dv_utils.seq_to_array()
+    series = execute_tasks(fasta_to_array, paths, parallel)
 
     records = []
     for result in track(series, total=len(paths), update_period=1):

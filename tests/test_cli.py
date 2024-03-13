@@ -170,5 +170,5 @@ def test_prep_max_moltype(runner, tmp_dir, fasta_seq_path, moltype):
     max_outpath = tmp_dir / f"test_prep_{moltype}.tsv"
     max_args = f"-s {outpath} -o {max_outpath}".split()
     r = runner.invoke(dvgt_max, max_args)
-    assert r.exit_code == 0, r.output  
+    assert r.exit_code == 0, r.output
     _checked_output(str(max_outpath))
