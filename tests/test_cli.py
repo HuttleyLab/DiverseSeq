@@ -160,9 +160,15 @@ def test_prep_force_override(runner, tmp_dir, fasta_seq_path):
 
 
 @pytest.mark.parametrize("moltype", ["dna", "rna"])
-def test_prep_moltype(runner, tmp_dir, fasta_seq_path, moltype):
+def test_prep_max_moltype(runner, tmp_dir, fasta_seq_path, moltype):
     outpath = tmp_dir / f"test_prep_{moltype}.h5"
     args = f"-s {fasta_seq_path} -o {outpath} -m {moltype}".split()
     r = runner.invoke(dvgt_prep, args)
     assert r.exit_code == 0, r.output
     _checked_h5_output(str(outpath))
+
+    max_outpath = tmp_dir / f"test_prep_{moltype}.tsv"
+    max_args = f"-s {outpath} -o {max_outpath}".split()
+    r = runner.invoke(dvgt_max, max_args)
+    assert r.exit_code == 0, r.output  
+    _checked_output(str(max_outpath))
