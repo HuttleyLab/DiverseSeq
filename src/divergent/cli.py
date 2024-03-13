@@ -4,6 +4,7 @@ from pathlib import Path
 
 import click
 import h5py
+import numpy as np
 
 from cogent3 import get_moltype, make_table
 from cogent3.util import parallel as PAR
@@ -144,7 +145,6 @@ def max(
     verbose,
 ):
     """identify the seqs that maximise average delta JSD"""
-    from numpy.random import shuffle
 
     if max_size is not None and min_size > max_size:
         click.secho(f"{min_size=} is greater than {max_size}", fg="red")
@@ -165,12 +165,13 @@ def max(
         limit = 2 if test_run else limit or len(f.keys())
         orig_moltype = get_moltype(f.attrs["moltype"])
         to_str = dv_utils.arr2str()
-
         seqs = []
         for name, dset in itertools.islice(f.items(), limit):
-            seq = dset[...]
-            recapitulated = to_str(seq)
-            seqs.append(orig_moltype.make_seq(recapitulated, name=name))
+            # initalise array and read db content directly into
+            out = np.empty(len(dset), dtype=np.uint8)
+            dset.read_direct(out)
+            seq = to_str(out)
+            seqs.append(orig_moltype.make_seq(seq, name=name))
 
     make_records = seq_to_record(k=k, moltype=orig_moltype)
     series = execute_tasks(make_records, seqs, parallel)
@@ -182,7 +183,7 @@ def max(
             exit()
         records.append(result)
 
-    shuffle(records)
+    np.random.shuffle(records)
     if fixed_size:
         sr = most_divergent(records, size=min_size, verbose=verbose > 0)
     else:
