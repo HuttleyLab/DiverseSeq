@@ -249,7 +249,15 @@ def prep(seqdir, outpath, parallel, force_overwrite, moltype):
             exit(1)
 
     outpath_h5 = outpath.with_suffix(".h5")
-
+    if outpath_h5.exists() and not force_overwrite:
+        click.secho(
+            f"FileExistsError: Unable to create file at {outpath_h5} because a file "
+            f"with the same name already exists. Please choose a different "
+            f"name or use the -F flag to force overwrite the existing file.",
+            fg="red",
+        )
+        exit(1)
+       
     fasta_to_array = dv_utils.seq_from_fasta(moltype=moltype) + dv_utils.seq_to_array()
     series = execute_tasks(fasta_to_array, paths, parallel)
 
@@ -261,29 +269,19 @@ def prep(seqdir, outpath, parallel, force_overwrite, moltype):
         records.append(result)
 
     write_mode = "w" if force_overwrite else "w-"
+    with h5py.File(outpath_h5, mode=write_mode) as f:
+        # only support collection of seqs of the same moltype,
+        # so moltype can be stored as a top level attribute
+        f.attrs["moltype"] = moltype
+        f.attrs["source"] = str(seqdir)
 
-    try:
-        with h5py.File(outpath_h5, mode=write_mode) as f:
-            # only support collection of seqs of the same moltype,
-            # so moltype can be stored as a top level attribute
-            f.attrs["moltype"] = moltype
-            f.attrs["source"] = str(seqdir)
-
-            for name, seq in records:
-                f.create_dataset(
-                    name=name,
-                    data=seq,
-                    dtype="u1",
-                )
-            num_records = len(f.keys())
-    except FileExistsError:
-        click.secho(
-            f"FileExistsError: Unable to create file at {outpath_h5} because a file "
-            f"with the same name already exists. Please choose a different "
-            f"name or use the -F flag to force overwrite the existing file.",
-            fg="red",
-        )
-        exit(1)
+        for name, seq in records:
+            f.create_dataset(
+                name=name,
+                data=seq,
+                dtype="u1",
+            )
+        num_records = len(f.keys())
 
     click.secho(
         f"Successfully processed {num_records} sequences and wrote to {outpath_h5}",
