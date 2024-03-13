@@ -257,7 +257,7 @@ def prep(seqdir, outpath, parallel, force_overwrite, moltype):
             fg="red",
         )
         exit(1)
-       
+
     fasta_to_array = dv_utils.seq_from_fasta(moltype=moltype) + dv_utils.seq_to_array()
     series = execute_tasks(fasta_to_array, paths, parallel)
 
@@ -277,8 +277,8 @@ def prep(seqdir, outpath, parallel, force_overwrite, moltype):
 
         for record in records:
             dset = f.create_dataset(
-                name=record['name'],
-                data=record['data'],
+                name=record["name"],
+                data=record["data"],
                 dtype="u1",
             )
             dset.attrs["source"] = str(record["source"])

@@ -31,9 +31,11 @@ def runner():
 def fasta_seq_path():
     return DATADIR / "brca1.fasta"
 
+
 @pytest.fixture(scope="session")
 def seq_dir():
     return DATADIR / "brca1"
+
 
 @pytest.fixture(scope="session")
 def h5_seq_path():
@@ -131,6 +133,7 @@ def test_prep_seq_file(runner, tmp_dir, fasta_seq_path):
     assert r.exit_code == 0, r.output
     _checked_h5_output(str(outpath))
 
+
 def test_prep_seq_directory(runner, tmp_dir, seq_dir):
     outpath = tmp_dir / "test_prep_seq_directory.h5"
     args = f"-s {seq_dir} -o {outpath}".split()
@@ -189,17 +192,18 @@ def test_prep_source_from_file(runner, tmp_dir, fasta_seq_path):
     args = f"-s {fasta_seq_path} -o {outpath}".split()
     r = runner.invoke(dvgt_prep, args)
 
-    with  h5py.File(outpath, mode="r") as f:
+    with h5py.File(outpath, mode="r") as f:
         assert f.attrs["source"] == str(fasta_seq_path)
         for _, dset in f.items():
             assert dset.attrs["source"] == str(fasta_seq_path)
+
 
 def test_prep_source_from_directory(runner, tmp_dir, seq_dir):
     outpath = tmp_dir / f"test_prep_source_from_directory.h5"
     args = f"-s {seq_dir} -o {outpath}".split()
     r = runner.invoke(dvgt_prep, args)
 
-    with  h5py.File(outpath, mode="r") as f:
+    with h5py.File(outpath, mode="r") as f:
         assert f.attrs["source"] == str(seq_dir)
         for name, dset in f.items():
             assert dset.attrs["source"] == f"{str(seq_dir)}/{name}.fasta"
