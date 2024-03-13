@@ -1,7 +1,7 @@
 import pathlib
 
-import pytest
 import h5py
+import pytest
 
 from click.testing import CliRunner
 from cogent3 import load_table
@@ -31,6 +31,7 @@ def runner():
 def fasta_seq_path():
     return DATADIR / "brca1.fasta"
 
+
 @pytest.fixture(scope="session")
 def h5_seq_path():
     return DATADIR / "brca1.h5"
@@ -47,16 +48,16 @@ def _checked_output(path, eval_rows=None, eval_header=None):
 
 
 def _checked_h5_output(path, source=None):
-    with h5py.File(path, mode="r") as f:  
-        assert len(f.keys()) > 0 
+    with h5py.File(path, mode="r") as f:
+        assert len(f.keys()) > 0
         assert isinstance(f.attrs["moltype"], str)
-        
+
         if source:
             assert f.attrs["source"] == source
 
         for _, dataset in f.items():
             assert isinstance(dataset, h5py.Dataset)
-            assert dataset.dtype == 'u1'
+            assert dataset.dtype == "u1"
 
 
 def test_defaults(runner, tmp_dir, h5_seq_path):
@@ -133,13 +134,13 @@ def test_prep_outpath_without_suffix(runner, tmp_dir, fasta_seq_path):
     args = f"-s {fasta_seq_path} -o {outpath}".split()
     r = runner.invoke(dvgt_prep, args, catch_exceptions=False)
     assert r.exit_code == 0, r.output
-    _checked_h5_output(str(outpath)+".h5")
+    _checked_h5_output(str(outpath) + ".h5")
 
 
 def test_prep_force_override(runner, tmp_dir, fasta_seq_path):
     outpath = tmp_dir / "test_prep_force_override.h5"
     args = f"-s {fasta_seq_path} -o {outpath}".split()
-    
+
     # Run prep once, it should succeed
     r = runner.invoke(dvgt_prep, args)
     assert r.exit_code == 0, r.output
@@ -156,7 +157,7 @@ def test_prep_force_override(runner, tmp_dir, fasta_seq_path):
     r = runner.invoke(dvgt_prep, args)
     assert r.exit_code == 0, r.output
     _checked_h5_output(str(outpath))
-    
+
 
 @pytest.mark.parametrize("moltype", ["dna", "rna"])
 def test_prep_moltype(runner, tmp_dir, fasta_seq_path, moltype):

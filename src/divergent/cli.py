@@ -242,7 +242,7 @@ def prep(seqdir, outpath, parallel, force_overwrite, moltype):
         if not paths:
             click.secho(f"{seqdir} contains no fasta paths", fg="red")
             exit(1)
-    
+
     outpath_h5 = outpath.with_suffix(".h5")
 
     app = dv_utils.seq_from_fasta(moltype=moltype) + dv_utils.seq_to_array()
