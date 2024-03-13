@@ -211,6 +211,7 @@ def max(
 @click.option(
     "-o",
     "--outpath",
+    required=True,
     type=Path,
     help="location to write processed seqs as HDF5",
 )
@@ -241,13 +242,10 @@ def prep(seqdir, outpath, parallel, force_overwrite, moltype):
         if not paths:
             click.secho(f"{seqdir} contains no fasta paths", fg="red")
             exit(1)
+    
+    outpath_h5 = outpath.with_suffix(".h5")
 
-    # if no outpath is provided, write to the same location as the input sequences
-    if outpath is None:
-        outpath = seqdir.name.split(".")[0]
-    outpath_h5 = f"{outpath}.h5"
-
-    app = dv_utils.seq_from_fasta() + dv_utils.seq_to_array()
+    app = dv_utils.seq_from_fasta(moltype=moltype) + dv_utils.seq_to_array()
 
     if parallel:
         workers = PAR.get_size() - 1
@@ -269,6 +267,8 @@ def prep(seqdir, outpath, parallel, force_overwrite, moltype):
             # only support collection of seqs of the same moltype,
             # so moltype can be stored as a top level attribute
             f.attrs["moltype"] = moltype
+            f.attrs["source"] = str(seqdir)
+
             for name, seq in records:
                 f.create_dataset(
                     name=name,

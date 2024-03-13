@@ -80,9 +80,10 @@ class filename_seqname:
 
 @composable.define_app(app_type="loader")
 class seq_from_fasta:
-    def __init__(self, label_func=_label_func, max_length=None) -> None:
+    def __init__(self, label_func=_label_func, max_length=None, moltype="dna") -> None:
         self.max_length = max_length
         self.loader = faster_load_fasta(label_func=label_func)
+        self.moltype = moltype
 
     def main(
         self, identifier: filename_seqname | c3_types.IdentifierType
@@ -98,7 +99,7 @@ class seq_from_fasta:
         if self.max_length:
             seq = seq[: self.max_length]
 
-        seq = make_seq(seq, name=name, moltype="dna")
+        seq = make_seq(seq, name=name, moltype=self.moltype)
         seq.source = getattr(identifier, "source", identifier)
         return seq
 
