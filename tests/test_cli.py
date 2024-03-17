@@ -4,7 +4,7 @@ import h5py
 import pytest
 
 from click.testing import CliRunner
-from cogent3 import load_table
+from cogent3 import load_table, load_unaligned_seqs
 
 from divergent.cli import max as dvgt_max
 from divergent.cli import prep as dvgt_prep
@@ -16,7 +16,7 @@ __credits__ = ["Gavin Huttley"]
 DATADIR = pathlib.Path(__file__).parent / "data"
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def tmp_dir(tmpdir_factory):
     return tmpdir_factory.mktemp("dvgt")
 
@@ -28,13 +28,8 @@ def runner():
 
 
 @pytest.fixture(scope="session")
-def fasta_seq_path():
+def seq_path():
     return DATADIR / "brca1.fasta"
-
-
-@pytest.fixture(scope="session")
-def seq_dir():
-    return DATADIR / "brca1"
 
 
 @pytest.fixture(scope="session")
@@ -126,33 +121,25 @@ def test_k(runner, tmp_dir, h5_seq_path, k):
     _checked_output(outpath)
 
 
-def test_prep_seq_file(runner, tmp_dir, fasta_seq_path):
+def test_prep_seq_file(runner, tmp_dir, seq_path):
     outpath = tmp_dir / "test_prep_seq_file.h5"
-    args = f"-s {fasta_seq_path} -o {outpath}".split()
+    args = f"-s {seq_path} -o {outpath}".split()
     r = runner.invoke(dvgt_prep, args, catch_exceptions=False)
     assert r.exit_code == 0, r.output
     _checked_h5_output(str(outpath))
 
 
-def test_prep_seq_directory(runner, tmp_dir, seq_dir):
-    outpath = tmp_dir / "test_prep_seq_directory.h5"
-    args = f"-s {seq_dir} -o {outpath}".split()
-    r = runner.invoke(dvgt_prep, args, catch_exceptions=False)
-    assert r.exit_code == 0, r.output
-    _checked_h5_output(str(outpath))
-
-
-def test_prep_outpath_without_suffix(runner, tmp_dir, fasta_seq_path):
+def test_prep_outpath_without_suffix(runner, tmp_dir, seq_path):
     outpath = tmp_dir / "test_prep_outpath_without_suffix"
-    args = f"-s {fasta_seq_path} -o {outpath}".split()
+    args = f"-s {seq_path} -o {outpath}".split()
     r = runner.invoke(dvgt_prep, args, catch_exceptions=False)
     assert r.exit_code == 0, r.output
     _checked_h5_output(str(outpath) + ".h5")
 
 
-def test_prep_force_override(runner, tmp_dir, fasta_seq_path):
+def test_prep_force_override(runner, tmp_dir, seq_path):
     outpath = tmp_dir / "test_prep_force_override.h5"
-    args = f"-s {fasta_seq_path} -o {outpath}".split()
+    args = f"-s {seq_path} -o {outpath}".split()
 
     # Run prep once, it should succeed
     r = runner.invoke(dvgt_prep, args)
@@ -172,34 +159,47 @@ def test_prep_force_override(runner, tmp_dir, fasta_seq_path):
     _checked_h5_output(str(outpath))
 
 
-@pytest.mark.parametrize("moltype", ["dna", "rna"])
-def test_prep_max_moltype(runner, tmp_dir, fasta_seq_path, moltype):
-    outpath = tmp_dir / f"test_prep_{moltype}.h5"
-    args = f"-s {fasta_seq_path} -o {outpath} -m {moltype}".split()
+def test_prep_max_rna(runner, tmp_dir, seq_path):
+    seqs = load_unaligned_seqs(seq_path, moltype="rna")
+    rna_seq_path = tmp_dir / "test_rna.fasta"
+    seqs.write(rna_seq_path)
+
+    outpath = tmp_dir / f"test_prep_max_rna.h5"
+    args = f"-s {seq_path} -o {outpath} -m rna".split()
     r = runner.invoke(dvgt_prep, args)
     assert r.exit_code == 0, r.output
     _checked_h5_output(str(outpath))
 
-    max_outpath = tmp_dir / f"test_prep_{moltype}.tsv"
+    max_outpath = tmp_dir / f"test_prep_rna.tsv"
     max_args = f"-s {outpath} -o {max_outpath}".split()
     r = runner.invoke(dvgt_max, max_args)
     assert r.exit_code == 0, r.output
     _checked_output(str(max_outpath))
 
 
-def test_prep_source_from_file(runner, tmp_dir, fasta_seq_path):
+def test_prep_source_from_file(runner, tmp_dir, seq_path):
     outpath = tmp_dir / f"test_prep_source_from_file.h5"
-    args = f"-s {fasta_seq_path} -o {outpath}".split()
+    args = f"-s {seq_path} -o {outpath}".split()
     r = runner.invoke(dvgt_prep, args)
 
     with h5py.File(outpath, mode="r") as f:
-        assert f.attrs["source"] == str(fasta_seq_path)
+        assert f.attrs["source"] == str(seq_path)
         for _, dset in f.items():
-            assert dset.attrs["source"] == str(fasta_seq_path)
+            assert dset.attrs["source"] == str(seq_path)
 
 
-def test_prep_source_from_directory(runner, tmp_dir, seq_dir):
+def test_prep_source_from_directory(runner, tmp_dir, seq_path):
+    seq_dir = tmp_dir.mkdir("seqs")
     outpath = tmp_dir / f"test_prep_source_from_directory.h5"
+
+    # write seqs seperated into a directory so we can test
+    # dvgt max with directory as input
+    seqs = load_unaligned_seqs(seq_path, moltype="dna")
+    for s in seqs.iter_seqs():
+        with open(f"{seq_dir}/{s.name}.fasta", "w") as f:
+            f.write(f">{s.name}\n")
+            f.write(str(s))
+
     args = f"-s {seq_dir} -o {outpath}".split()
     r = runner.invoke(dvgt_prep, args)
 
