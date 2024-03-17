@@ -16,7 +16,7 @@ __credits__ = ["Gavin Huttley"]
 DATADIR = pathlib.Path(__file__).parent / "data"
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="session")
 def tmp_dir(tmpdir_factory):
     return tmpdir_factory.mktemp("dvgt")
 
@@ -30,6 +30,25 @@ def runner():
 @pytest.fixture(scope="session")
 def seq_path():
     return DATADIR / "brca1.fasta"
+
+
+@pytest.fixture(scope="function")
+def rna_seq_path(tmp_dir, seq_path):
+    seqs = load_unaligned_seqs(seq_path, moltype="rna")
+    path = tmp_dir / "test_rna.fasta"
+    seqs.write(path)
+    return path
+
+
+@pytest.fixture(scope="function")
+def seq_dir(tmpdir_factory, seq_path):
+    tmp = tmpdir_factory.mktemp("datastore")
+    seqs = load_unaligned_seqs(seq_path, moltype="dna")
+    for s in seqs.iter_seqs():
+        with open(f"{tmp}/{s.name}.fasta", "w") as f:
+            f.write(f">{s.name}\n")
+            f.write(str(s))
+    return tmp
 
 
 @pytest.fixture(scope="session")
@@ -159,13 +178,9 @@ def test_prep_force_override(runner, tmp_dir, seq_path):
     _checked_h5_output(str(outpath))
 
 
-def test_prep_max_rna(runner, tmp_dir, seq_path):
-    seqs = load_unaligned_seqs(seq_path, moltype="rna")
-    rna_seq_path = tmp_dir / "test_rna.fasta"
-    seqs.write(rna_seq_path)
-
+def test_prep_max_rna(runner, tmp_dir, rna_seq_path):
     outpath = tmp_dir / f"test_prep_max_rna.dvgtseqs"
-    args = f"-s {seq_path} -o {outpath} -m rna".split()
+    args = f"-s {rna_seq_path} -o {outpath} -m rna".split()
     r = runner.invoke(dvgt_prep, args)
     assert r.exit_code == 0, r.output
     _checked_h5_output(str(outpath))
@@ -188,18 +203,8 @@ def test_prep_source_from_file(runner, tmp_dir, seq_path):
             assert dset.attrs["source"] == str(seq_path)
 
 
-def test_prep_source_from_directory(runner, tmp_dir, seq_path):
-    seq_dir = tmp_dir.mkdir("seqs")
+def test_prep_source_from_directory(runner, tmp_dir, seq_dir):
     outpath = tmp_dir / f"test_prep_source_from_directory.dvgtseqs"
-
-    # write seqs seperated into a directory so we can test
-    # dvgt max with directory as input
-    seqs = load_unaligned_seqs(seq_path, moltype="dna")
-    for s in seqs.iter_seqs():
-        with open(f"{seq_dir}/{s.name}.fasta", "w") as f:
-            f.write(f">{s.name}\n")
-            f.write(str(s))
-
     args = f"-s {seq_dir} -o {outpath}".split()
     r = runner.invoke(dvgt_prep, args)
 
