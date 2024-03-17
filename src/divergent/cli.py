@@ -139,10 +139,10 @@ def prep(seqdir, outpath, parallel, force_overwrite, moltype):
             click.secho(f"{seqdir} contains no fasta paths", fg="red")
             exit(1)
 
-    outpath_h5 = outpath.with_suffix(".h5")
-    if outpath_h5.exists() and not force_overwrite:
+    suffixed_outpath = outpath.with_suffix(".dvgtseqs")
+    if suffixed_outpath.exists() and not force_overwrite:
         click.secho(
-            f"FileExistsError: Unable to create file at {outpath_h5} because a file "
+            f"FileExistsError: Unable to create file at {suffixed_outpath} because a file "
             f"with the same name already exists. Please choose a different "
             f"name or use the -F flag to force overwrite the existing file.",
             fg="red",
@@ -160,7 +160,7 @@ def prep(seqdir, outpath, parallel, force_overwrite, moltype):
         records.append(result)
 
     write_mode = "w" if force_overwrite else "w-"
-    with h5py.File(outpath_h5, mode=write_mode) as f:
+    with h5py.File(suffixed_outpath, mode=write_mode) as f:
         # only support collection of seqs of the same moltype,
         # so moltype can be stored as a top level attribute
         f.attrs["moltype"] = moltype
@@ -176,7 +176,7 @@ def prep(seqdir, outpath, parallel, force_overwrite, moltype):
         num_records = len(f.keys())
 
     click.secho(
-        f"Successfully processed {num_records} sequences and wrote to {outpath_h5}",
+        f"Successfully processed {num_records} sequences and wrote to {suffixed_outpath}",
         fg="green",
     )
 
@@ -237,10 +237,10 @@ def max(
         click.secho(f"{min_size=} is greater than {max_size}", fg="red")
         exit(1)
 
-    if not seqfile.suffix == ".h5":
+    if not seqfile.suffix == ".dvgtseqs":
         click.secho(
             f"Sequence data needs to be preprocessed, run 'dvgt prep -s "
-            "<path_to_your_seqs.fasta> -o <path_to_write_processed_seqs.h5>' "
+            "<path_to_your_seqs.fasta> -o <path_to_write_processed_seqs.dvgtseqs>' "
             "to prepare the sequence data",
             fg="red",
         )
