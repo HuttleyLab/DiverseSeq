@@ -99,116 +99,6 @@ _click_command_opts = dict(
 @main.command(**_click_command_opts)
 @click.option(
     "-s",
-    "--seqfile",
-    required=True,
-    type=Path,
-    help="HDF5 file containing sequences, must have been processed by the 'prep' command",
-)
-@_outpath
-@click.option(
-    "-z", "--min_size", default=7, type=int, help="minimum size of divergent set"
-)
-@click.option(
-    "-zp", "--max_size", default=None, type=int, help="maximum size of divergent set"
-)
-@click.option(
-    "-x", "--fixed_size", is_flag=True, help="result will have size number of seqs"
-)
-@click.option("-k", type=int, default=3, help="k-mer size")
-@click.option(
-    "-st",
-    "--stat",
-    type=click.Choice(["total_jsd", "mean_delta_jsd", "mean_jsd"]),
-    default="mean_delta_jsd",
-    help="statistic to maximise",
-)
-@click.option("-p", "--parallel", is_flag=True, help="run in parallel")
-@click.option("-L", "--limit", type=int, help="number of sequences to process")
-@click.option(
-    "-T",
-    "--test_run",
-    is_flag=True,
-    help="reduce number of paths and size of query seqs",
-)
-@_verbose
-def max(
-    seqfile,
-    outpath,
-    min_size,
-    max_size,
-    fixed_size,
-    stat,
-    k,
-    parallel,
-    limit,
-    test_run,
-    verbose,
-):
-    """identify the seqs that maximise average delta JSD"""
-
-    if max_size is not None and min_size > max_size:
-        click.secho(f"{min_size=} is greater than {max_size}", fg="red")
-        exit(1)
-
-    if not seqfile.suffix == ".h5":
-        click.secho(
-            f"Sequence data needs to be preprocessed, run 'dvgt prep -s "
-            "<path_to_your_seqs.fasta> -o <path_to_write_processed_seqs.h5>' "
-            "to prepare the sequence data",
-            fg="red",
-        )
-        exit(1)
-
-    set_keepawake(keep_screen_awake=False)
-
-    with h5py.File(seqfile, mode="r") as f:
-        limit = 2 if test_run else limit or len(f.keys())
-        orig_moltype = get_moltype(f.attrs["moltype"])
-        to_str = dv_utils.arr2str()
-        seqs = []
-        for name, dset in itertools.islice(f.items(), limit):
-            # initalise array
-            out = empty(len(dset), dtype=uint8)
-            # read db content directly into initialised array
-            dset.read_direct(out)
-            seq = to_str(out)
-            seqs.append(orig_moltype.make_seq(seq, name=name))
-
-    make_records = seq_to_record(k=k, moltype=orig_moltype)
-    tasks = make_task_iterator(make_records, seqs, parallel)
-
-    records = []
-    for result in track(tasks, total=len(seqs), update_period=1):
-        if not result:
-            print(result)
-            exit()
-        records.append(result)
-
-    random.shuffle(records)
-    if fixed_size:
-        sr = most_divergent(records, size=min_size, verbose=verbose > 0)
-    else:
-        sr = max_divergent(
-            records,
-            min_size=min_size,
-            max_size=max_size,
-            stat=stat,
-            verbose=verbose > 0,
-        )
-
-    names, deltas = list(
-        zip(*[(r.name, r.delta_jsd) for r in [sr.lowest] + sr.records])
-    )
-    table = make_table(data={"names": names, stat: deltas})
-    outpath.parent.mkdir(parents=True, exist_ok=True)
-    table.write(outpath)
-
-    unset_keepawake()
-
-
-@main.command(**_click_command_opts)
-@click.option(
-    "-s",
     "--seqdir",
     required=True,
     type=Path,
@@ -289,6 +179,116 @@ def prep(seqdir, outpath, parallel, force_overwrite, moltype):
         f"Successfully processed {num_records} sequences and wrote to {outpath_h5}",
         fg="green",
     )
+
+    unset_keepawake()
+
+
+@main.command(**_click_command_opts)
+@click.option(
+    "-s",
+    "--seqfile",
+    required=True,
+    type=Path,
+    help="HDF5 file containing sequences, must have been processed by the 'prep' command",
+)
+@_outpath
+@click.option(
+    "-z", "--min_size", default=7, type=int, help="minimum size of divergent set"
+)
+@click.option(
+    "-zp", "--max_size", default=None, type=int, help="maximum size of divergent set"
+)
+@click.option(
+    "-x", "--fixed_size", is_flag=True, help="result will have size number of seqs"
+)
+@click.option("-k", type=int, default=3, help="k-mer size")
+@click.option(
+    "-st",
+    "--stat",
+    type=click.Choice(["total_jsd", "mean_delta_jsd", "mean_jsd"]),
+    default="mean_delta_jsd",
+    help="statistic to maximise",
+)
+@click.option("-p", "--parallel", is_flag=True, help="run in parallel")
+@click.option("-L", "--limit", type=int, help="number of sequences to process")
+@click.option(
+    "-T",
+    "--test_run",
+    is_flag=True,
+    help="reduce number of paths and size of query seqs",
+)
+@_verbose
+def max(
+    seqfile,
+    outpath,
+    min_size,
+    max_size,
+    fixed_size,
+    stat,
+    k,
+    parallel,
+    limit,
+    test_run,
+    verbose,
+):
+    """Identify the seqs that maximise average delta JSD"""
+
+    if max_size is not None and min_size > max_size:
+        click.secho(f"{min_size=} is greater than {max_size}", fg="red")
+        exit(1)
+
+    if not seqfile.suffix == ".h5":
+        click.secho(
+            f"Sequence data needs to be preprocessed, run 'dvgt prep -s "
+            "<path_to_your_seqs.fasta> -o <path_to_write_processed_seqs.h5>' "
+            "to prepare the sequence data",
+            fg="red",
+        )
+        exit(1)
+
+    set_keepawake(keep_screen_awake=False)
+
+    with h5py.File(seqfile, mode="r") as f:
+        limit = 2 if test_run else limit or len(f.keys())
+        orig_moltype = get_moltype(f.attrs["moltype"])
+        to_str = dv_utils.arr2str()
+        seqs = []
+        for name, dset in itertools.islice(f.items(), limit):
+            # initalise array
+            out = empty(len(dset), dtype=uint8)
+            # read db content directly into initialised array
+            dset.read_direct(out)
+            seq = to_str(out)
+            seqs.append(orig_moltype.make_seq(seq, name=name))
+
+    make_records = seq_to_record(k=k, moltype=orig_moltype)
+    tasks = make_task_iterator(make_records, seqs, parallel)
+
+    records = []
+    for result in track(tasks, total=len(seqs), update_period=1):
+        if not result:
+            print(result)
+            exit()
+        records.append(result)
+
+    random.shuffle(records)
+    if fixed_size:
+        sr = most_divergent(records, size=min_size, verbose=verbose > 0)
+    else:
+        sr = max_divergent(
+            records,
+            min_size=min_size,
+            max_size=max_size,
+            stat=stat,
+            verbose=verbose > 0,
+        )
+
+    names, deltas = list(
+        zip(*[(r.name, r.delta_jsd) for r in [sr.lowest] + sr.records])
+    )
+    table = make_table(data={"names": names, stat: deltas})
+    outpath.parent.mkdir(parents=True, exist_ok=True)
+    table.write(outpath)
 
     unset_keepawake()
 
