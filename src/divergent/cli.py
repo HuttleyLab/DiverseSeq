@@ -4,10 +4,10 @@ from pathlib import Path
 
 import click
 import h5py
-import numpy as np
 
 from cogent3 import get_moltype, make_table
 from cogent3.util import parallel as PAR
+from numpy import empty, random, uint8
 from rich.progress import track
 from scitrack import CachingLogger
 
@@ -83,7 +83,7 @@ def _make_outpath(outdir, path, k):
     return outdir / f"{path.stem.split('.')[0]}-{k}-mer.json.blosc2"
 
 
-def execute_tasks(func, tasks, parallel):
+def make_task_iterator(func, tasks, parallel):
     if parallel:
         workers = PAR.get_size() - 1
         return PAR.as_completed(func, tasks, max_workers=workers)
@@ -167,23 +167,24 @@ def max(
         to_str = dv_utils.arr2str()
         seqs = []
         for name, dset in itertools.islice(f.items(), limit):
-            # initalise array and read db content directly into
-            out = np.empty(len(dset), dtype=np.uint8)
+            # initalise array
+            out = empty(len(dset), dtype=uint8)
+            # read db content directly into initialised array
             dset.read_direct(out)
             seq = to_str(out)
             seqs.append(orig_moltype.make_seq(seq, name=name))
 
     make_records = seq_to_record(k=k, moltype=orig_moltype)
-    series = execute_tasks(make_records, seqs, parallel)
+    tasks = make_task_iterator(make_records, seqs, parallel)
 
     records = []
-    for result in track(series, total=len(seqs), update_period=1):
+    for result in track(tasks, total=len(seqs), update_period=1):
         if not result:
             print(result)
             exit()
         records.append(result)
 
-    np.random.shuffle(records)
+    random.shuffle(records)
     if fixed_size:
         sr = most_divergent(records, size=min_size, verbose=verbose > 0)
     else:
@@ -259,10 +260,10 @@ def prep(seqdir, outpath, parallel, force_overwrite, moltype):
         exit(1)
 
     fasta_to_array = dv_utils.seq_from_fasta(moltype=moltype) + dv_utils.seq_to_array()
-    series = execute_tasks(fasta_to_array, paths, parallel)
+    tasks = make_task_iterator(fasta_to_array, paths, parallel)
 
     records = []
-    for result in track(series, total=len(paths), update_period=1):
+    for result in track(tasks, total=len(paths), update_period=1):
         if not result:
             print(result)
             exit()
