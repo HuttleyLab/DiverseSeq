@@ -69,15 +69,15 @@ cog.out(
 ```
 Usage: dvgt [OPTIONS] COMMAND [ARGS]...
 
-  dvgt -- alignment free measurement of divergent sequences
+  dvgt -- alignment free detection of most divergent sequences using JSD
 
 Options:
   --version  Show the version and exit.
   --help     Show this message and exit.
 
 Commands:
-  prep  writes processed sequences to an HDF5 file
-  max  identify the seqs that maximise average delta 
+  max   Identify the seqs that maximise average delta JSD
+  prep  Writes processed sequences to an HDF5 file.
 
 ```
 <!-- [[[end]]] -->
