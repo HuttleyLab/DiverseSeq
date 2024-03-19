@@ -171,6 +171,7 @@ def prep(seqdir, outpath, parallel, force_overwrite, moltype):
                 name=record["name"],
                 data=record["data"],
                 dtype="u1",
+                # todo: compression blosc2?
             )
             dset.attrs["source"] = str(record["source"])
         num_records = len(f.keys())
@@ -237,7 +238,7 @@ def max(
         click.secho(f"{min_size=} is greater than {max_size}", fg="red")
         exit(1)
 
-    if not seqfile.suffix == ".dvgtseqs":
+    if seqfile.suffix != ".dvgtseqs":
         click.secho(
             f"Sequence data needs to be preprocessed, run 'dvgt prep -s "
             "<path_to_your_seqs.fasta> -o <path_to_write_processed_seqs.dvgtseqs>' "

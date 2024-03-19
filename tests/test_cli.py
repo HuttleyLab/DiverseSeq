@@ -21,6 +21,11 @@ def tmp_dir(tmpdir_factory):
     return tmpdir_factory.mktemp("dvgt")
 
 
+@pytest.fixture(scope="function")
+def tmp_path(tmpdir_factory):
+    return tmpdir_factory.mktemp("seqdata")
+
+
 @pytest.fixture(scope="session")
 def runner():
     """exportrc works correctly."""
@@ -41,14 +46,12 @@ def rna_seq_path(tmp_dir, seq_path):
 
 
 @pytest.fixture(scope="function")
-def seq_dir(tmpdir_factory, seq_path):
-    tmp = tmpdir_factory.mktemp("datastore")
+def seq_dir(tmp_path, seq_path):
     seqs = load_unaligned_seqs(seq_path, moltype="dna")
     for s in seqs.iter_seqs():
-        with open(f"{tmp}/{s.name}.fasta", "w") as f:
-            f.write(f">{s.name}\n")
-            f.write(str(s))
-    return tmp
+        fn = tmp_path / f"{s.name}.fasta"
+        fn.write_text(s.to_fasta(), encoding="utf-8")
+    return tmp_path
 
 
 @pytest.fixture(scope="session")
