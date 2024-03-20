@@ -1,31 +1,6 @@
-# Overview
+# Divergent
 
 ## Identifying the sequences that maximise Jensen-Shannon
-
-### Maximise average delta JSD
-
-The input can be a single file (as below) or a directory full of files. In either case, the k-mer frequencies of the sequences are used to maximise the delta jsd values. This command will start with 10 sequences and use 3-mers. It will generate a tsv file with only sequences that have a +ve delta jsd. The `-v` flag displays some additional output.
-```
-$ dvgt max -s ~/repos/Cogent3/tests/data/brca1.fasta -o ~/Desktop/Outbox/delme/delme.tsv -k 3 -v -z 10 
-```
-
-The following command takes a directory that has over 1k fasta files of bacterial genomes. The computations are as above except the `-p` flag indicates the reading of data will be done in parallell using 6 cores.
-```
-$ dvgt max -s soil_reference_genomes_fasta -o ~/Desktop/Outbox/delme/delme.tsv -p -k 3 -v 
-```
-
-The following command is the same as above except the `-x` flag means strictly 10 sequences will be output.
-```
-$ dvgt max -s soil_reference_genomes_fasta -o ~/Desktop/Outbox/delme/delme.tsv -p -k 3 -z 10 -x 
-```
-
-## Running the tests
-
-```
-$ pytest -n auto
-```
-
-This runs in parallel, greatly speeding things up.
 
 ## The available commands
 
@@ -43,14 +18,102 @@ cog.out(
 ```
 Usage: dvgt [OPTIONS] COMMAND [ARGS]...
 
-  dvgt -- alignment free measurement of divergent sequences
+  dvgt -- alignment free detection of most divergent sequences using JSD
 
 Options:
   --version  Show the version and exit.
   --help     Show this message and exit.
 
 Commands:
-  max  identify the seqs that maximise average delta entropy
+  max   Identify the seqs that maximise average delta JSD
+  prep  Writes processed sequences to an HDF5 file.
 
 ```
 <!-- [[[end]]] -->
+
+### `dvgt prep`: Preparing the sequence data
+
+The sequences need to be processed before running the `max` command. This is done with the `prep` command. 
+
+#### Usage:
+
+<!-- [[[cog
+import cog
+from divergent.cli import main
+from click.testing import CliRunner
+runner = CliRunner()
+result = runner.invoke(main, ["prep", "--help"])
+help = result.output.replace("Usage: main", "Usage: dvgt")
+cog.out(
+    "```\n{}\n```".format(help)
+)
+]]] -->
+```
+Usage: dvgt prep [OPTIONS]
+
+  Writes processed sequences to an HDF5 file.
+
+Options:
+  -s, --seqdir PATH        directory containing fasta formatted sequence files
+                           [required]
+  -o, --outpath PATH       location to write processed seqs as HDF5  [required]
+  -p, --parallel           run in parallel
+  -F, --force_overwrite    Overwrite existing file if it exists
+  -m, --moltype [dna|rna]  Molecular type of sequences, defaults to DNA
+                           [default: dna]
+  --help                   Show this message and exit.
+
+```
+<!-- [[[end]]] -->
+
+### `dvgt max`: Maximise average delta JSD
+
+Once the sequence data has been prepared using `dvgt prep`, the `max` command can be used to identify the sequences that maximise the Jensen-Shannon divergence. The kmer frequencies of the sequences are used to determine the Jensen-Shannon divergence
+
+#### Usage:
+
+<!-- [[[cog
+import cog
+from divergent.cli import main
+from click.testing import CliRunner
+runner = CliRunner()
+result = runner.invoke(main, ["max", "--help"])
+help = result.output.replace("Usage: main", "Usage: dvgt")
+cog.out(
+    "```\n{}\n```".format(help)
+)
+]]] -->
+```
+Usage: dvgt max [OPTIONS]
+
+  Identify the seqs that maximise average delta JSD
+
+Options:
+  -s, --seqfile PATH              HDF5 file containing sequences, must have been
+                                  processed by the 'prep' command  [required]
+  -o, --outpath PATH              the input string will be cast to Path instance
+  -z, --min_size INTEGER          minimum size of divergent set  [default: 7]
+  -zp, --max_size INTEGER         maximum size of divergent set
+  -x, --fixed_size                result will have size number of seqs
+  -k INTEGER                      k-mer size  [default: 3]
+  -st, --stat [total_jsd|mean_delta_jsd|mean_jsd]
+                                  statistic to maximise  [default:
+                                  mean_delta_jsd]
+  -p, --parallel                  run in parallel
+  -L, --limit INTEGER             number of sequences to process
+  -T, --test_run                  reduce number of paths and size of query seqs
+  -v, --verbose                   is an integer indicating number of cl
+                                  occurrences  [default: 0]
+  --help                          Show this message and exit.
+
+```
+<!-- [[[end]]] -->
+
+## Running the tests
+
+```
+$ pytest -n auto
+```
+
+This runs in parallel, greatly speeding things up.
+
