@@ -214,4 +214,5 @@ def test_prep_source_from_directory(runner, tmp_dir, seq_dir):
     with h5py.File(outpath, mode="r") as f:
         assert f.attrs["source"] == str(seq_dir)
         for name, dset in f.items():
-            assert dset.attrs["source"] == f"{str(seq_dir)}/{name}.fasta"
+            expect = seq_dir / f"{name}.fasta"
+            assert dset.attrs["source"] == str(expect)
