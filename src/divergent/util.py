@@ -189,6 +189,6 @@ class arr2str:
 
 
 @composable.define_app
-def seq_to_array(seq: c3_types.SeqType) -> tuple:
+def seq_to_array(seq: c3_types.SeqType) -> dict:
     as_indices = str2arr()
     return {"name": seq.name, "source": seq.source, "data": as_indices(str(seq))}
