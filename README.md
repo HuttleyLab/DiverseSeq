@@ -25,8 +25,8 @@ Options:
   --help     Show this message and exit.
 
 Commands:
-  max   Identify the seqs that maximise average delta JSD
   prep  Writes processed sequences to an HDF5 file.
+  max   Identify the seqs that maximise average delta JSD
 
 ```
 <!-- [[[end]]] -->
