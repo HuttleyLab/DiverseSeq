@@ -55,7 +55,7 @@ class OrderedGroup(click.Group):
         commands: Optional[Mapping[str, click.Command]] = None,
         **kwargs,
     ):
-        super(OrderedGroup, self).__init__(name, commands, **kwargs)
+        super().__init__(name, commands, **kwargs)
         #: the registered subcommands by their exported names.
         self.commands = commands or OrderedDict()
 
