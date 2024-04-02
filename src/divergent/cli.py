@@ -1,6 +1,8 @@
 import itertools
 
+from collections import OrderedDict
 from pathlib import Path
+from typing import Mapping, Optional
 
 import click
 import h5py
@@ -41,7 +43,27 @@ __status__ = "alpha"
 LOGGER = CachingLogger()
 
 
-@click.group()
+class OrderedGroup(click.Group):
+    """custom group class to ensure help function returns commands in desired order.
+    class is adapted from Максим Стукало's answer to
+    https://stackoverflow.com/questions/47972638/how-can-i-define-the-order-of-click-sub-commands-in-help
+    """
+    
+    def __init__(
+        self,
+        name: Optional[str] = None,
+        commands: Optional[Mapping[str, click.Command]] = None,
+        **kwargs,
+    ):
+        super().__init__(name, commands, **kwargs)
+        #: the registered subcommands by their exported names.
+        self.commands = commands or OrderedDict()
+
+    def list_commands(self, ctx: click.Context) -> Mapping[str, click.Command]:
+        return self.commands
+
+
+@click.group(cls=OrderedGroup)
 @click.version_option(__version__)  # add version option
 def main():
     """dvgt -- alignment free detection of most divergent sequences using JSD"""
