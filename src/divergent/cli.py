@@ -15,7 +15,7 @@ from scitrack import CachingLogger
 
 import divergent.util as dv_utils
 
-from divergent.record import seq_to_record
+from divergent.record import SeqArray, seq_to_seqarray, seqarray_to_record
 from divergent.records import max_divergent, most_divergent
 
 
@@ -48,7 +48,7 @@ class OrderedGroup(click.Group):
     class is adapted from Максим Стукало's answer to
     https://stackoverflow.com/questions/47972638/how-can-i-define-the-order-of-click-sub-commands-in-help
     """
-    
+
     def __init__(
         self,
         name: Optional[str] = None,
@@ -171,8 +171,8 @@ def prep(seqdir, outpath, parallel, force_overwrite, moltype):
         )
         exit(1)
 
-    fasta_to_array = dv_utils.seq_from_fasta(moltype=moltype) + dv_utils.seq_to_array()
-    tasks = make_task_iterator(fasta_to_array, paths, parallel)
+    fasta_to_seqarray = dv_utils.seq_from_fasta(moltype=moltype) + seq_to_seqarray()
+    tasks = make_task_iterator(fasta_to_seqarray, paths, parallel)
 
     records = []
     for result in track(tasks, total=len(paths), update_period=1):
@@ -190,12 +190,12 @@ def prep(seqdir, outpath, parallel, force_overwrite, moltype):
 
         for record in records:
             dset = f.create_dataset(
-                name=record["name"],
-                data=record["data"],
+                name=record.seqid,
+                data=record.data,
                 dtype="u1",
                 # todo: compression blosc2?
             )
-            dset.attrs["source"] = str(record["source"])
+            dset.attrs["source"] = str(record.source)
         num_records = len(f.keys())
 
     click.secho(
@@ -274,17 +274,17 @@ def max(
     with h5py.File(seqfile, mode="r") as f:
         limit = 2 if test_run else limit or len(f.keys())
         orig_moltype = get_moltype(f.attrs["moltype"])
-        to_str = dv_utils.arr2str()
+
         seqs = []
         for name, dset in itertools.islice(f.items(), limit):
-            # initalise array
             out = empty(len(dset), dtype=uint8)
-            # read db content directly into initialised array
             dset.read_direct(out)
-            seq = to_str(out)
-            seqs.append(orig_moltype.make_seq(seq, name=name))
+            seq = SeqArray(
+                seqid=name, data=out, moltype=orig_moltype, source=f.attrs["source"]
+            )
+            seqs.append(seq)
 
-    make_records = seq_to_record(k=k, moltype=orig_moltype)
+    make_records = seqarray_to_record(k=k, moltype=orig_moltype)
     tasks = make_task_iterator(make_records, seqs, parallel)
 
     records = []

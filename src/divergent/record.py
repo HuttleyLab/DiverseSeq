@@ -1,4 +1,5 @@
 """defines basic data type for storing an individual sequence record"""
+from dataclasses import dataclass
 from functools import singledispatch
 from math import fabs, isclose
 from typing import Dict, Optional, Union
@@ -12,9 +13,7 @@ from cogent3.app import typing as c3_types
 from cogent3.core.alphabet import get_array_type
 from numpy import array
 from numpy import divmod as np_divmod
-from numpy import errstate, log2, nan_to_num, ndarray, uint8, uint64
-from numpy import unique as np_unique
-from numpy import zeros
+from numpy import errstate, log2, nan_to_num, ndarray, uint8, uint64, zeros
 
 from divergent import util as dv_utils
 
@@ -378,6 +377,32 @@ def _(data: vector):
     return data
 
 
+@dataclass(frozen=True)
+class SeqArray:
+    """A SeqArray stores an array of indices that map to the canonical characters
+    of the moltype of the original sequence. Use divergent.util.arr2str() to
+    recapitulate the original sequence."""
+
+    seqid: str
+    data: ndarray
+    moltype: str
+    source: str = None
+
+    def __len__(self):
+        return len(self.data)
+
+
+@composable.define_app
+def seq_to_seqarray(seq: c3_types.SeqType) -> SeqArray:
+    as_indices = dv_utils.str2arr(moltype=seq.moltype)
+    return SeqArray(
+        seqid=seq.name,
+        data=as_indices(str(seq)),
+        moltype=seq.moltype,
+        source=seq.source,
+    )
+
+
 @define(slots=True, order=True, hash=True)
 class SeqRecord:
     """representation of a single sequence as kmer counts"""
@@ -438,49 +463,21 @@ class _seq_to_kmers:
 
 
 @composable.define_app
-class seq_to_kmer_counts(_seq_to_kmers):
-    def main(self, seq: c3_types.SeqType) -> vector:
+class seqarray_to_record(_seq_to_kmers):
+    def main(self, seq: SeqArray) -> SeqRecord:
         kwargs = dict(
             vector_length=len(self.canonical) ** self.k,
             dtype=int,
-            source=getattr(seq, "source", None),
-            name=seq.name,
+            source=seq.source,
+            name=seq.seqid,
         )
-        seq = self.seq2array(str(seq))
-        if self.k > 7:
-            result = _seq_to_all_kmers(seq, self.canonical, self.k)
-            indices, counts = np_unique(result, return_counts=True)
-            counts = dict(zip(indices.tolist(), counts.tolist()))
-            del result
-        else:  # just make a dense array
-            counts = kmer_counts(seq, len(self.canonical), self.k)
-            counts = {i: c for i, c in enumerate(counts) if c}
+        counts = kmer_counts(seq.data, len(self.canonical), self.k)
+        counts = {i: c for i, c in enumerate(counts) if c}
 
         kwargs["data"] = counts
-        return vector(**kwargs)
-
-
-@composable.define_app
-class seq_to_record(_seq_to_kmers):
-    def main(self, seq: c3_types.SeqType) -> SeqRecord:
-        kwargs = dict(
-            vector_length=len(self.canonical) ** self.k,
-            dtype=int,
-            source=getattr(seq, "source", None),
-            name=seq.name,
+        return SeqRecord(
+            kcounts=vector(**kwargs), name=kwargs["name"], length=len(seq.data)
         )
-        seq = self.seq2array(str(seq))
-        if self.k > 7:
-            result = _seq_to_all_kmers(seq, self.canonical, self.k)
-            indices, counts = np_unique(result, return_counts=True)
-            counts = dict(zip(indices.tolist(), counts.tolist()))
-            del result
-        else:  # just make a dense array
-            counts = kmer_counts(seq, len(self.canonical), self.k)
-            counts = {i: c for i, c in enumerate(counts) if c}
-
-        kwargs["data"] = counts
-        return SeqRecord(kcounts=vector(**kwargs), name=kwargs["name"], length=len(seq))
 
 
 def _get_canonical_states(moltype: str) -> bytes:

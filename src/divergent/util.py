@@ -186,9 +186,3 @@ class arr2str:
 
         b = data.tobytes().translate(self.translation)
         return bytearray(b).decode("utf8")
-
-
-@composable.define_app
-def seq_to_array(seq: c3_types.SeqType) -> dict:
-    as_indices = str2arr()
-    return {"name": seq.name, "source": seq.source, "data": as_indices(str(seq))}

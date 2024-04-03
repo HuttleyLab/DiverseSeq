@@ -18,6 +18,7 @@ from numpy import (
 from numpy.testing import assert_allclose
 
 from divergent.record import (
+    SeqArray,
     SeqRecord,
     _gettype,
     coord_conversion_coeffs,
@@ -26,7 +27,7 @@ from divergent.record import (
     indices_to_seqs,
     kmer_counts,
     kmer_indices,
-    seq_to_kmer_counts,
+    seqarray_to_record,
     vector,
 )
 from divergent.util import str2arr
@@ -40,6 +41,16 @@ seq0 = make_seq("", name="null", moltype="dna")
 seq_nameless = make_seq("ACGTGTT", moltype="dna")
 seq4eq = make_seq("ACGT", name="null", moltype="dna")
 seq4one = make_seq("AAAA", name="null", moltype="dna")
+
+
+@pytest.fixture
+def seqarray():
+    return SeqArray(
+        seqid="seq1",
+        data=numpy.array([0, 1, 2, 3]),
+        moltype="dna",
+        source="seq1_source",
+    )
 
 
 @pytest.mark.parametrize("seq,entropy", ((seq4eq, 2.0), (seq4one, 0.0)))
@@ -77,24 +88,6 @@ def test_seqrecord_compare():
 
     rec = sorted((sr3, sr1, sr2))
     assert rec[0].delta_jsd == 1 and rec[-1].delta_jsd == 34
-
-
-@pytest.mark.parametrize("k", (1, 2, 3))
-def test_seq_to_kmer_counts_kfreqs(k):
-    from collections import Counter
-
-    from numpy import unravel_index
-
-    s2k = seq_to_kmer_counts(k=k, moltype="dna")
-    kcounts = s2k(seq5)
-    assert kcounts.sum() == len(seq5) - k + 1
-    # check we can round trip the counts
-    int2str = lambda x: "".join(
-        seq5.moltype.alphabet.from_indices(unravel_index(x, shape=(4,) * k))
-    )
-    expected = Counter(seq5.iter_kmers(k))
-    got = {int2str(i): c for i, c in enumerate(kcounts) if c}
-    assert got == expected
 
 
 def test_sparse_vector_create():
@@ -424,3 +417,12 @@ def test__gettype(dtype):
         expect = int if dtype == "int" else float
     got = _gettype(dtype)
     assert got == expect
+
+
+@pytest.mark.parametrize("k", (1, 2, 3))
+def test_seqarray_to_record(seqarray, k):
+    s2r = seqarray_to_record(k=k, moltype="dna")
+    rec = s2r(seqarray)
+
+    assert rec.name == "seq1"
+    rec.kfreqs.sum() == len(seqarray) - k + 1
