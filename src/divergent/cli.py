@@ -171,8 +171,8 @@ def prep(seqdir, outpath, parallel, force_overwrite, moltype):
         )
         exit(1)
 
-    fasta_to_seqarray = dv_loader.seq_from_fasta(moltype=moltype) + seq_to_seqarray()
-    tasks = make_task_iterator(fasta_to_seqarray, paths, parallel)
+    load_seqs = dv_loader.seqarray_from_fasta(moltype=moltype)
+    tasks = make_task_iterator(load_seqs, paths, parallel)
 
     records = []
     for result in track(tasks, total=len(paths), update_period=1):

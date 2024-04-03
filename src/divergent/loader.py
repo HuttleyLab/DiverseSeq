@@ -8,6 +8,9 @@ from cogent3.app import composable
 from cogent3.app import typing as c3_types
 from cogent3.parse.fasta import MinimalFastaParser
 
+from divergent import util as dv_utils
+from divergent.record import SeqArray
+
 
 def _label_func(label):
     return label.split()[0]
@@ -53,7 +56,7 @@ class filename_seqname:
 
 
 @composable.define_app(app_type=composable.LOADER)
-class seq_from_fasta:
+class seqarray_from_fasta:
     def __init__(self, label_func=_label_func, max_length=None, moltype="dna") -> None:
         self.max_length = max_length
         self.loader = faster_load_fasta(label_func=label_func)
@@ -73,9 +76,14 @@ class seq_from_fasta:
         if self.max_length:
             seq = seq[: self.max_length]
 
-        seq = make_seq(seq, name=name, moltype=self.moltype)
-        seq.source = getattr(identifier, "source", identifier)
-        return seq
+        as_indices = dv_utils.str2arr(moltype=self.moltype)
+
+        return SeqArray(
+            seqid=name,
+            data=as_indices(seq),
+            moltype=self.moltype,
+            source=getattr(identifier, "source", identifier),
+        )
 
 
 def get_seq_identifiers(paths, label_func=_label_func) -> list[filename_seqname]:
@@ -104,5 +112,3 @@ class concat_seqs:
             seq = seq[: self.max_length]
 
         return make_seq(seq, name=self.label_func(path), moltype="dna")
-
-
