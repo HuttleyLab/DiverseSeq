@@ -2,7 +2,7 @@
 from dataclasses import dataclass
 from functools import singledispatch
 from math import fabs, isclose
-from typing import Dict, Optional, Union
+from typing import Dict, Iterator, Optional, Union
 
 import numba
 
@@ -15,7 +15,6 @@ from numpy import array
 from numpy import divmod as np_divmod
 from numpy import errstate, log2, nan_to_num, ndarray, uint8, uint64, zeros
 
-from divergent import loader as dv_loader
 from divergent import util as dv_utils
 
 
@@ -115,7 +114,7 @@ class vector:
     def __len__(self) -> int:
         return len(self.data)
 
-    def __iter__(self) -> NumType:
+    def __iter__(self) -> Iterator[NumType]:
         yield from self.data
 
     def __getstate__(self):
@@ -163,7 +162,7 @@ class vector:
     def sum(self):
         return self.data.sum()
 
-    def iter_nonzero(self) -> NumType:
+    def iter_nonzero(self) -> Iterator[NumType]:
         yield from (v for v in self.data if v)
 
     @property
@@ -473,9 +472,8 @@ class seqarray_to_record(_seq_to_kmers):
             name=seq.seqid,
         )
         counts = kmer_counts(seq.data, len(self.canonical), self.k)
-        counts = {i: c for i, c in enumerate(counts) if c}
-
         kwargs["data"] = counts
+
         return SeqRecord(
             kcounts=vector(**kwargs), name=kwargs["name"], length=len(seq.data)
         )
