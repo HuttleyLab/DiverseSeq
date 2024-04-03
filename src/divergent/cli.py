@@ -6,6 +6,7 @@ from typing import Mapping, Optional
 
 import click
 import h5py
+import hdf5plugin
 
 from cogent3 import get_moltype, make_table
 from cogent3.util import parallel as PAR
@@ -190,10 +191,7 @@ def prep(seqdir, outpath, parallel, force_overwrite, moltype):
 
         for record in records:
             dset = f.create_dataset(
-                name=record.seqid,
-                data=record.data,
-                dtype="u1",
-                # todo: compression blosc2?
+                name=record.seqid, data=record.data, dtype="u1", **hdf5plugin.Blosc2()
             )
             dset.attrs["source"] = str(record.source)
         num_records = len(f.keys())
