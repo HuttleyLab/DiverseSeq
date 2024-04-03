@@ -15,6 +15,7 @@ from numpy import array
 from numpy import divmod as np_divmod
 from numpy import errstate, log2, nan_to_num, ndarray, uint8, uint64, zeros
 
+from divergent import loader as dv_loader
 from divergent import util as dv_utils
 
 

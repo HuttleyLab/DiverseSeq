@@ -14,8 +14,7 @@ from numpy import empty, random, uint8
 from rich.progress import track
 from scitrack import CachingLogger
 
-import divergent.util as dv_utils
-
+from divergent import loader as dv_loader
 from divergent.record import SeqArray, seq_to_seqarray, seqarray_to_record
 from divergent.records import max_divergent, most_divergent
 
@@ -155,7 +154,7 @@ def prep(seqdir, outpath, parallel, force_overwrite, moltype):
     set_keepawake(keep_screen_awake=False)
 
     if seqdir.is_file():
-        paths = dv_utils.get_seq_identifiers([seqdir])
+        paths = dv_loader.get_seq_identifiers([seqdir])
     else:
         paths = list(seqdir.glob("**/*.fa*"))
         if not paths:
@@ -172,7 +171,7 @@ def prep(seqdir, outpath, parallel, force_overwrite, moltype):
         )
         exit(1)
 
-    fasta_to_seqarray = dv_utils.seq_from_fasta(moltype=moltype) + seq_to_seqarray()
+    fasta_to_seqarray = dv_loader.seq_from_fasta(moltype=moltype) + seq_to_seqarray()
     tasks = make_task_iterator(fasta_to_seqarray, paths, parallel)
 
     records = []
