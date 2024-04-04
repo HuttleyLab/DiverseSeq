@@ -76,9 +76,6 @@ class seqarray_from_fasta:
 
         if self.max_length:
             seq = seq[: self.max_length]
-
-        
-
         return SeqArray(
             seqid=name,
             data=self.str2arr(seq),

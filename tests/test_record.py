@@ -387,7 +387,7 @@ def test_kmer_freqs(seq, k):
     got = kmer_counts(arr, 4, k)
     assert (got == expect).all()
 
-
+@pytest.mark.xfail(reason="__app_registry does not exist on the plugin branch of cogent3")
 def test_composable():
     from cogent3.app.composable import __app_registry, define_app
     from cogent3.util.misc import get_object_provenance
