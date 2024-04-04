@@ -61,6 +61,7 @@ class seqarray_from_fasta:
         self.max_length = max_length
         self.loader = faster_load_fasta(label_func=label_func)
         self.moltype = moltype
+        self.str2arr = dv_utils.str2arr(moltype=self.moltype)
 
     def main(
         self, identifier: filename_seqname | c3_types.IdentifierType
@@ -76,11 +77,11 @@ class seqarray_from_fasta:
         if self.max_length:
             seq = seq[: self.max_length]
 
-        as_indices = dv_utils.str2arr(moltype=self.moltype)
+        
 
         return SeqArray(
             seqid=name,
-            data=as_indices(seq),
+            data=self.str2arr(seq),
             moltype=self.moltype,
             source=getattr(identifier, "source", identifier),
         )
@@ -106,7 +107,7 @@ class concat_seqs:
 
     def main(self, path: c3_types.IdentifierType) -> c3_types.SeqType:
         data = self.loader(path)
-        seq = "N".join(data.values())
+        seq = "-".join(data.values())
 
         if self.max_length:
             seq = seq[: self.max_length]
