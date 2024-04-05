@@ -4,8 +4,9 @@ from pathlib import Path
 
 from attrs import define
 from cogent3 import make_seq, make_table, open_
-from cogent3.app import composable
 from cogent3.app import typing as c3_types
+from cogent3.app.composable import LOADER, define_app
+from cogent3.app.data_store import DataMember
 from cogent3.parse.fasta import MinimalFastaParser
 
 from divergent import util as dv_utils
@@ -28,13 +29,13 @@ def load_tsv(path):
     return make_table(header, data=data)
 
 
-@composable.define_app(app_type=composable.LOADER)
+@define_app(app_type=LOADER)
 def load_bytes(path: c3_types.IdentifierType) -> bytes:
     path = Path(path)
     return path.read_bytes()
 
 
-@composable.define_app(app_type=composable.LOADER)
+@define_app(app_type=LOADER)
 def faster_load_fasta(path: c3_types.IdentifierType, label_func=_label_func) -> dict:
     with open_(path) as infile:
         result = {}
@@ -49,13 +50,47 @@ def faster_load_fasta(path: c3_types.IdentifierType, label_func=_label_func) -> 
         return result
 
 
+@define_app(app_type=LOADER)
+def load_fasta_single(path: c3_types.IdentifierType) -> dict:
+    with open_(path) as infile:
+        for _, s in MinimalFastaParser(infile.read().splitlines()):
+            # we assume only one record per fasta file so return after first
+            s.replace("-", "")
+            return s
+
+
+@define_app(app_type=LOADER)
+class dvgt_load_seqs:
+    def __init__(self, moltype: str = None):
+        """
+        Parameters
+        ----------
+        moltype
+            molecular type
+        """
+        self.moltype = moltype
+        self.str2arr = dv_utils.str2arr(moltype=self.moltype)
+
+    def main(self, data: DataMember) -> SeqArray:
+        path_to_seq = Path(data.data_store.source) / data.unique_id
+        loader = load_fasta_single()
+        seq = loader(path_to_seq)
+
+        return SeqArray(
+            seqid=data.unique_id,
+            data=self.str2arr(seq),
+            moltype=self.moltype,
+            source=data.data_store.source,
+        )
+
+
 @define
 class filename_seqname:
     source: str
     name: str
 
 
-@composable.define_app(app_type=composable.LOADER)
+@define_app(app_type=LOADER)
 class seqarray_from_fasta:
     def __init__(self, label_func=_label_func, max_length=None, moltype="dna") -> None:
         self.max_length = max_length
@@ -93,7 +128,7 @@ def get_seq_identifiers(paths, label_func=_label_func) -> list[filename_seqname]
     return records
 
 
-@composable.define_app(app_type=composable.LOADER)
+@define_app(app_type=LOADER)
 class concat_seqs:
     def __init__(
         self, label_func: callable = _label_from_filename, max_length: int | None = None
