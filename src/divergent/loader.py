@@ -53,11 +53,16 @@ def faster_load_fasta(path: c3_types.IdentifierType, label_func=_label_func) -> 
 @define_app(app_type=LOADER)
 class dvgt_load_seqs:
     def __init__(self, moltype: str = None):
-        """
+        """load fasta sequences from a data store
+
         Parameters
         ----------
         moltype
             molecular type
+
+        Notes
+        -----
+        Assumes each .fa file contains a single sequence so only takes the first
         """
         self.moltype = moltype
         self.str2arr = dv_utils.str2arr(moltype=self.moltype)
@@ -67,9 +72,7 @@ class dvgt_load_seqs:
 
         with open_(path_to_seq) as infile:
             for _, seq in MinimalFastaParser(infile.read().splitlines()):
-                # we assume only one record per fasta file so return after first
                 seq.replace("-", "")
-                return seq
 
         return SeqArray(
             seqid=data.unique_id,

@@ -16,7 +16,7 @@ from cogent3.app.data_store import (
     StrOrBytes,
 )
 from cogent3.format.fasta import alignment_to_fasta
-from numpy import empty, uint8
+from numpy import empty, ndarray, uint8
 from scitrack import get_text_hexdigest
 
 from divergent.loader import _label_func, faster_load_fasta
@@ -77,12 +77,13 @@ class HDF5DataStore(DataStoreABC):
     def read(self, unique_id: str) -> bytes:
         """reads data corresponding to identifier"""
         with h5py.File(self._source, mode="r") as f:
+            # todo: this will fail if the unique_id is not in the file
             data = f[unique_id]
             out = empty(len(data), dtype=uint8)
             data.read_direct(out)
             return out.tobytes()
 
-    def _write(self, *, subdir: str, unique_id: str, data: bytes) -> DataMember:
+    def _write(self, *, subdir: str, unique_id: str, data: ndarray) -> DataMember:
         with h5py.File(self._source, mode="a") as f:
             path = f"{subdir}/{unique_id}" if subdir else unique_id
             f.create_dataset(path, data=data, dtype="u1", **hdf5plugin.Blosc2())
@@ -103,7 +104,7 @@ class HDF5DataStore(DataStoreABC):
             f.create_dataset(f"{_MD5_TABLE}/{unique_id}", data=md5, dtype=md5_d_type)
             return member
 
-    def write(self, *, unique_id: str, data: bytes) -> DataMember:
+    def write(self, *, unique_id: str, data: ndarray) -> DataMember:
         """writes a completed record
 
         Parameters
@@ -144,18 +145,21 @@ class HDF5DataStore(DataStoreABC):
 
     def md5(self, unique_id: str) -> Union[str, NoneType]:
         with h5py.File(self._source, mode="a") as f:
-            data = f[f"md5/{unique_id}"]
-            # read the check sum if it exists
-            # return either string or None
-        return None
+            if f"md5/{unique_id}" in f:
+                dset = f[f"md5/{unique_id}"]
+                md5 = dset[()].decode("utf-8")
+            else:
+                md5 = None
+        return md5
 
     @property
     def completed(self) -> list[DataMember]:
         if not self._completed:
             self._completed = []
-            # open file
-            # iterate through all top level datasets
-            # self._completed.append(DataMember(data_store=self, unique_id=dset.name))
+        with h5py.File(self._source, mode="r") as f:
+            for name, item in f.items():
+                if isinstance(item, h5py.Dataset):
+                    self._completed.append(DataMember(data_store=self, unique_id=name))
 
         return self._completed
 
