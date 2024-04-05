@@ -51,15 +51,6 @@ def faster_load_fasta(path: c3_types.IdentifierType, label_func=_label_func) -> 
 
 
 @define_app(app_type=LOADER)
-def load_fasta_single(path: c3_types.IdentifierType) -> dict:
-    with open_(path) as infile:
-        for _, s in MinimalFastaParser(infile.read().splitlines()):
-            # we assume only one record per fasta file so return after first
-            s.replace("-", "")
-            return s
-
-
-@define_app(app_type=LOADER)
 class dvgt_load_seqs:
     def __init__(self, moltype: str = None):
         """
@@ -73,8 +64,12 @@ class dvgt_load_seqs:
 
     def main(self, data: DataMember) -> SeqArray:
         path_to_seq = Path(data.data_store.source) / data.unique_id
-        loader = load_fasta_single()
-        seq = loader(path_to_seq)
+
+        with open_(path_to_seq) as infile:
+            for _, seq in MinimalFastaParser(infile.read().splitlines()):
+                # we assume only one record per fasta file so return after first
+                seq.replace("-", "")
+                return seq
 
         return SeqArray(
             seqid=data.unique_id,
