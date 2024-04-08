@@ -136,15 +136,10 @@ class HDF5DataStore(DataStoreABC):
 
     def drop_not_completed(self, *, unique_id: Optional[str] = None) -> None:
         ...
-        # Remove file in not_completed group corresponding to this unique_id
-        # delete (or delete link to) md5 file for this unique_id
-        # self.not_completed.remove(m)
 
-        # if no unique_id is give, delete whole notcompleted group
-        # set self.not_completed = []
 
     def md5(self, unique_id: str) -> Union[str, NoneType]:
-        with h5py.File(self._source, mode="a") as f:
+        with h5py.File(self._source, mode=self._mode) as f:
             if f"md5/{unique_id}" in f:
                 dset = f[f"md5/{unique_id}"]
                 md5 = dset[()].decode("utf-8")
