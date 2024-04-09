@@ -74,14 +74,14 @@ class HDF5DataStore(DataStoreABC):
     def limit(self):
         return self._limit
 
-    def read(self, unique_id: str) -> bytes:
+    def read(self, unique_id: str) -> ndarray:
         """reads data corresponding to identifier"""
         with h5py.File(self._source, mode="r") as f:
             # todo: this will fail if the unique_id is not in the file
             data = f[unique_id]
             out = empty(len(data), dtype=uint8)
             data.read_direct(out)
-            return out.tobytes()
+            return out
 
     def _write(self, *, subdir: str, unique_id: str, data: ndarray) -> DataMember:
         with h5py.File(self._source, mode="a") as f:
@@ -137,9 +137,8 @@ class HDF5DataStore(DataStoreABC):
     def drop_not_completed(self, *, unique_id: Optional[str] = None) -> None:
         ...
 
-
     def md5(self, unique_id: str) -> Union[str, NoneType]:
-        with h5py.File(self._source, mode=self._mode) as f:
+        with h5py.File(self._source, mode="a") as f:
             if f"md5/{unique_id}" in f:
                 dset = f[f"md5/{unique_id}"]
                 md5 = dset[()].decode("utf-8")
@@ -151,10 +150,12 @@ class HDF5DataStore(DataStoreABC):
     def completed(self) -> list[DataMember]:
         if not self._completed:
             self._completed = []
-        with h5py.File(self._source, mode="r") as f:
-            for name, item in f.items():
-                if isinstance(item, h5py.Dataset):
-                    self._completed.append(DataMember(data_store=self, unique_id=name))
+            with h5py.File(self._source, mode="a") as f:
+                for name, item in f.items():
+                    if isinstance(item, h5py.Dataset):
+                        self._completed.append(
+                            DataMember(data_store=self, unique_id=name)
+                        )
 
         return self._completed
 
