@@ -52,7 +52,7 @@ def faster_load_fasta(path: c3_types.IdentifierType, label_func=_label_func) -> 
 
 @define_app(app_type=LOADER)
 class dvgt_load_seqs:
-    def __init__(self, moltype: str = None):
+    def __init__(self, moltype: str = "dna"):
         """load fasta sequences from a data store
 
         Parameters

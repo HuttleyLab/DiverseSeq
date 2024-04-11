@@ -83,10 +83,12 @@ class HDF5DataStore(DataStoreABC):
             data.read_direct(out)
             return out
 
-    def _write(self, *, subdir: str, unique_id: str, data: ndarray) -> DataMember:
+    def _write(
+        self, *, subdir: str, unique_id: str, data: ndarray, moltype: str, source: str
+    ) -> DataMember:
         with h5py.File(self._source, mode="a") as f:
             path = f"{subdir}/{unique_id}" if subdir else unique_id
-            f.create_dataset(path, data=data, dtype="u1", **hdf5plugin.Blosc2())
+            dset = f.create_dataset(path, data=data, dtype="u1", **hdf5plugin.Blosc2())
 
             if subdir == _LOG_TABLE:
                 return None
@@ -98,13 +100,17 @@ class HDF5DataStore(DataStoreABC):
 
             elif not subdir:
                 member = DataMember(data_store=self, unique_id=unique_id)
+                dset.attrs["moltype"] = moltype
+                dset.attrs["source"] = source
 
             md5 = get_text_hexdigest(data.tobytes())
-            md5_d_type = h5py.string_dtype()
-            f.create_dataset(f"{_MD5_TABLE}/{unique_id}", data=md5, dtype=md5_d_type)
+            md5_dtype = h5py.string_dtype()
+            f.create_dataset(f"{_MD5_TABLE}/{unique_id}", data=md5, dtype=md5_dtype)
             return member
 
-    def write(self, *, unique_id: str, data: ndarray) -> DataMember:
+    def write(
+        self, *, unique_id: str, data: ndarray, moltype: str, source: str
+    ) -> DataMember:
         """writes a completed record
 
         Parameters
@@ -122,7 +128,9 @@ class HDF5DataStore(DataStoreABC):
         -----
         Drops any not-completed member corresponding to this identifier
         """
-        member = self._write(subdir="", unique_id=unique_id, data=data)
+        member = self._write(
+            subdir="", unique_id=unique_id, data=data, moltype=moltype, source=source
+        )
         self.drop_not_completed(unique_id=unique_id)
         if member is not None:
             self._completed.append(member)

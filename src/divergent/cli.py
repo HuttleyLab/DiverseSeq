@@ -1,4 +1,6 @@
 import itertools
+import os
+import tempfile
 
 from collections import OrderedDict
 from pathlib import Path
@@ -6,17 +8,19 @@ from typing import Mapping, Optional
 
 import click
 import h5py
-import hdf5plugin
 
 from cogent3 import get_moltype, make_table
+from cogent3.app.data_store import DataStoreDirectory
 from cogent3.util import parallel as PAR
 from numpy import empty, random, uint8
 from rich.progress import track
 from scitrack import CachingLogger
 
-from divergent import loader as dv_loader
-from divergent.record import SeqArray, seq_to_seqarray, seqarray_to_record
+from divergent.data_store import HDF5DataStore, dvgt_seq_file_to_data_store
+from divergent.loader import dvgt_load_seqs
+from divergent.record import SeqArray, seqarray_to_record
 from divergent.records import max_divergent, most_divergent
+from divergent.writer import dvgt_write_prepped_seqs
 
 
 def _do_nothing_func(*args, **kwargs):
@@ -148,57 +152,54 @@ _click_command_opts = dict(
     default="dna",
     help="Molecular type of sequences, defaults to DNA",
 )
-def prep(seqdir, outpath, parallel, force_overwrite, moltype):
+@click.option("-L", "--limit", type=int, help="number of sequences to process")
+def prep(seqdir, outpath, parallel, force_overwrite, moltype, limit):
     """Writes processed sequences to an HDF5 file."""
 
     set_keepawake(keep_screen_awake=False)
 
-    if seqdir.is_file():
-        paths = dv_loader.get_seq_identifiers([seqdir])
-    else:
-        paths = list(seqdir.glob("**/*.fa*"))
-        if not paths:
-            click.secho(f"{seqdir} contains no fasta paths", fg="red")
-            exit(1)
-
-    suffixed_outpath = outpath.with_suffix(".dvgtseqs")
-    if suffixed_outpath.exists() and not force_overwrite:
-        click.secho(
-            f"FileExistsError: Unable to create file at {suffixed_outpath} because a file "
-            f"with the same name already exists. Please choose a different "
-            f"name or use the -F flag to force overwrite the existing file.",
-            fg="red",
-        )
-        exit(1)
-
-    load_seqs = dv_loader.seqarray_from_fasta(moltype=moltype)
-    tasks = make_task_iterator(load_seqs, paths, parallel)
-
-    records = []
-    for result in track(tasks, total=len(paths), update_period=1):
-        if not result:
-            print(result)
-            exit()
-        records.append(result)
-
-    write_mode = "w" if force_overwrite else "w-"
-    with h5py.File(suffixed_outpath, mode=write_mode) as f:
-        # only support collection of seqs of the same moltype,
-        # so moltype can be stored as a top level attribute
-        f.attrs["moltype"] = moltype
-        f.attrs["source"] = str(seqdir)
-
-        for record in records:
-            dset = f.create_dataset(
-                name=record.seqid, data=record.data, dtype="u1", **hdf5plugin.Blosc2()
+    # todo: creating the input directory as a tmp seemed like a good idea because
+    # otherwise you duplicate the sequence data.
+    # However, it might violate data provenance + the source attribute of DataMembers
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        dvgtseqs_path = outpath.with_suffix(".dvgtseqs")
+        # todo: should we support this check? could just add this to documentation.
+        if dvgtseqs_path.exists() and not force_overwrite:
+            click.secho(
+                "A file with the same name already exists. Existing data members will be skipped. "
+                "Use the -F flag if you want to overwrite the existing file.",
+                fg="blue",
             )
-            dset.attrs["source"] = str(record.source)
-        num_records = len(f.keys())
+        elif dvgtseqs_path.exists() and force_overwrite:
+            os.remove(dvgtseqs_path)
 
-    click.secho(
-        f"Successfully processed {num_records} sequences and wrote to {suffixed_outpath}",
-        fg="green",
-    )
+        if seqdir.is_file():
+            convert2dstore = dvgt_seq_file_to_data_store(dest=tmp_dir, limit=limit)
+            in_dstore = convert2dstore(seqdir)
+        else:
+            seqfile_suffix = seqdir.suffix
+            supported_suffixes = [".fa", ".fasta", ".fna", ".faa"]
+            if seqfile_suffix not in supported_suffixes:
+                click.secho(
+                    f"Input file of type {seqfile_suffix} is not a supported types: {', '.join(supported_suffixes)}",
+                    fg="red",
+                )
+                exit(1)
+
+            in_dstore = DataStoreDirectory(
+                source=seqdir, suffix=seqfile_suffix, limit=limit
+            )
+
+        out_dstore = HDF5DataStore(source=dvgtseqs_path)
+        prep_pipeline = dvgt_load_seqs() + dvgt_write_prepped_seqs(out_dstore)
+        result = prep_pipeline.apply_to(
+            in_dstore, show_progress=True, parallel=parallel
+        )
+
+        click.secho(
+            f"Successfully created {result}",
+            fg="green",
+        )
 
     unset_keepawake()
 
@@ -270,15 +271,15 @@ def max(
 
     with h5py.File(seqfile, mode="r") as f:
         limit = 2 if test_run else limit or len(f.keys())
-        orig_moltype = get_moltype(f.attrs["moltype"])
 
         seqs = []
         for name, dset in itertools.islice(f.items(), limit):
+            if name == "md5":
+                continue
+            orig_moltype = get_moltype(dset.attrs["moltype"])
             out = empty(len(dset), dtype=uint8)
             dset.read_direct(out)
-            seq = SeqArray(
-                seqid=name, data=out, moltype=orig_moltype, source=f.attrs["source"]
-            )
+            seq = SeqArray(seqid=name, data=out, moltype=orig_moltype, source="source")
             seqs.append(seq)
 
     make_records = seqarray_to_record(k=k, moltype=orig_moltype)
