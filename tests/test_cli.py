@@ -55,7 +55,7 @@ def seq_dir(tmp_path, seq_path):
     return tmp_path
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def processed_seq_path():
     return DATADIR / "brca1.dvgtseqs"
 
