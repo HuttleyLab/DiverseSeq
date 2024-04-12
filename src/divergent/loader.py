@@ -3,8 +3,6 @@ import warnings
 from pathlib import Path
 from typing import Optional, Union
 
-import h5py
-
 from attrs import define
 from cogent3 import make_seq, make_table, open_
 from cogent3.app import typing as c3_types

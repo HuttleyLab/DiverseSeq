@@ -2,7 +2,7 @@ import pathlib
 
 import pytest
 
-from cogent3 import load_unaligned_seqs, open_data_store
+from cogent3 import load_unaligned_seqs
 from numpy.testing import assert_array_equal
 
 from divergent.data_store import HDF5DataStore

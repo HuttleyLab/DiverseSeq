@@ -1,4 +1,3 @@
-import itertools
 import os
 import tempfile
 
@@ -7,13 +6,11 @@ from pathlib import Path
 from typing import Mapping, Optional
 
 import click
-import h5py
 
-from cogent3 import get_moltype, make_table
+from cogent3 import make_table
 from cogent3.app.data_store import DataStoreDirectory
 from cogent3.util import parallel as PAR
-from numpy import empty, random, uint8
-from rich.progress import track
+from numpy import random
 from scitrack import CachingLogger
 
 from divergent.data_store import HDF5DataStore
@@ -23,7 +20,7 @@ from divergent.loader import (
     dvgt_load_seqs,
     dvgt_seq_file_to_data_store,
 )
-from divergent.record import SeqArray, seqarray_to_record
+from divergent.record import seqarray_to_record
 from divergent.records import max_divergent, most_divergent
 from divergent.writer import dvgt_write_prepped_seqs, dvgt_write_record
 
