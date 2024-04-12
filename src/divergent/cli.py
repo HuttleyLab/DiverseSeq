@@ -16,11 +16,16 @@ from numpy import empty, random, uint8
 from rich.progress import track
 from scitrack import CachingLogger
 
-from divergent.data_store import HDF5DataStore, dvgt_seq_file_to_data_store
-from divergent.loader import dvgt_load_seqs
+from divergent.data_store import HDF5DataStore
+from divergent.loader import (
+    dvgt_load_prepped_seqs,
+    dvgt_load_records,
+    dvgt_load_seqs,
+    dvgt_seq_file_to_data_store,
+)
 from divergent.record import SeqArray, seqarray_to_record
 from divergent.records import max_divergent, most_divergent
-from divergent.writer import dvgt_write_prepped_seqs
+from divergent.writer import dvgt_write_prepped_seqs, dvgt_write_record
 
 
 def _do_nothing_func(*args, **kwargs):
@@ -158,12 +163,8 @@ def prep(seqdir, outpath, parallel, force_overwrite, moltype, limit):
 
     set_keepawake(keep_screen_awake=False)
 
-    # todo: creating the input directory as a tmp seemed like a good idea because
-    # otherwise you duplicate the sequence data.
-    # However, it might violate data provenance + the source attribute of DataMembers
     with tempfile.TemporaryDirectory() as tmp_dir:
         dvgtseqs_path = outpath.with_suffix(".dvgtseqs")
-        # todo: should we support this check? could just add this to documentation.
         if dvgtseqs_path.exists() and not force_overwrite:
             click.secho(
                 "A file with the same name already exists. Existing data members will be skipped. "
@@ -186,12 +187,12 @@ def prep(seqdir, outpath, parallel, force_overwrite, moltype, limit):
                 )
                 exit(1)
 
-            in_dstore = DataStoreDirectory(
-                source=seqdir, suffix=seqfile_suffix, limit=limit
-            )
+            in_dstore = DataStoreDirectory(source=seqdir, suffix=seqfile_suffix)
 
-        out_dstore = HDF5DataStore(source=dvgtseqs_path)
-        prep_pipeline = dvgt_load_seqs() + dvgt_write_prepped_seqs(out_dstore)
+        out_dstore = HDF5DataStore(source=dvgtseqs_path, limit=limit)
+        prep_pipeline = dvgt_load_seqs(moltype=moltype) + dvgt_write_prepped_seqs(
+            out_dstore
+        )
         result = prep_pipeline.apply_to(
             in_dstore, show_progress=True, parallel=parallel
         )
@@ -218,6 +219,13 @@ def prep(seqdir, outpath, parallel, force_overwrite, moltype, limit):
 )
 @click.option(
     "-zp", "--max_size", default=None, type=int, help="maximum size of divergent set"
+)
+@click.option(
+    "-m",
+    "--moltype",
+    type=click.Choice(["dna", "rna"]),
+    default="dna",
+    help="Molecular type of sequences, defaults to DNA",
 )
 @click.option(
     "-x", "--fixed_size", is_flag=True, help="result will have size number of seqs"
@@ -247,6 +255,7 @@ def max(
     fixed_size,
     stat,
     k,
+    moltype,
     parallel,
     limit,
     test_run,
@@ -269,28 +278,23 @@ def max(
 
     set_keepawake(keep_screen_awake=False)
 
-    with h5py.File(seqfile, mode="r") as f:
-        limit = 2 if test_run else limit or len(f.keys())
+    in_dstore = HDF5DataStore(source=seqfile, mode="r", limit=limit)
 
-        seqs = []
-        for name, dset in itertools.islice(f.items(), limit):
-            if name == "md5":
-                continue
-            orig_moltype = get_moltype(dset.attrs["moltype"])
-            out = empty(len(dset), dtype=uint8)
-            dset.read_direct(out)
-            seq = SeqArray(seqid=name, data=out, moltype=orig_moltype, source="source")
-            seqs.append(seq)
+    with tempfile.NamedTemporaryFile() as tmp:
+        out_dstore = HDF5DataStore(source=tmp.name, limit=limit)
 
-    make_records = seqarray_to_record(k=k, moltype=orig_moltype)
-    tasks = make_task_iterator(make_records, seqs, parallel)
+        to_record_pipeline = (
+            dvgt_load_prepped_seqs()
+            + seqarray_to_record(k=k, moltype=moltype)
+            + dvgt_write_record(out_dstore)
+        )
 
-    records = []
-    for result in track(tasks, total=len(seqs), update_period=1):
-        if not result:
-            print(result)
-            exit()
-        records.append(result)
+        records_dstore = to_record_pipeline.apply_to(
+            in_dstore, show_progress=True, parallel=parallel
+        )
+
+        loader = dvgt_load_records()
+        records = loader(records_dstore)
 
     random.shuffle(records)
     if fixed_size:

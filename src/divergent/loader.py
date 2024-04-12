@@ -60,6 +60,7 @@ def faster_load_fasta(path: c3_types.IdentifierType, label_func=_label_func) -> 
             result[n] = s.replace("-", "")
         return result
 
+
 @define
 class filename_seqname:
     source: str
@@ -207,7 +208,5 @@ def dvgt_load_records(dstore: HDF5DataStore) -> SeqArray:
         attrs = data_member.data_store.get_attrs(unique_id=data_member.unique_id)
         length = int(attrs.get("length", None))
 
-        records.append(
-            SeqRecord(kcounts=data, name=name, length=length)
-        )
+        records.append(SeqRecord(kcounts=data, name=name, length=length))
     return records
