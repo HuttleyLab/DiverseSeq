@@ -95,7 +95,6 @@ use_parentheses=true
 src_paths = ["src", "tests","doc","noxfile.py"]
 
 [project.entry-points."cogent3.app"]
-dvgt_seq_file_to_data_store = "divergent.data_store:dvgt_seq_file_to_data_store"
+dvgt_seq_file_to_data_store = "divergent.loader:dvgt_seq_file_to_data_store"
 dvgt_load_seqs = "divergent.loader:dvgt_load_seqs"
 dvgt_write_prepped_seqs = "divergent.writer:dvgt_write_prepped_seqs"
-
