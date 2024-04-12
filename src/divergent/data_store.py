@@ -4,22 +4,15 @@ from typing import Optional, Union
 import h5py
 import hdf5plugin
 
-from cogent3.app import typing as c3_types
-from cogent3.app.composable import define_app
 from cogent3.app.data_store import (
-    OVERWRITE,
     DataMember,
     DataStoreABC,
-    DataStoreDirectory,
     Mode,
     NoneType,
     StrOrBytes,
 )
-from cogent3.format.fasta import alignment_to_fasta
 from numpy import empty, ndarray, uint8
 from scitrack import get_text_hexdigest
-
-from divergent.loader import _label_func, faster_load_fasta
 
 
 _NOT_COMPLETED_TABLE = "not_completed"
@@ -27,34 +20,11 @@ _LOG_TABLE = "logs"
 _MD5_TABLE = "md5"
 
 
-@define_app
-class dvgt_seq_file_to_data_store:
-    def __init__(
-        self,
-        dest: Optional[c3_types.IdentifierType] = None,
-        limit: Optional[int] = None,
-        mode: Union[str, Mode] = OVERWRITE,
-    ):
-        self.dest = dest
-        self.limit = limit
-        self.mode = mode
-        self.loader = faster_load_fasta(label_func=_label_func)
-
-    def main(self, fasta_path: c3_types.IdentifierType) -> DataStoreABC:
-        outpath = Path(self.dest) if self.dest else Path(fasta_path).with_suffix("")
-        outpath.mkdir(parents=True, exist_ok=True)
-        out_dstore = DataStoreDirectory(source=outpath, mode=self.mode, suffix=".fa")
-
-        seqs = self.loader(fasta_path)
-
-        for seq_id, seq_data in seqs.items():
-            fasta_seq_data = alignment_to_fasta({seq_id: seq_data}, block_size=80)
-            out_dstore.write(unique_id=seq_id, data=fasta_seq_data)
-
-        return out_dstore
-
-
 class HDF5DataStore(DataStoreABC):
+    """Stores array data in HDF5 data sets. Associated information is
+    stored as attributed on data sets.
+    """
+
     def __init__(self, source: str | Path, mode: Mode = "w", limit: int = None) -> None:
         self._source = Path(source)
         self._mode = Mode(mode)
@@ -75,7 +45,7 @@ class HDF5DataStore(DataStoreABC):
         return self._limit
 
     def read(self, unique_id: str) -> ndarray:
-        """reads data corresponding to identifier"""
+        """reads and return array data corresponding to identifier"""
         with h5py.File(self._source, mode="r") as f:
             # todo: this will fail if the unique_id is not in the file
             data = f[unique_id]
@@ -83,8 +53,15 @@ class HDF5DataStore(DataStoreABC):
             data.read_direct(out)
             return out
 
+    def get_attrs(self, unique_id: str) -> dict:
+        """return all data set attributes connected to an identifier"""
+        with h5py.File(self._source, mode="r") as f:
+            data = f[unique_id]
+            attrs = {key: value for key, value in data.attrs.items()}
+            return attrs
+
     def _write(
-        self, *, subdir: str, unique_id: str, data: ndarray, moltype: str, source: str
+        self, *, subdir: str, unique_id: str, data: ndarray, **kwargs
     ) -> DataMember:
         with h5py.File(self._source, mode="a") as f:
             path = f"{subdir}/{unique_id}" if subdir else unique_id
@@ -100,37 +77,38 @@ class HDF5DataStore(DataStoreABC):
 
             elif not subdir:
                 member = DataMember(data_store=self, unique_id=unique_id)
-                dset.attrs["moltype"] = moltype
-                dset.attrs["source"] = source
+                for key, value in kwargs.items():
+                    dset.attrs[key] = value
 
             md5 = get_text_hexdigest(data.tobytes())
             md5_dtype = h5py.string_dtype()
             f.create_dataset(f"{_MD5_TABLE}/{unique_id}", data=md5, dtype=md5_dtype)
             return member
 
-    def write(
-        self, *, unique_id: str, data: ndarray, moltype: str, source: str
-    ) -> DataMember:
-        """writes a completed record
+    def write(self, *, unique_id: str, data: ndarray, **kwargs) -> DataMember:
+        """Writes a completed record to a dataset in the HDF5 file.
 
         Parameters
         ----------
         unique_id
-            unique identifier
+            The unique identifier for the record. This will be used
+            as the name of the dataset in the HDF5 file.
         data
-            seq data
+            The data to be stored in the record.
+        kwargs
+            Any additional keyword arguments will be stored as attributes on the dataset.
+            Each key-value pair in kwargs corresponds to an attribute name and its value.
 
         Returns
         -------
-        a member for this record
+        DataMember
+            A DataMember object representing the new record.
 
         Notes
         -----
         Drops any not-completed member corresponding to this identifier
         """
-        member = self._write(
-            subdir="", unique_id=unique_id, data=data, moltype=moltype, source=source
-        )
+        member = self._write(subdir="", unique_id=unique_id, data=data, **kwargs)
         self.drop_not_completed(unique_id=unique_id)
         if member is not None:
             self._completed.append(member)
