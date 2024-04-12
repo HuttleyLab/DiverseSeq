@@ -17,7 +17,7 @@ __credits__ = ["Gavin Huttley"]
 DATADIR = pathlib.Path(__file__).parent / "data"
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def tmp_dir(tmpdir_factory):
     return tmpdir_factory.mktemp("dvgt")
 
