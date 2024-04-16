@@ -1,28 +1,24 @@
-import os
-import h5py 
-import tempfile
 import itertools
+import os
+import tempfile
 
 from collections import OrderedDict
 from pathlib import Path
 from typing import Mapping, Optional
 
 import click
-from rich.progress import track
+import h5py
 
 from cogent3 import make_table
 from cogent3.app.data_store import DataStoreDirectory
 from cogent3.util import parallel as PAR
-from numpy import random, empty, uint8
+from numpy import empty, random, uint8
+from rich.progress import track
 from scitrack import CachingLogger
 
 from divergent.data_store import HDF5DataStore
-from divergent.loader import (
-
-    dvgt_load_seqs,
-    dvgt_seq_file_to_data_store,
-)
-from divergent.record import seqarray_to_record, SeqArray
+from divergent.loader import dvgt_load_seqs, dvgt_seq_file_to_data_store
+from divergent.record import SeqArray, seqarray_to_record
 from divergent.records import max_divergent, most_divergent
 from divergent.writer import dvgt_write_prepped_seqs
 
@@ -177,15 +173,12 @@ def prep(seqdir, outpath, parallel, force_overwrite, moltype, limit):
             convert2dstore = dvgt_seq_file_to_data_store(dest=tmp_dir, limit=limit)
             in_dstore = convert2dstore(seqdir)
         else:
-            seqfile_suffix = seqdir.suffix
-            supported_suffixes = [".fa", ".fasta", ".fna", ".faa"]
-            if seqfile_suffix not in supported_suffixes:
-                click.secho(
-                    f"Input file of type {seqfile_suffix} is not a supported types: {', '.join(supported_suffixes)}",
-                    fg="red",
-                )
+            paths = list(seqdir.glob("**/*.fa*"))
+            if not paths:
+                click.secho(f"{seqdir} contains no fasta paths", fg="red")
                 exit(1)
-
+            eg_path = Path(paths[0])
+            seqfile_suffix = eg_path.suffix
             in_dstore = DataStoreDirectory(source=seqdir, suffix=seqfile_suffix)
 
         out_dstore = HDF5DataStore(source=dvgtseqs_path, limit=limit)
@@ -279,16 +272,17 @@ def max(
 
     with h5py.File(seqfile, mode="r") as f:
         limit = 2 if test_run else limit or len(f.keys())
-        orig_moltype = "dna"
         seqs = []
         for name, dset in itertools.islice(f.items(), limit):
             if isinstance(dset, h5py.Group):
                 continue
-            # initalise array
+            orig_moltype = dset.attrs["moltype"]
+            source = dset.attrs["source"]
             out = empty(len(dset), dtype=uint8)
-            # read db content directly into initialised array
             dset.read_direct(out)
-            seqs.append(SeqArray(seqid=name, data=out, moltype="dna", source=name))
+            seqs.append(
+                SeqArray(seqid=name, data=out, moltype=orig_moltype, source=source)
+            )
 
     make_records = seqarray_to_record(k=k, moltype=orig_moltype)
     tasks = make_task_iterator(make_records, seqs, parallel)

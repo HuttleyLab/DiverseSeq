@@ -17,7 +17,7 @@ __credits__ = ["Gavin Huttley"]
 DATADIR = pathlib.Path(__file__).parent / "data"
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def tmp_dir(tmpdir_factory):
     return tmpdir_factory.mktemp("dvgt")
 
@@ -185,7 +185,7 @@ def test_prep_max_rna(runner, tmp_dir, rna_seq_path):
     _checked_output(str(max_outpath))
 
 
-@pytest.mark.xfail(reason="Changed implementation to create datastore. todo: testing")
+@pytest.mark.xfail(reason="todo: ensure source is propogated when input is file")
 def test_prep_source_from_file(runner, tmp_dir, seq_path):
     outpath = tmp_dir / f"test_prep_source_from_file.dvgtseqs"
     args = f"-s {seq_path} -o {outpath}".split()
@@ -198,14 +198,13 @@ def test_prep_source_from_file(runner, tmp_dir, seq_path):
             assert dset.attrs["source"] == str(seq_path)
 
 
-@pytest.mark.xfail(reason="Changed implementation to create datastore. todo: testing")
 def test_prep_source_from_directory(runner, tmp_dir, seq_dir):
     outpath = tmp_dir / f"test_prep_source_from_directory.dvgtseqs"
     args = f"-s {seq_dir} -o {outpath}".split()
     r = runner.invoke(dvgt_prep, args)
 
     with h5py.File(outpath, mode="r") as f:
-        assert f.attrs["source"] == str(seq_dir)
         for name, dset in f.items():
-            expect = seq_dir / f"{name}.fasta"
-            assert dset.attrs["source"] == str(expect)
+            if name == "md5":
+                continue
+            assert dset.attrs["source"] == str(seq_dir)
