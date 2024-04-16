@@ -1,4 +1,3 @@
-import itertools
 import os
 import tempfile
 
@@ -7,19 +6,13 @@ from pathlib import Path
 from typing import Mapping, Optional
 
 import click
-import h5py
 
-from cogent3 import make_table
 from cogent3.app.data_store import DataStoreDirectory
-from cogent3.util import parallel as PAR
-from numpy import empty, random, uint8
-from rich.progress import track
 from scitrack import CachingLogger
 
 from divergent.data_store import HDF5DataStore
 from divergent.loader import dvgt_load_seqs, dvgt_seq_file_to_data_store
-from divergent.record import SeqArray, seqarray_to_record
-from divergent.records import max_divergent, most_divergent
+from divergent.records import dvgt_calc
 from divergent.writer import dvgt_write_prepped_seqs
 
 
@@ -107,14 +100,6 @@ _outdir = click.option(
 
 def _make_outpath(outdir, path, k):
     return outdir / f"{path.stem.split('.')[0]}-{k}-mer.json.blosc2"
-
-
-def make_task_iterator(func, tasks, parallel):
-    if parallel:
-        workers = PAR.get_size() - 1
-        return PAR.as_completed(func, tasks, max_workers=workers)
-    else:
-        return map(func, tasks)
 
 
 _click_command_opts = dict(
@@ -213,13 +198,6 @@ def prep(seqdir, outpath, parallel, force_overwrite, moltype, limit):
     "-zp", "--max_size", default=None, type=int, help="maximum size of divergent set"
 )
 @click.option(
-    "-m",
-    "--moltype",
-    type=click.Choice(["dna", "rna"]),
-    default="dna",
-    help="Molecular type of sequences, defaults to DNA",
-)
-@click.option(
     "-x", "--fixed_size", is_flag=True, help="result will have size number of seqs"
 )
 @click.option("-k", type=int, default=3, help="k-mer size")
@@ -247,7 +225,6 @@ def max(
     fixed_size,
     stat,
     k,
-    moltype,
     parallel,
     limit,
     test_run,
@@ -270,46 +247,22 @@ def max(
 
     set_keepawake(keep_screen_awake=False)
 
-    with h5py.File(seqfile, mode="r") as f:
-        limit = 2 if test_run else limit or len(f.keys())
-        seqs = []
-        for name, dset in itertools.islice(f.items(), limit):
-            if isinstance(dset, h5py.Group):
-                continue
-            orig_moltype = dset.attrs["moltype"]
-            source = dset.attrs["source"]
-            out = empty(len(dset), dtype=uint8)
-            dset.read_direct(out)
-            seqs.append(
-                SeqArray(seqid=name, data=out, moltype=orig_moltype, source=source)
-            )
+    limit = 2 if test_run else limit
+    mode = "most" if fixed_size else "max"
 
-    make_records = seqarray_to_record(k=k, moltype=orig_moltype)
-    tasks = make_task_iterator(make_records, seqs, parallel)
-
-    records = []
-    for result in track(tasks, total=len(seqs), update_period=1):
-        if not result:
-            print(result)
-            exit()
-        records.append(result)
-
-    random.shuffle(records)
-    if fixed_size:
-        sr = most_divergent(records, size=min_size, verbose=verbose > 0)
-    else:
-        sr = max_divergent(
-            records,
-            min_size=min_size,
-            max_size=max_size,
-            stat=stat,
-            verbose=verbose > 0,
-        )
-
-    names, deltas = list(
-        zip(*[(r.name, r.delta_jsd) for r in [sr.lowest] + sr.records])
+    dvgt_app = dvgt_calc(
+        mode=mode,
+        k=k,
+        parallel=parallel,
+        limit=limit,
+        min_size=min_size,
+        max_size=max_size,
+        stat=stat,
+        verbose=verbose,
     )
-    table = make_table(data={"names": names, stat: deltas})
+
+    table = dvgt_app(seqfile)
+
     outpath.parent.mkdir(parents=True, exist_ok=True)
     table.write(outpath)
 
