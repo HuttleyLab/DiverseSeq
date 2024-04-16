@@ -364,6 +364,15 @@ class dvgt_calc:
         stat: str = "mean_delta_jsd",
         verbose=0,
     ) -> None:
+        """Identify the seqs that maximise average delta JSD
+
+        Parameters
+        ----------
+        mode:
+            "max" finds maximum average delta JSD 
+            "most" finds maximum average delta JSD for set of given size
+
+        """
         self.mode = mode
         self.parallel = parallel
         self.k = k
@@ -374,11 +383,12 @@ class dvgt_calc:
         self.verbose = verbose
 
     def main(self, dvgtseqs: c3_types.IdentifierType) -> c3_types.TabularType:
+        
         with h5py.File(dvgtseqs, mode="r") as f:
             limit = self.limit or len(f.keys())
             seqs = []
             for name, dset in itertools.islice(f.items(), limit):
-                # skip md5 and not_completed groups
+                # skip groups corresponding to md5 and not_completed
                 if isinstance(dset, h5py.Group):
                     continue
                 orig_moltype = dset.attrs["moltype"]
@@ -401,6 +411,7 @@ class dvgt_calc:
 
         random.shuffle(records)
         if self.mode == "most":
+            # todo: throw error if user has not provided arg for min_size
             sr = most_divergent(records, size=self.min_size, verbose=self.verbose > 0)
         elif self.mode == "max":
             sr = max_divergent(

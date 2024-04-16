@@ -7,6 +7,7 @@ from typing import Mapping, Optional
 
 import click
 
+from cogent3.app.composable import NotCompleted
 from cogent3.app.data_store import DataStoreDirectory
 from scitrack import CachingLogger
 
@@ -198,7 +199,10 @@ def prep(seqdir, outpath, parallel, force_overwrite, moltype, limit):
     "-zp", "--max_size", default=None, type=int, help="maximum size of divergent set"
 )
 @click.option(
-    "-x", "--fixed_size", is_flag=True, help="result will have size number of seqs"
+    "-x",
+    "--fixed_size",
+    is_flag=True,
+    help="result will have number of seqs of `min_size`",
 )
 @click.option("-k", type=int, default=3, help="k-mer size")
 @click.option(
@@ -262,6 +266,13 @@ def max(
     )
 
     table = dvgt_app(seqfile)
+
+    if isinstance(table, NotCompleted):
+        click.secho(
+            message=f'{table.type}: {table.message}',
+            fg="red",
+        )
+        exit(1)
 
     outpath.parent.mkdir(parents=True, exist_ok=True)
     table.write(outpath)
