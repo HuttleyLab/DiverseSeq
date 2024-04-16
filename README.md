@@ -61,6 +61,7 @@ Options:
   -F, --force_overwrite    Overwrite existing file if it exists
   -m, --moltype [dna|rna]  Molecular type of sequences, defaults to DNA
                            [default: dna]
+  -L, --limit INTEGER      number of sequences to process
   --help                   Show this message and exit.
 
 ```
@@ -94,7 +95,7 @@ Options:
   -o, --outpath PATH              the input string will be cast to Path instance
   -z, --min_size INTEGER          minimum size of divergent set  [default: 7]
   -zp, --max_size INTEGER         maximum size of divergent set
-  -x, --fixed_size                result will have size number of seqs
+  -x, --fixed_size                result will have number of seqs of `min_size`
   -k INTEGER                      k-mer size  [default: 3]
   -st, --stat [total_jsd|mean_delta_jsd|mean_jsd]
                                   statistic to maximise  [default:

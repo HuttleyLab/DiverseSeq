@@ -269,7 +269,7 @@ def max(
 
     if isinstance(table, NotCompleted):
         click.secho(
-            message=f'{table.type}: {table.message}',
+            message=f"{table.type}: {table.message}",
             fg="red",
         )
         exit(1)

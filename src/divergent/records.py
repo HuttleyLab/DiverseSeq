@@ -369,7 +369,7 @@ class dvgt_calc:
         Parameters
         ----------
         mode:
-            "max" finds maximum average delta JSD 
+            "max" finds maximum average delta JSD
             "most" finds maximum average delta JSD for set of given size
 
         """
@@ -383,7 +383,6 @@ class dvgt_calc:
         self.verbose = verbose
 
     def main(self, dvgtseqs: c3_types.IdentifierType) -> c3_types.TabularType:
-        
         with h5py.File(dvgtseqs, mode="r") as f:
             limit = self.limit or len(f.keys())
             seqs = []
