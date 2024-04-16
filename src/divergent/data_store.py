@@ -51,14 +51,14 @@ class HDF5DataStore(DataStoreABC):
             data = f[unique_id]
             out = empty(len(data), dtype=uint8)
             data.read_direct(out)
-            return out
+        return out
 
     def get_attrs(self, unique_id: str) -> dict:
         """return all data set attributes connected to an identifier"""
         with h5py.File(self._source, mode="r") as f:
             data = f[unique_id]
             attrs = {key: value for key, value in data.attrs.items()}
-            return attrs
+        return attrs
 
     def _write(
         self, *, subdir: str, unique_id: str, data: ndarray, **kwargs
@@ -83,7 +83,7 @@ class HDF5DataStore(DataStoreABC):
             md5 = get_text_hexdigest(data.tobytes())
             md5_dtype = h5py.string_dtype()
             f.create_dataset(f"{_MD5_TABLE}/{unique_id}", data=md5, dtype=md5_dtype)
-            return member
+        return member
 
     def write(self, *, unique_id: str, data: ndarray, **kwargs) -> DataMember:
         """Writes a completed record to a dataset in the HDF5 file.
