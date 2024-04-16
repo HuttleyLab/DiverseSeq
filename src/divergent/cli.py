@@ -1,28 +1,30 @@
 import os
+import h5py 
 import tempfile
+import itertools
 
 from collections import OrderedDict
 from pathlib import Path
 from typing import Mapping, Optional
 
 import click
+from rich.progress import track
 
 from cogent3 import make_table
 from cogent3.app.data_store import DataStoreDirectory
 from cogent3.util import parallel as PAR
-from numpy import random
+from numpy import random, empty, uint8
 from scitrack import CachingLogger
 
 from divergent.data_store import HDF5DataStore
 from divergent.loader import (
-    dvgt_load_prepped_seqs,
-    dvgt_load_records,
+
     dvgt_load_seqs,
     dvgt_seq_file_to_data_store,
 )
-from divergent.record import seqarray_to_record
+from divergent.record import seqarray_to_record, SeqArray
 from divergent.records import max_divergent, most_divergent
-from divergent.writer import dvgt_write_prepped_seqs, dvgt_write_record
+from divergent.writer import dvgt_write_prepped_seqs
 
 
 def _do_nothing_func(*args, **kwargs):
@@ -275,23 +277,28 @@ def max(
 
     set_keepawake(keep_screen_awake=False)
 
-    in_dstore = HDF5DataStore(source=seqfile, mode="r", limit=limit)
+    with h5py.File(seqfile, mode="r") as f:
+        limit = 2 if test_run else limit or len(f.keys())
+        orig_moltype = "dna"
+        seqs = []
+        for name, dset in itertools.islice(f.items(), limit):
+            if isinstance(dset, h5py.Group):
+                continue
+            # initalise array
+            out = empty(len(dset), dtype=uint8)
+            # read db content directly into initialised array
+            dset.read_direct(out)
+            seqs.append(SeqArray(seqid=name, data=out, moltype="dna", source=name))
 
-    with tempfile.NamedTemporaryFile() as tmp:
-        out_dstore = HDF5DataStore(source=tmp.name, limit=limit)
+    make_records = seqarray_to_record(k=k, moltype=orig_moltype)
+    tasks = make_task_iterator(make_records, seqs, parallel)
 
-        to_record_pipeline = (
-            dvgt_load_prepped_seqs()
-            + seqarray_to_record(k=k, moltype=moltype)
-            + dvgt_write_record(out_dstore)
-        )
-
-        records_dstore = to_record_pipeline.apply_to(
-            in_dstore, show_progress=True, parallel=parallel
-        )
-
-        loader = dvgt_load_records()
-        records = loader(records_dstore)
+    records = []
+    for result in track(tasks, total=len(seqs), update_period=1):
+        if not result:
+            print(result)
+            exit()
+        records.append(result)
 
     random.shuffle(records)
     if fixed_size:
