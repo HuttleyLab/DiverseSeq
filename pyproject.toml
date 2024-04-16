@@ -14,7 +14,8 @@ requires-python = ">=3.10,<3.13"
 dependencies = ["attrs",
     "blosc2",
     "click",
-    "cogent3 @ git+https://github.com/cogent3/cogent3.git@develop",
+    "cogent3 @ git+https://github.com/cogent3/cogent3.git@plugin-support", # todo: change to develop when plugin chnages are merged
+    "hdf5plugin",
     "h5py",
     "numpy",
     "rich",
@@ -92,3 +93,8 @@ lines_between_types=1
 multi_line_output=3
 use_parentheses=true
 src_paths = ["src", "tests","doc","noxfile.py"]
+
+[project.entry-points."cogent3.app"]
+dvgt_seq_file_to_data_store = "divergent.loader:dvgt_seq_file_to_data_store"
+dvgt_load_seqs = "divergent.loader:dvgt_load_seqs"
+dvgt_write_prepped_seqs = "divergent.writer:dvgt_write_prepped_seqs"
