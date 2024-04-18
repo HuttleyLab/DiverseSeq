@@ -12,9 +12,12 @@ from cogent3.app.data_store import DataStoreDirectory
 from scitrack import CachingLogger
 
 from divergent.data_store import HDF5DataStore
-from divergent.loader import dvgt_load_seqs, dvgt_write_seq_store
+from divergent.io import (
+    dvgt_load_seqs,
+    dvgt_write_prepped_seqs,
+    dvgt_write_seq_store,
+)
 from divergent.records import dvgt_calc
-from divergent.writer import dvgt_write_prepped_seqs
 
 
 def _do_nothing_func(*args, **kwargs):

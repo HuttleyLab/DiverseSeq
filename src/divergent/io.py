@@ -13,13 +13,14 @@ from cogent3.app.data_store import (
     DataStoreABC,
     DataStoreDirectory,
     Mode,
+    get_unique_id,
 )
 from cogent3.format.fasta import alignment_to_fasta
 from cogent3.parse.fasta import MinimalFastaParser
 
 from divergent import util as dv_utils
 from divergent.data_store import HDF5DataStore
-from divergent.record import SeqArray, SeqRecord
+from divergent.record import SeqArray
 
 
 def _label_func(label):
@@ -122,37 +123,6 @@ class seqarray_from_fasta:
         )
 
 
-@define_app(app_type=WRITER)
-class dvgt_write_seq_store:
-    """Write a seq datastore with data from a single fasta file"""
-
-    def __init__(
-        self,
-        dest: Optional[c3_types.IdentifierType] = None,
-        limit: Optional[int] = None,
-        mode: Union[str, Mode] = OVERWRITE,
-    ):
-        self.dest = dest
-        self.limit = limit
-        self.mode = mode
-        self.loader = faster_load_fasta()
-
-    def main(self, fasta_path: c3_types.IdentifierType) -> DataStoreABC:
-        outpath = Path(self.dest) if self.dest else Path(fasta_path).with_suffix("")
-        outpath.mkdir(parents=True, exist_ok=True)
-        out_dstore = DataStoreDirectory(
-            source=outpath, mode=self.mode, suffix=".fa", limit=self.limit
-        )
-
-        seqs = self.loader(fasta_path)
-
-        for seq_id, seq_data in seqs.items():
-            fasta_seq_data = alignment_to_fasta({seq_id: seq_data}, block_size=80)
-            out_dstore.write(unique_id=seq_id, data=fasta_seq_data)
-
-        return out_dstore
-
-
 @define_app(app_type=LOADER)
 class dvgt_load_seqs:
     """Load and proprocess sequences from seq datastore"""
@@ -187,28 +157,58 @@ class dvgt_load_seqs:
         )
 
 
-@define_app(app_type=LOADER)
-def dvgt_load_prepped_seqs(data_member: DataMember) -> SeqArray:
-    """loads prepped sequences from a dvgt seq data store"""
-    seq = data_member.data_store.read(unique_id=data_member.unique_id)
-    attrs = data_member.data_store.get_attrs(unique_id=data_member.unique_id)
-    moltype = attrs.get("moltype", None)
-    source = attrs.get("source", None)
+@define_app(app_type=WRITER)
+class dvgt_write_prepped_seqs:
+    """Write preprocessed seqs to a dvgtseq datastore"""
 
-    return SeqArray(
-        seqid=data_member.unique_id, data=seq, moltype=moltype, source=source
-    )
+    def __init__(
+        self,
+        dest: c3_types.IdentifierType,
+        limit: int = None,
+        id_from_source: callable = get_unique_id,
+    ):
+        self.dest = dest
+        self.data_store = HDF5DataStore(self.dest, limit=limit)
+        self.id_from_source = id_from_source
+
+    def main(
+        self, data: SeqArray, identifier: Optional[str] = None
+    ) -> c3_types.IdentifierType:
+        unique_id = identifier or self.id_from_source(data.unique_id)
+        return self.data_store.write(
+            unique_id=unique_id,
+            data=data.data,
+            moltype=data.moltype,
+            source=str(data.source),
+        )
 
 
-@define_app(app_type=LOADER)
-def dvgt_load_records(dstore: HDF5DataStore) -> SeqArray:
-    """loads prepped sequences from a dvgtseqs data store"""
-    records = []
-    for data_member in dstore.members:
-        name = data_member.unique_id
-        data = data_member.data_store.read(data_member.unique_id)
-        attrs = data_member.data_store.get_attrs(unique_id=data_member.unique_id)
-        length = int(attrs.get("length", None))
+@define_app(app_type=WRITER)
+class dvgt_write_seq_store:
+    """Write a seq datastore with data from a single fasta file"""
 
-        records.append(SeqRecord(kcounts=data, name=name, length=length))
-    return records
+    def __init__(
+        self,
+        dest: Optional[c3_types.IdentifierType] = None,
+        limit: Optional[int] = None,
+        mode: Union[str, Mode] = OVERWRITE,
+    ):
+        self.dest = dest
+        self.limit = limit
+        self.mode = mode
+        self.loader = faster_load_fasta()
+
+    def main(self, fasta_path: c3_types.IdentifierType) -> DataStoreABC:
+        outpath = Path(self.dest) if self.dest else Path(fasta_path).with_suffix("")
+        outpath.mkdir(parents=True, exist_ok=True)
+        out_dstore = DataStoreDirectory(
+            source=outpath, mode=self.mode, suffix=".fa", limit=self.limit
+        )
+
+        seqs = self.loader(fasta_path)
+
+        for seq_id, seq_data in seqs.items():
+            fasta_seq_data = alignment_to_fasta({seq_id: seq_data}, block_size=80)
+            out_dstore.write(unique_id=seq_id, data=fasta_seq_data)
+
+        return out_dstore
