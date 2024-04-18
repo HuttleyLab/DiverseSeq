@@ -5,17 +5,20 @@ from cogent3.app.composable import WRITER, define_app
 from cogent3.app.data_store import get_unique_id
 
 from divergent.data_store import HDF5DataStore
-from divergent.record import SeqArray, SeqRecord
+from divergent.record import SeqArray
 
 
 @define_app(app_type=WRITER)
 class dvgt_write_prepped_seqs:
+    """Write preprocessed seqs to a dvgtseq datastore"""
     def __init__(
         self,
-        data_store: HDF5DataStore,
+        dest: c3_types.IdentifierType,
+        limit: int = None,
         id_from_source: callable = get_unique_id,
     ):
-        self.data_store = data_store
+        self.dest = dest
+        self.data_store = HDF5DataStore(self.dest, limit=limit)
         self.id_from_source = id_from_source
 
     def main(
@@ -27,23 +30,4 @@ class dvgt_write_prepped_seqs:
             data=data.data,
             moltype=data.moltype,
             source=str(data.source),
-        )
-
-
-@define_app(app_type=WRITER)
-class dvgt_write_record:
-    def __init__(
-        self,
-        data_store: HDF5DataStore,
-    ):
-        self.data_store = data_store
-
-    def main(
-        self, data: SeqRecord, identifier: Optional[str] = None
-    ) -> c3_types.IdentifierType:
-        unique_id = identifier or data.name
-        return self.data_store.write(
-            unique_id=unique_id,
-            data=data.kcounts.data,
-            length=data.length,
         )
