@@ -12,7 +12,7 @@ from cogent3.app.data_store import DataStoreDirectory
 from scitrack import CachingLogger
 
 from divergent.data_store import HDF5DataStore
-from divergent.loader import dvgt_load_seqs, dvgt_seq_file_to_data_store
+from divergent.loader import dvgt_load_seqs, dvgt_write_seq_store
 from divergent.records import dvgt_calc
 from divergent.writer import dvgt_write_prepped_seqs
 
@@ -156,7 +156,7 @@ def prep(seqdir, outpath, parallel, force_overwrite, moltype, limit):
             os.remove(dvgtseqs_path)
 
         if seqdir.is_file():
-            convert2dstore = dvgt_seq_file_to_data_store(dest=tmp_dir, limit=limit)
+            convert2dstore = dvgt_write_seq_store(dest=tmp_dir, limit=limit)
             in_dstore = convert2dstore(seqdir)
         else:
             paths = list(seqdir.glob("**/*.fa*"))
@@ -167,9 +167,8 @@ def prep(seqdir, outpath, parallel, force_overwrite, moltype, limit):
             seqfile_suffix = eg_path.suffix
             in_dstore = DataStoreDirectory(source=seqdir, suffix=seqfile_suffix)
 
-        out_dstore = HDF5DataStore(source=dvgtseqs_path, limit=limit)
         prep_pipeline = dvgt_load_seqs(moltype=moltype) + dvgt_write_prepped_seqs(
-            out_dstore
+            dvgtseqs_path, limit=limit
         )
         result = prep_pipeline.apply_to(
             in_dstore, show_progress=True, parallel=parallel

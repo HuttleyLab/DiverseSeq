@@ -6,7 +6,7 @@ from cogent3 import load_unaligned_seqs
 from numpy.testing import assert_array_equal
 
 from divergent.data_store import HDF5DataStore
-from divergent.loader import dvgt_load_seqs, dvgt_seq_file_to_data_store
+from divergent.loader import dvgt_load_seqs, dvgt_write_seq_store
 from divergent.util import str2arr
 from divergent.writer import dvgt_write_prepped_seqs
 
@@ -26,7 +26,7 @@ def brca1_seqs():
 
 @pytest.fixture(scope="session")
 def brca1_dstore(tmp_path):
-    dstore_maker = dvgt_seq_file_to_data_store(tmp_path / "brca1_dstore")
+    dstore_maker = dvgt_write_seq_store(tmp_path / "brca1_dstore")
     return dstore_maker(DATADIR / "brca1.fasta")
 
 
@@ -35,7 +35,7 @@ def hdf5_dstore(tmp_path):
     return HDF5DataStore(tmp_path / "hdf5_dstore")
 
 
-def test_dvgt_seq_file_to_data_store(brca1_dstore, brca1_seqs):
+def test_dvgt_write_seq_store(brca1_dstore, brca1_seqs):
     # directory contains the same number of sequences as the input file
     assert brca1_seqs.num_seqs == len(brca1_dstore.completed)
 
@@ -43,7 +43,7 @@ def test_dvgt_seq_file_to_data_store(brca1_dstore, brca1_seqs):
 @pytest.mark.parametrize("parallel", (True, False))
 def test_prep_pipeline(brca1_seqs, brca1_dstore, hdf5_dstore, parallel):
     # initialise and apply pipeline
-    prep = dvgt_load_seqs(moltype="dna") + dvgt_write_prepped_seqs(hdf5_dstore)
+    prep = dvgt_load_seqs(moltype="dna") + dvgt_write_prepped_seqs(hdf5_dstore.source)
     result = prep.apply_to(brca1_dstore, parallel=parallel)
 
     # output datastore contains same number of records as seqs in orig file

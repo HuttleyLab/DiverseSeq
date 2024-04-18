@@ -11,6 +11,7 @@ from divergent.record import SeqArray
 @define_app(app_type=WRITER)
 class dvgt_write_prepped_seqs:
     """Write preprocessed seqs to a dvgtseq datastore"""
+
     def __init__(
         self,
         dest: c3_types.IdentifierType,

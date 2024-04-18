@@ -352,6 +352,8 @@ def make_task_iterator(func, tasks, parallel):
 
 @define_app
 class dvgt_calc:
+    """Apply Divergent to dvgtseq datastore"""
+
     def __init__(
         self,
         mode: str,

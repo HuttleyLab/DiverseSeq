@@ -124,6 +124,8 @@ class seqarray_from_fasta:
 
 @define_app(app_type=WRITER)
 class dvgt_write_seq_store:
+    """Write a seq datastore with data from a single fasta file"""
+
     def __init__(
         self,
         dest: Optional[c3_types.IdentifierType] = None,
@@ -153,6 +155,8 @@ class dvgt_write_seq_store:
 
 @define_app(app_type=LOADER)
 class dvgt_load_seqs:
+    """Load and proprocess sequences from seq datastore"""
+
     def __init__(self, moltype: str = "dna"):
         """load fasta sequences from a data store
 
@@ -185,7 +189,7 @@ class dvgt_load_seqs:
 
 @define_app(app_type=LOADER)
 def dvgt_load_prepped_seqs(data_member: DataMember) -> SeqArray:
-    """loads prepped sequences from a dvgtseqs data store"""
+    """loads prepped sequences from a dvgt seq data store"""
     seq = data_member.data_store.read(unique_id=data_member.unique_id)
     attrs = data_member.data_store.get_attrs(unique_id=data_member.unique_id)
     moltype = attrs.get("moltype", None)
