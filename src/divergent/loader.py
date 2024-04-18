@@ -6,7 +6,7 @@ from typing import Optional, Union
 from attrs import define
 from cogent3 import make_seq, make_table, open_
 from cogent3.app import typing as c3_types
-from cogent3.app.composable import LOADER, define_app
+from cogent3.app.composable import LOADER, WRITER, define_app
 from cogent3.app.data_store import (
     OVERWRITE,
     DataMember,
@@ -122,8 +122,8 @@ class seqarray_from_fasta:
         )
 
 
-@define_app
-class dvgt_seq_file_to_data_store:
+@define_app(app_type=WRITER)
+class dvgt_write_seq_store:
     def __init__(
         self,
         dest: Optional[c3_types.IdentifierType] = None,
