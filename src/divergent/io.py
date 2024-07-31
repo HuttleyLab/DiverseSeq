@@ -1,5 +1,4 @@
 import warnings
-
 from pathlib import Path
 from typing import Optional, Union
 
@@ -7,14 +6,8 @@ from attrs import define
 from cogent3 import make_seq, make_table, open_
 from cogent3.app import typing as c3_types
 from cogent3.app.composable import LOADER, WRITER, define_app
-from cogent3.app.data_store import (
-    OVERWRITE,
-    DataMember,
-    DataStoreABC,
-    DataStoreDirectory,
-    Mode,
-    get_unique_id,
-)
+from cogent3.app.data_store import (OVERWRITE, DataMember, DataStoreABC,
+                                    DataStoreDirectory, Mode, get_unique_id)
 from cogent3.format.fasta import alignment_to_fasta
 from cogent3.parse.fasta import MinimalFastaParser
 
@@ -78,7 +71,9 @@ def get_seq_identifiers(paths, label_func=_label_func) -> list[filename_seqname]
 @define_app(app_type=LOADER)
 class concat_seqs:
     def __init__(
-        self, label_func: callable = _label_from_filename, max_length: int | None = None
+        self,
+        label_func: callable = _label_from_filename,
+        max_length: int | None = None,
     ) -> None:
         self.label_func = label_func
         self.max_length = max_length
@@ -103,7 +98,8 @@ class seqarray_from_fasta:
         self.str2arr = dv_utils.str2arr(moltype=self.moltype)
 
     def main(
-        self, identifier: filename_seqname | c3_types.IdentifierType
+        self,
+        identifier: filename_seqname | c3_types.IdentifierType,
     ) -> c3_types.SeqType:
         path = identifier.source if hasattr(identifier, "source") else identifier
         data = self.loader(path)
@@ -172,7 +168,9 @@ class dvgt_write_prepped_seqs:
         self.id_from_source = id_from_source
 
     def main(
-        self, data: SeqArray, identifier: Optional[str] = None
+        self,
+        data: SeqArray,
+        identifier: Optional[str] = None,
     ) -> c3_types.IdentifierType:
         unique_id = identifier or self.id_from_source(data.unique_id)
         return self.data_store.write(
@@ -202,7 +200,10 @@ class dvgt_write_seq_store:
         outpath = Path(self.dest) if self.dest else Path(fasta_path).with_suffix("")
         outpath.mkdir(parents=True, exist_ok=True)
         out_dstore = DataStoreDirectory(
-            source=outpath, mode=self.mode, suffix=".fa", limit=self.limit
+            source=outpath,
+            mode=self.mode,
+            suffix=".fa",
+            limit=self.limit,
         )
 
         seqs = self.loader(fasta_path)

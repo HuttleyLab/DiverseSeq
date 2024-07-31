@@ -1,5 +1,4 @@
 import pytest
-
 from cogent3 import make_unaligned_seqs
 from cogent3.maths.measure import jsd
 from numpy.testing import assert_allclose
@@ -9,7 +8,7 @@ from divergent.records import SummedRecords, max_divergent, most_divergent
 from divergent.util import str2arr
 
 
-@pytest.fixture
+@pytest.fixture()
 def seqcoll():
     data = {"a": "AAAA", "b": "AAAA", "c": "TTTT", "d": "ACGT"}
     seqs = make_unaligned_seqs(data, moltype="dna")
@@ -76,7 +75,8 @@ def test_sub(seqcoll):
 
 
 @pytest.mark.parametrize(
-    "exclude,expect", (("a", False), ("b", False), ("c", True), ("d", True))
+    "exclude,expect",
+    (("a", False), ("b", False), ("c", True), ("d", True)),
 )
 def test_increases_jsd(seqcoll, exclude, expect):
     kcounts = _get_kfreqs_per_seq(seqcoll, k=1)

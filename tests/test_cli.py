@@ -2,14 +2,12 @@ import pathlib
 
 import h5py
 import pytest
-
 from click.testing import CliRunner
 from cogent3 import load_table, load_unaligned_seqs
 
 from divergent.cli import max as dvgt_max
 from divergent.cli import prep as dvgt_prep
 from divergent.data_store import HDF5DataStore
-
 
 __author__ = "Gavin Huttley"
 __credits__ = ["Gavin Huttley"]
@@ -71,7 +69,7 @@ def _checked_output(path, eval_rows=None, eval_header=None):
 
 
 def _checked_h5_dstore(path, source=None):
-    # todo: how to more thoroughly interrogate output
+    # TODO: how to more thoroughly interrogate output
     dstore = HDF5DataStore(path)
     assert len(dstore.completed) > 0
     assert len(dstore.not_completed) == 0
@@ -171,13 +169,13 @@ def test_prep_force_override(runner, tmp_dir, seq_path):
 
 
 def test_prep_max_rna(runner, tmp_dir, rna_seq_path):
-    outpath = tmp_dir / f"test_prep_max_rna.dvgtseqs"
+    outpath = tmp_dir / "test_prep_max_rna.dvgtseqs"
     args = f"-s {rna_seq_path} -o {outpath} -m rna".split()
     r = runner.invoke(dvgt_prep, args)
     assert r.exit_code == 0, r.output
     _checked_h5_dstore(str(outpath))
 
-    max_outpath = tmp_dir / f"test_prep_rna.tsv"
+    max_outpath = tmp_dir / "test_prep_rna.tsv"
     max_args = f"-s {outpath} -o {max_outpath}".split()
     r = runner.invoke(dvgt_max, max_args)
     assert r.exit_code == 0, r.output
@@ -186,7 +184,7 @@ def test_prep_max_rna(runner, tmp_dir, rna_seq_path):
 
 @pytest.mark.xfail(reason="todo: ensure source is propogated when input is file")
 def test_prep_source_from_file(runner, tmp_dir, seq_path):
-    outpath = tmp_dir / f"test_prep_source_from_file.dvgtseqs"
+    outpath = tmp_dir / "test_prep_source_from_file.dvgtseqs"
     args = f"-s {seq_path} -o {outpath}".split()
     r = runner.invoke(dvgt_prep, args)
 
@@ -198,7 +196,7 @@ def test_prep_source_from_file(runner, tmp_dir, seq_path):
 
 
 def test_prep_source_from_directory(runner, tmp_dir, seq_dir):
-    outpath = tmp_dir / f"test_prep_source_from_directory.dvgtseqs"
+    outpath = tmp_dir / "test_prep_source_from_directory.dvgtseqs"
     args = f"-s {seq_dir} -o {outpath}".split()
     r = runner.invoke(dvgt_prep, args)
 

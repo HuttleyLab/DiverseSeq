@@ -1,7 +1,7 @@
-"""my doctsring
-"""
+"""divergent: a tool for sampling biological sequences"""
+
 __author__ = "Gavin Huttley"
-__copyright__ = "Copyright 2016-2022, Gavin Huttley"
+__copyright__ = "Copyright 2016-, Gavin Huttley"
 __credits__ = ["Gavin Huttley"]
 __license__ = "BSD"
 __version__ = "2022.9.5"  # A DATE BASED VERSION

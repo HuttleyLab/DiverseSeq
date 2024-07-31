@@ -1,9 +1,7 @@
 import pickle
-
 from typing import Any
 
 import blosc2
-
 from cogent3 import get_moltype
 from cogent3.app import composable
 from numpy import array, ndarray, uint8

@@ -1,5 +1,4 @@
 import pytest
-
 from numpy import array
 from numpy.testing import assert_allclose
 

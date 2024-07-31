@@ -1,18 +1,13 @@
 import pathlib
 
 import pytest
-
 from cogent3 import load_unaligned_seqs
 from numpy.testing import assert_array_equal
 
 from divergent.data_store import HDF5DataStore
-from divergent.io import (
-    dvgt_load_seqs,
-    dvgt_write_prepped_seqs,
-    dvgt_write_seq_store,
-)
+from divergent.io import (dvgt_load_seqs, dvgt_write_prepped_seqs,
+                          dvgt_write_seq_store)
 from divergent.util import str2arr
-
 
 DATADIR = pathlib.Path(__file__).parent / "data"
 

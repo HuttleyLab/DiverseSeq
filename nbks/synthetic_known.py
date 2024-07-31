@@ -4,21 +4,17 @@ from cogent3 import make_table, make_unaligned_seqs
 from cogent3.app import typing as c3_types
 from cogent3.app.composable import NotCompleted, define_app
 from cogent3.util import parallel as PAR
+from divergent.record import SeqRecord, seq_to_record
+from divergent.records import max_divergent
 from numpy import array
 from numpy.random import choice, shuffle
 from rich.progress import track
-from tqdm.notebook import tqdm
-
-from divergent.record import SeqRecord, seq_to_record
-from divergent.records import max_divergent
-
 
 try:
     from wakepy import set_keepawake, unset_keepawake
 except (ImportError, NotImplementedError):
     # may not be installed, or on linux where this library doesn't work
-    def _do_nothing_func(*args, **kwargs):
-        ...
+    def _do_nothing_func(*args, **kwargs): ...
 
     set_keepawake, unset_keepawake = _do_nothing_func, _do_nothing_func
 
@@ -66,7 +62,11 @@ class true_positive:
 
     def main(self, records: list[SeqRecord]) -> bool:
         result = max_divergent(
-            records, min_size=self.size, stat=self.stat, verbose=False, max_set=True
+            records,
+            min_size=self.size,
+            stat=self.stat,
+            verbose=False,
+            max_set=True,
         )
         if len(result.record_names) != len(self.expected):
             return NotCompleted(
@@ -78,7 +78,9 @@ class true_positive:
         found_pools = {self.label2pool(n) for n in result.record_names}
         if self.expected != found_pools:
             return NotCompleted(
-                "FAIL", self, f"found pool {found_pools} != {self.expected}"
+                "FAIL",
+                self,
+                f"found pool {found_pools} != {self.expected}",
             )
         return True
 
@@ -169,7 +171,9 @@ def main():
     settings = list(product(pools, stats))
     series = PAR.as_completed(app, settings, max_workers=6)
     for t in track(
-        series, total=len(settings), description=f"{config['seq_len']}bp sim"
+        series,
+        total=len(settings),
+        description=f"{config['seq_len']}bp sim",
     ):
         if not t:
             print(t)

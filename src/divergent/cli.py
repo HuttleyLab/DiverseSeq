@@ -1,27 +1,21 @@
 import os
 import tempfile
-
 from collections import OrderedDict
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Mapping, Optional
+from typing import Optional
 
 import click
-
 from cogent3.app.composable import NotCompleted
 from cogent3.app.data_store import DataStoreDirectory
 from scitrack import CachingLogger
 
-from divergent.data_store import HDF5DataStore
-from divergent.io import (
-    dvgt_load_seqs,
-    dvgt_write_prepped_seqs,
-    dvgt_write_seq_store,
-)
+from divergent.io import (dvgt_load_seqs, dvgt_write_prepped_seqs,
+                          dvgt_write_seq_store)
 from divergent.records import dvgt_calc
 
 
-def _do_nothing_func(*args, **kwargs):
-    ...
+def _do_nothing_func(*args, **kwargs): ...
 
 
 try:
@@ -68,7 +62,6 @@ class OrderedGroup(click.Group):
 @click.version_option(__version__)  # add version option
 def main():
     """dvgt -- alignment free detection of most divergent sequences using JSD"""
-    pass
 
 
 _verbose = click.option(
@@ -91,7 +84,10 @@ _names = click.option(
 )
 
 _outpath = click.option(
-    "-o", "--outpath", type=Path, help="the input string will be cast to Path instance"
+    "-o",
+    "--outpath",
+    type=Path,
+    help="the input string will be cast to Path instance",
 )
 
 _outdir = click.option(
@@ -107,7 +103,8 @@ def _make_outpath(outdir, path, k):
 
 
 _click_command_opts = dict(
-    no_args_is_help=True, context_settings={"show_default": True}
+    no_args_is_help=True,
+    context_settings={"show_default": True},
 )
 
 
@@ -171,10 +168,13 @@ def prep(seqdir, outpath, parallel, force_overwrite, moltype, limit):
             in_dstore = DataStoreDirectory(source=seqdir, suffix=seqfile_suffix)
 
         prep_pipeline = dvgt_load_seqs(moltype=moltype) + dvgt_write_prepped_seqs(
-            dvgtseqs_path, limit=limit
+            dvgtseqs_path,
+            limit=limit,
         )
         result = prep_pipeline.apply_to(
-            in_dstore, show_progress=True, parallel=parallel
+            in_dstore,
+            show_progress=True,
+            parallel=parallel,
         )
 
         click.secho(
@@ -195,10 +195,18 @@ def prep(seqdir, outpath, parallel, force_overwrite, moltype, limit):
 )
 @_outpath
 @click.option(
-    "-z", "--min_size", default=7, type=int, help="minimum size of divergent set"
+    "-z",
+    "--min_size",
+    default=7,
+    type=int,
+    help="minimum size of divergent set",
 )
 @click.option(
-    "-zp", "--max_size", default=None, type=int, help="maximum size of divergent set"
+    "-zp",
+    "--max_size",
+    default=None,
+    type=int,
+    help="maximum size of divergent set",
 )
 @click.option(
     "-x",
@@ -244,7 +252,7 @@ def max(
 
     if seqfile.suffix != ".dvgtseqs":
         click.secho(
-            f"Sequence data needs to be preprocessed, run 'dvgt prep -s "
+            "Sequence data needs to be preprocessed, run 'dvgt prep -s "
             "<path_to_your_seqs.fasta> -o <path_to_write_processed_seqs.dvgtseqs>' "
             "to prepare the sequence data",
             fg="red",

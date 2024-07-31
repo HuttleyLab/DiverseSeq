@@ -4,34 +4,16 @@ from pathlib import Path
 
 import numpy
 import pytest
-
 from cogent3 import make_seq
-from numpy import (
-    array,
-    nextafter,
-    ravel_multi_index,
-    uint16,
-    uint64,
-    unravel_index,
-    zeros,
-)
+from numpy import (array, nextafter, ravel_multi_index, uint16, uint64,
+                   unravel_index, zeros)
 from numpy.testing import assert_allclose
 
-from divergent.record import (
-    SeqArray,
-    SeqRecord,
-    _gettype,
-    coord_conversion_coeffs,
-    coord_to_index,
-    index_to_coord,
-    indices_to_seqs,
-    kmer_counts,
-    kmer_indices,
-    seqarray_to_record,
-    vector,
-)
+from divergent.record import (SeqArray, SeqRecord, _gettype,
+                              coord_conversion_coeffs, coord_to_index,
+                              index_to_coord, indices_to_seqs, kmer_counts,
+                              kmer_indices, seqarray_to_record, vector)
 from divergent.util import str2arr
-
 
 DATADIR = Path(__file__).parent / "data"
 
@@ -43,7 +25,7 @@ seq4eq = make_seq("ACGT", name="null", moltype="dna")
 seq4one = make_seq("AAAA", name="null", moltype="dna")
 
 
-@pytest.fixture
+@pytest.fixture()
 def seqarray():
     return SeqArray(
         seqid="seq1",
@@ -389,11 +371,10 @@ def test_kmer_freqs(seq, k):
 
 
 @pytest.mark.xfail(
-    reason="__app_registry does not exist on the plugin branch of cogent3"
+    reason="__app_registry does not exist on the plugin branch of cogent3",
 )
 def test_composable():
     from cogent3.app.composable import define_app
-    from cogent3.util.misc import get_object_provenance
 
     @define_app
     def matched_sr(records: list[SeqRecord]) -> bool:
@@ -409,7 +390,8 @@ dtype_name = lambda x: numpy.dtype(x).name
 
 
 @pytest.mark.parametrize(
-    "dtype", ("int", "float", dtype_name(numpy.int32), dtype_name(numpy.float64))
+    "dtype",
+    ("int", "float", dtype_name(numpy.int32), dtype_name(numpy.float64)),
 )
 def test__gettype(dtype):
     if dtype[-1].isdigit():

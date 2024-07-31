@@ -18,14 +18,13 @@ identify the set of sequences that maximise delta-JSD
 SummedRecords is the container that simplifies these applications
 
 """
-import itertools
 
+import itertools
 from functools import singledispatch
 from math import fsum
 from typing import Union
 
 import h5py
-
 from attrs import define, field
 from cogent3 import make_table
 from cogent3.app import typing as c3_types
@@ -37,7 +36,6 @@ from numpy import isnan, log2, ndarray, random, uint8, zeros
 from rich.progress import track
 
 from divergent.record import SeqArray, SeqRecord, seqarray_to_record, vector
-
 
 # needs a jsd method for a new sequence
 # needs summed entropy scores
@@ -116,7 +114,7 @@ class SummedRecords:
 
     # we need the records to have been sorted by delta_jsd
     # following check is in place for now until fully tested
-    # todo delete when convinced no longer required
+    # TODO delete when convinced no longer required
 
     records: list[SeqRecord] = field(validator=_check_integrity)
     summed_kfreqs: vector
@@ -190,7 +188,7 @@ class SummedRecords:
         records = [r for r in self.records + [self.lowest] if r is not other]
         if len(records) != len(self.records):
             raise ValueError(
-                f"cannot subtract record {other.name!r}, not present in self"
+                f"cannot subtract record {other.name!r}, not present in self",
             )
 
         summed_kfreqs = self.summed_kfreqs + self.lowest.kfreqs - other.kfreqs
@@ -284,7 +282,10 @@ def max_divergent(
 
 
 def _maximal_stat(
-    sr: SummedRecords, verbose: bool, stat: str, size: int
+    sr: SummedRecords,
+    verbose: bool,
+    stat: str,
+    size: int,
 ) -> SummedRecords:
     if sr.size == size:
         return sr
@@ -309,7 +310,9 @@ def _maximal_stat(
 
 
 def most_divergent(
-    records: list[SeqRecord], size: int, verbose: bool = False
+    records: list[SeqRecord],
+    size: int,
+    verbose: bool = False,
 ) -> SummedRecords:
     """returns size most divergent records
 
@@ -397,7 +400,7 @@ class dvgt_calc:
                 out = empty(len(dset), dtype=uint8)
                 dset.read_direct(out)
                 seqs.append(
-                    SeqArray(seqid=name, data=out, moltype=orig_moltype, source=source)
+                    SeqArray(seqid=name, data=out, moltype=orig_moltype, source=source),
                 )
 
         make_records = seqarray_to_record(k=self.k, moltype=orig_moltype)
@@ -412,7 +415,7 @@ class dvgt_calc:
 
         random.shuffle(records)
         if self.mode == "most":
-            # todo: throw error if user has not provided arg for min_size
+            # TODO: throw error if user has not provided arg for min_size
             sr = most_divergent(records, size=self.min_size, verbose=self.verbose > 0)
         elif self.mode == "max":
             sr = max_divergent(
@@ -424,7 +427,7 @@ class dvgt_calc:
             )
 
         names, deltas = list(
-            zip(*[(r.name, r.delta_jsd) for r in [sr.lowest] + sr.records])
+            zip(*[(r.name, r.delta_jsd) for r in [sr.lowest] + sr.records]),
         )
         table = make_table(data={"names": names, self.stat: deltas})
         return table

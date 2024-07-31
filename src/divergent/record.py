@@ -1,11 +1,12 @@
 """defines basic data type for storing an individual sequence record"""
+
+from collections.abc import Iterator
 from dataclasses import dataclass
 from functools import singledispatch
 from math import fabs, isclose
-from typing import Dict, Iterator, Optional, Union
+from typing import Dict, Optional, Union
 
 import numba
-
 from attrs import asdict, define, field, validators
 from cogent3 import get_moltype
 from cogent3.app import composable
@@ -16,7 +17,6 @@ from numpy import divmod as np_divmod
 from numpy import errstate, log2, nan_to_num, ndarray, uint8, uint64, zeros
 
 from divergent import util as dv_utils
-
 
 NumType = Union[float, int]
 PosDictType = Dict[int, NumType]
@@ -128,7 +128,9 @@ class vector:
     def __sub__(self, other):
         data = self.data - other
         return self.__class__(
-            data=data, vector_length=self.vector_length, dtype=self.dtype
+            data=data,
+            vector_length=self.vector_length,
+            dtype=self.dtype,
         )
 
     def __isub__(self, other):
@@ -139,7 +141,9 @@ class vector:
         # we are creating a new instance
         data = self.data + other
         return self.__class__(
-            data=data, vector_length=self.vector_length, dtype=self.dtype
+            data=data,
+            vector_length=self.vector_length,
+            dtype=self.dtype,
         )
 
     def __iadd__(self, other):
@@ -231,7 +235,9 @@ def indices_to_seqs(indices: ndarray, states: bytes, k: int) -> list[str]:
 
 @numba.jit(nopython=True)
 def indices_to_bytes(
-    indices: ndarray, states: bytes, k: int
+    indices: ndarray,
+    states: bytes,
+    k: int,
 ) -> ndarray:  # pragma: no cover
     """convert indices from k-dim into bytes
 
@@ -272,7 +278,10 @@ def indices_to_bytes(
 
 @numba.jit(nopython=True)
 def kmer_indices(
-    seq: ndarray, result: ndarray, num_states: int, k: int
+    seq: ndarray,
+    result: ndarray,
+    num_states: int,
+    k: int,
 ) -> ndarray:  # pragma: no cover
     """return 1D indices for valid k-mers
 
@@ -368,7 +377,9 @@ def _make_kcounts(data) -> vector:
 def _(data: ndarray):
     nonzero = {i: v for i, v in enumerate(data.tolist()) if v}
     return vector(
-        vector_length=len(data), data=nonzero, dtype=_gettype(data.dtype.name)
+        vector_length=len(data),
+        data=nonzero,
+        dtype=_gettype(data.dtype.name),
     )
 
 
@@ -475,7 +486,9 @@ class seqarray_to_record(_seq_to_kmers):
         kwargs["data"] = counts
 
         return SeqRecord(
-            kcounts=vector(**kwargs), name=kwargs["name"], length=len(seq.data)
+            kcounts=vector(**kwargs),
+            name=kwargs["name"],
+            length=len(seq.data),
         )
 
 

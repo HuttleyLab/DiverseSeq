@@ -3,17 +3,10 @@ from typing import Optional, Union
 
 import h5py
 import hdf5plugin
-
-from cogent3.app.data_store import (
-    DataMember,
-    DataStoreABC,
-    Mode,
-    NoneType,
-    StrOrBytes,
-)
+from cogent3.app.data_store import (DataMember, DataStoreABC, Mode, NoneType,
+                                    StrOrBytes)
 from numpy import empty, ndarray, uint8
 from scitrack import get_text_hexdigest
-
 
 _NOT_COMPLETED_TABLE = "not_completed"
 _LOG_TABLE = "logs"
@@ -47,7 +40,7 @@ class HDF5DataStore(DataStoreABC):
     def read(self, unique_id: str) -> ndarray:
         """reads and return array data corresponding to identifier"""
         with h5py.File(self._source, mode="r") as f:
-            # todo: this will fail if the unique_id is not in the file
+            # TODO: this will fail if the unique_id is not in the file
             data = f[unique_id]
             out = empty(len(data), dtype=uint8)
             data.read_direct(out)
@@ -61,7 +54,12 @@ class HDF5DataStore(DataStoreABC):
         return attrs
 
     def _write(
-        self, *, subdir: str, unique_id: str, data: ndarray, **kwargs
+        self,
+        *,
+        subdir: str,
+        unique_id: str,
+        data: ndarray,
+        **kwargs,
     ) -> DataMember:
         with h5py.File(self._source, mode="a") as f:
             path = f"{subdir}/{unique_id}" if subdir else unique_id
@@ -72,7 +70,8 @@ class HDF5DataStore(DataStoreABC):
 
             if subdir == _NOT_COMPLETED_TABLE:
                 member = DataMember(
-                    data_store=self, unique_id=Path(_NOT_COMPLETED_TABLE) / unique_id
+                    data_store=self,
+                    unique_id=Path(_NOT_COMPLETED_TABLE) / unique_id,
                 )
 
             elif not subdir:
@@ -114,14 +113,11 @@ class HDF5DataStore(DataStoreABC):
             self._completed.append(member)
         return member
 
-    def write_not_completed(self, *, unique_id: str, data: StrOrBytes) -> None:
-        ...
+    def write_not_completed(self, *, unique_id: str, data: StrOrBytes) -> None: ...
 
-    def write_log(self, *, unique_id: str, data: StrOrBytes) -> None:
-        ...
+    def write_log(self, *, unique_id: str, data: StrOrBytes) -> None: ...
 
-    def drop_not_completed(self, *, unique_id: Optional[str] = None) -> None:
-        ...
+    def drop_not_completed(self, *, unique_id: Optional[str] = None) -> None: ...
 
     def md5(self, unique_id: str) -> Union[str, NoneType]:
         with h5py.File(self._source, mode="a") as f:
@@ -140,7 +136,7 @@ class HDF5DataStore(DataStoreABC):
                 for name, item in f.items():
                     if isinstance(item, h5py.Dataset):
                         self._completed.append(
-                            DataMember(data_store=self, unique_id=name)
+                            DataMember(data_store=self, unique_id=name),
                         )
 
         return self._completed
