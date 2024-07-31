@@ -20,7 +20,7 @@ dependencies = ["attrs",
     "numpy",
     "rich",
     "scitrack",
-    "sortedcontainers"]
+    ]
 classifiers = [
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Science/Research",
