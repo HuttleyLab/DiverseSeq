@@ -14,7 +14,7 @@ requires-python = ">=3.10,<3.13"
 dependencies = ["attrs",
     "blosc2",
     "click",
-    "cogent3 @ git+https://github.com/cogent3/cogent3.git@plugin-support", # todo: change to develop when plugin chnages are merged
+    "cogent3 @ git+https://github.com/cogent3/cogent3.git",
     "hdf5plugin",
     "h5py",
     "numpy",
