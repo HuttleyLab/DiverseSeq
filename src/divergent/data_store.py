@@ -3,8 +3,7 @@ from typing import Optional, Union
 
 import h5py
 import hdf5plugin
-from cogent3.app.data_store import (DataMember, DataStoreABC, Mode, NoneType,
-                                    StrOrBytes)
+from cogent3.app.data_store import DataMember, DataStoreABC, Mode, NoneType, StrOrBytes
 from numpy import empty, ndarray, uint8
 from scitrack import get_text_hexdigest
 

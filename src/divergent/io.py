@@ -6,8 +6,14 @@ from attrs import define
 from cogent3 import make_seq, make_table, open_
 from cogent3.app import typing as c3_types
 from cogent3.app.composable import LOADER, WRITER, define_app
-from cogent3.app.data_store import (OVERWRITE, DataMember, DataStoreABC,
-                                    DataStoreDirectory, Mode, get_unique_id)
+from cogent3.app.data_store import (
+    OVERWRITE,
+    DataMember,
+    DataStoreABC,
+    DataStoreDirectory,
+    Mode,
+    get_unique_id,
+)
 from cogent3.format.fasta import alignment_to_fasta
 from cogent3.parse.fasta import MinimalFastaParser
 

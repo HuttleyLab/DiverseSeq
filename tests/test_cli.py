@@ -4,7 +4,6 @@ import h5py
 import pytest
 from click.testing import CliRunner
 from cogent3 import load_table, load_unaligned_seqs
-
 from divergent.cli import max as dvgt_max
 from divergent.cli import prep as dvgt_prep
 from divergent.data_store import HDF5DataStore

@@ -30,9 +30,8 @@ from cogent3 import make_table
 from cogent3.app import typing as c3_types
 from cogent3.app.composable import define_app
 from cogent3.util import parallel as PAR
-from numpy import empty
+from numpy import empty, isnan, log2, ndarray, random, uint8, zeros
 from numpy import isclose as np_isclose
-from numpy import isnan, log2, ndarray, random, uint8, zeros
 from rich.progress import track
 
 from divergent.record import SeqArray, SeqRecord, seqarray_to_record, vector
