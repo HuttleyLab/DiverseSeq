@@ -392,7 +392,7 @@ def test_kmer_freqs(seq, k):
     reason="__app_registry does not exist on the plugin branch of cogent3"
 )
 def test_composable():
-    from cogent3.app.composable import __app_registry, define_app
+    from cogent3.app.composable import define_app
     from cogent3.util.misc import get_object_provenance
 
     @define_app
@@ -403,8 +403,6 @@ def test_composable():
     app = matched_sr()
     got = app([sr])
     assert got
-
-    __app_registry.pop(get_object_provenance(matched_sr), None)
 
 
 dtype_name = lambda x: numpy.dtype(x).name
