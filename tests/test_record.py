@@ -5,15 +5,30 @@ from pathlib import Path
 import numpy
 import pytest
 from cogent3 import make_seq
-from numpy import (array, nextafter, ravel_multi_index, uint16, uint64,
-                   unravel_index, zeros)
-from numpy.testing import assert_allclose
-
-from divergent.record import (SeqArray, SeqRecord, _gettype,
-                              coord_conversion_coeffs, coord_to_index,
-                              index_to_coord, indices_to_seqs, kmer_counts,
-                              kmer_indices, seqarray_to_record, vector)
+from divergent.record import (
+    SeqArray,
+    SeqRecord,
+    _gettype,
+    coord_conversion_coeffs,
+    coord_to_index,
+    index_to_coord,
+    indices_to_seqs,
+    kmer_counts,
+    kmer_indices,
+    seqarray_to_record,
+    vector,
+)
 from divergent.util import str2arr
+from numpy import (
+    array,
+    nextafter,
+    ravel_multi_index,
+    uint16,
+    uint64,
+    unravel_index,
+    zeros,
+)
+from numpy.testing import assert_allclose
 
 DATADIR = Path(__file__).parent / "data"
 

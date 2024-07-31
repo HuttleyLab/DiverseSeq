@@ -10,8 +10,7 @@ from cogent3.app.composable import NotCompleted
 from cogent3.app.data_store import DataStoreDirectory
 from scitrack import CachingLogger
 
-from divergent.io import (dvgt_load_seqs, dvgt_write_prepped_seqs,
-                          dvgt_write_seq_store)
+from divergent.io import dvgt_load_seqs, dvgt_write_prepped_seqs, dvgt_write_seq_store
 from divergent.records import dvgt_calc
 
 
