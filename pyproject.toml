@@ -11,7 +11,8 @@ keywords = ["biology", "genomics", "statistics", "phylogeny", "evolution", "bioi
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.10,<3.13"
-dependencies = ["attrs",
+dependencies = [
+    "attrs",
     "blosc2",
     "click",
     "cogent3 @ git+https://github.com/cogent3/cogent3.git",
@@ -43,18 +44,17 @@ dvgt = "divergent.cli:main"
 
 [project.optional-dependencies]
 test = [
+    "nox",
     "pytest",
     "pytest-cov",
     "pytest-xdist",
-    "nox",
+    "ruff==0.5.5",
 ]
 dev = [
-    "black",
-    "click",
+    "ruff==0.5.5",
     "cogapp",
     "docformatter",
     "flit",
-    "isort",
     "pytest",
     "pytest-cov",
     "pytest-xdist",
@@ -65,34 +65,92 @@ dev = [
 addopts = ["--strict-config", "-ra"]
 testpaths = "tests"
 
-[tool.black]
-line-length = 88
-target-version = ["py310"]
-exclude = '''
-/(
-    \.eggs
-  | \.git
-  | \.hg
-  | \.mypy_cache
-  | \.nox
-  | \.venv
-  | _build
-  | build
-  | doc
-  | dist
-  | tests/data
-)/
-'''
+[tool.ruff]
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".ipynb_checkpoints",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pyenv",
+    ".pytest_cache",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    ".vscode",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "site-packages",
+    "venv",
+]
 
-[tool.isort]
-atomic=true
-force_grid_wrap=0
-include_trailing_comma=true
-lines_after_imports=2
-lines_between_types=1
-multi_line_output=3
-use_parentheses=true
-src_paths = ["src", "tests","doc","noxfile.py"]
+# Same as Black.
+line-length = 88
+indent-width = 4
+
+target-version = "py39"
+
+[tool.ruff.lint]
+# Enable Pyflakes (`F`) and a subset of the pycodestyle (`E`)  codes by default.
+# Unlike Flake8, Ruff doesn't enable pycodestyle warnings (`W`) or
+# McCabe complexity (`C901`) by default.
+select = ["ALL"]
+ignore = ["EXE002", "FA100", "E501", "D"]
+
+# Allow fix for all enabled rules (when `--fix`) is provided.
+fixable = ["ALL"]
+unfixable = []
+
+# Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+    "S101", # asserts allowed in tests...
+    "INP001", # __init__.py files are not required...
+    "ANN",
+    "N802",
+    "N803"
+]
+"noxfile.py" = [
+    "S101", # asserts allowed in tests...
+    "INP001", # __init__.py files are not required...
+    "ANN",
+    "N802",
+    "N803"
+]
+
+[tool.ruff.format]
+# Like Black, use double quotes for strings.
+quote-style = "double"
+
+# Like Black, indent with spaces, rather than tabs.
+indent-style = "space"
+
+# Like Black, respect magic trailing commas.
+skip-magic-trailing-comma = false
+
+# Like Black, automatically detect the appropriate line ending.
+line-ending = "lf"
+docstring-code-format = true
+
+# Set the line length limit used when formatting code snippets in
+# docstrings.
+#
+# This only has an effect when the `docstring-code-format` setting is
+# enabled.
+docstring-code-line-length = "dynamic"
 
 [project.entry-points."cogent3.app"]
 dvgt_write_seq_store = "divergent.io:dvgt_write_seq_store"
