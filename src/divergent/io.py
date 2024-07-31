@@ -8,7 +8,7 @@ from cogent3.app import typing as c3_types
 from cogent3.app.composable import LOADER, WRITER, define_app
 from cogent3.app.data_store import (OVERWRITE, DataMember, DataStoreABC,
                                     DataStoreDirectory, Mode, get_unique_id)
-from cogent3.format.fasta import alignment_to_fasta
+from cogent3.format.fasta import seqs_to_fasta
 from cogent3.parse.fasta import MinimalFastaParser
 
 from divergent import util as dv_utils
@@ -209,7 +209,7 @@ class dvgt_write_seq_store:
         seqs = self.loader(fasta_path)
 
         for seq_id, seq_data in seqs.items():
-            fasta_seq_data = alignment_to_fasta({seq_id: seq_data}, block_size=80)
+            fasta_seq_data = seqs_to_fasta({seq_id: seq_data}, block_size=80)
             out_dstore.write(unique_id=seq_id, data=fasta_seq_data)
 
         return out_dstore
