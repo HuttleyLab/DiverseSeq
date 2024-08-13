@@ -14,15 +14,15 @@ from scitrack import CachingLogger
 from divergent.io import dvgt_load_seqs, dvgt_write_prepped_seqs, dvgt_write_seq_store
 from divergent.records import dvgt_calc
 
-
-def _do_nothing_func(*args, **kwargs): ...
-
-
 try:
-    from wakepy import set_keepawake, unset_keepawake
-except (ImportError, NotImplementedError):
-    # may not be installed, or on linux where this library doesn't work
-    set_keepawake, unset_keepawake = _do_nothing_func, _do_nothing_func
+    from wakepy.keep import running as keep_running
+
+    # trap flaky behaviour on linux
+    with keep_running():
+        ...
+
+except (NotImplementedError, ImportError):
+    from divergent.util import fake_wake as keep_running
 
 
 __author__ = "Gavin Huttley"
@@ -120,47 +120,44 @@ _click_command_opts = dict(
 def prep(seqdir, outpath, parallel, force_overwrite, moltype, limit):
     """Writes processed sequences to an HDF5 file."""
 
-    set_keepawake(keep_screen_awake=False)
+    with keep_running():
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            dvgtseqs_path = outpath.with_suffix(".dvgtseqs")
+            if dvgtseqs_path.exists() and not force_overwrite:
+                click.secho(
+                    "A file with the same name already exists. Existing data members will be skipped. "
+                    "Use the -F flag if you want to overwrite the existing file.",
+                    fg="blue",
+                )
+            elif dvgtseqs_path.exists() and force_overwrite:
+                os.remove(dvgtseqs_path)
 
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        dvgtseqs_path = outpath.with_suffix(".dvgtseqs")
-        if dvgtseqs_path.exists() and not force_overwrite:
-            click.secho(
-                "A file with the same name already exists. Existing data members will be skipped. "
-                "Use the -F flag if you want to overwrite the existing file.",
-                fg="blue",
+            if seqdir.is_file():
+                convert2dstore = dvgt_write_seq_store(dest=tmp_dir, limit=limit)
+                in_dstore = convert2dstore(seqdir)
+            else:
+                paths = list(seqdir.glob("**/*.fa*"))
+                if not paths:
+                    click.secho(f"{seqdir} contains no fasta paths", fg="red")
+                    sys.exit(1)
+                eg_path = Path(paths[0])
+                seqfile_suffix = eg_path.suffix
+                in_dstore = DataStoreDirectory(source=seqdir, suffix=seqfile_suffix)
+
+            prep_pipeline = dvgt_load_seqs(moltype=moltype) + dvgt_write_prepped_seqs(
+                dvgtseqs_path,
+                limit=limit,
             )
-        elif dvgtseqs_path.exists() and force_overwrite:
-            os.remove(dvgtseqs_path)
-
-        if seqdir.is_file():
-            convert2dstore = dvgt_write_seq_store(dest=tmp_dir, limit=limit)
-            in_dstore = convert2dstore(seqdir)
-        else:
-            paths = list(seqdir.glob("**/*.fa*"))
-            if not paths:
-                click.secho(f"{seqdir} contains no fasta paths", fg="red")
-                exit(1)
-            eg_path = Path(paths[0])
-            seqfile_suffix = eg_path.suffix
-            in_dstore = DataStoreDirectory(source=seqdir, suffix=seqfile_suffix)
-
-        prep_pipeline = dvgt_load_seqs(moltype=moltype) + dvgt_write_prepped_seqs(
-            dvgtseqs_path,
-            limit=limit,
-        )
-        result = prep_pipeline.apply_to(
-            in_dstore,
-            show_progress=True,
-            parallel=parallel,
-        )
+            result = prep_pipeline.apply_to(
+                in_dstore,
+                show_progress=True,
+                parallel=parallel,
+            )
 
         click.secho(
             f"Successfully created {result}",
             fg="green",
         )
-
-    unset_keepawake()
 
 
 @main.command(**_click_command_opts)
@@ -237,35 +234,32 @@ def max(
         )
         sys.exit(1)
 
-    set_keepawake(keep_screen_awake=False)
+    with keep_running():
+        limit = 2 if test_run else limit
+        mode = "most" if fixed_size else "max"
 
-    limit = 2 if test_run else limit
-    mode = "most" if fixed_size else "max"
-
-    dvgt_app = dvgt_calc(
-        mode=mode,
-        k=k,
-        parallel=parallel,
-        limit=limit,
-        min_size=min_size,
-        max_size=max_size,
-        stat=stat,
-        verbose=verbose,
-    )
-
-    table = dvgt_app(seqfile)
-
-    if isinstance(table, NotCompleted):
-        click.secho(
-            message=f"{table.type}: {table.message}",
-            fg="red",
+        dvgt_app = dvgt_calc(
+            mode=mode,
+            k=k,
+            parallel=parallel,
+            limit=limit,
+            min_size=min_size,
+            max_size=max_size,
+            stat=stat,
+            verbose=verbose,
         )
-        exit(1)
 
-    outpath.parent.mkdir(parents=True, exist_ok=True)
-    table.write(outpath)
+        table = dvgt_app(seqfile)
 
-    unset_keepawake()
+        if isinstance(table, NotCompleted):
+            click.secho(
+                message=f"{table.type}: {table.message}",
+                fg="red",
+            )
+            sys.exit(1)
+
+        outpath.parent.mkdir(parents=True, exist_ok=True)
+        table.write(outpath)
 
 
 if __name__ == "__main__":

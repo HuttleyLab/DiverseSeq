@@ -1,3 +1,4 @@
+import contextlib
 import pickle
 from typing import Any
 
@@ -72,3 +73,8 @@ class arr2str:
 
         b = data.tobytes().translate(self.translation)
         return bytearray(b).decode("utf8")
+
+
+@contextlib.contextmanager
+def fake_wake(*args, **kwargs):
+    yield
