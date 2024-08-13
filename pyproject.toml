@@ -18,7 +18,7 @@ dependencies = [
     "cogent3 @ git+https://github.com/cogent3/cogent3.git",
     "hdf5plugin",
     "h5py",
-    "numpy",
+    "numpy>=2.0",
     "rich",
     "scitrack",
     ]
@@ -60,6 +60,12 @@ dev = [
     "pytest-xdist",
     "nox",
 ]
+
+[project.entry-points."cogent3.app"]
+dvgt_write_seq_store = "divergent.io:dvgt_write_seq_store"
+dvgt_load_seqs = "divergent.io:dvgt_load_seqs"
+dvgt_write_prepped_seqs = "divergent.io:dvgt_write_prepped_seqs"
+dvgt_calc = "divergent.records:dvgt_calc"
 
 [tool.pytest.ini_options]
 addopts = ["--strict-config", "-ra"]
@@ -152,8 +158,3 @@ docstring-code-format = true
 # enabled.
 docstring-code-line-length = "dynamic"
 
-[project.entry-points."cogent3.app"]
-dvgt_write_seq_store = "divergent.io:dvgt_write_seq_store"
-dvgt_load_seqs = "divergent.io:dvgt_load_seqs"
-dvgt_write_prepped_seqs = "divergent.io:dvgt_write_prepped_seqs"
-dvgt_calc = "divergent.records:dvgt_calc"
