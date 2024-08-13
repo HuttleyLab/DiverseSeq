@@ -36,3 +36,4 @@ dist/*
 working/*
 .ruff_cache/*
 manuscript/*
+paper/*
