@@ -171,11 +171,7 @@ class vector:
     @property
     def entropy(self):
         non_zero = self.data[self.data > 0]
-        if self.dtype == float:
-            kfreqs = non_zero
-        else:
-            kfreqs = non_zero / non_zero.sum()
-
+        kfreqs = non_zero if self.dtype == float else non_zero / non_zero.sum()
         # taking absolute value due to precision issues
         return fabs(-(kfreqs * log2(kfreqs)).sum())
 

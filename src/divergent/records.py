@@ -1,9 +1,7 @@
 """summed records contain multiple SeqRecord instances. This container class
 efficiently computes jsd
 
-I laid this out in my comment https://github.com/GavinHuttley/BIOL3208-bensilke/issues/34#issuecomment-1105874023
-
-convert a sequence collection into a SummedRecords instance, which supports
+Convert a sequence collection into a SummedRecords instance, which supports
 the following applications
 
 Find N
@@ -14,9 +12,7 @@ Most divergent
 --------------
 identify the set of sequences that maximise delta-JSD
 
-
 SummedRecords is the container that simplifies these applications
-
 """
 
 import itertools
@@ -195,8 +191,7 @@ class SummedRecords:
         return self._make_new(records, summed_kfreqs, summed_entropies)
 
     def iter_record_names(self):
-        for name in self.record_names:
-            yield name
+        yield from self.record_names
 
     def increases_jsd(self, record: SeqRecord) -> bool:
         # whether total JSD increases when record is used
@@ -345,11 +340,10 @@ def most_divergent(
 
 
 def make_task_iterator(func, tasks, parallel):
-    if parallel:
-        workers = PAR.get_size() - 1
-        return PAR.as_completed(func, tasks, max_workers=workers)
-    else:
+    if not parallel:
         return map(func, tasks)
+    workers = PAR.get_size() - 1
+    return PAR.as_completed(func, tasks, max_workers=workers)
 
 
 @define_app
@@ -428,5 +422,4 @@ class dvgt_calc:
         names, deltas = list(
             zip(*[(r.name, r.delta_jsd) for r in [sr.lowest] + sr.records]),
         )
-        table = make_table(data={"names": names, self.stat: deltas})
-        return table
+        return make_table(data={"names": names, self.stat: deltas})
