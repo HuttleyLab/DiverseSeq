@@ -72,34 +72,12 @@ _verbose = click.option(
 )
 
 
-# you can define custom parsers / validators
-def _parse_csv_arg(*args) -> list:
-    return args[-1].split(",")
-
-
-_names = click.option(
-    "--names",
-    callback=_parse_csv_arg,
-    help="converts comma separated values",
-)
-
 _outpath = click.option(
     "-o",
     "--outpath",
     type=Path,
     help="the input string will be cast to Path instance",
 )
-
-_outdir = click.option(
-    "-o",
-    "--outdir",
-    type=Path,
-    help="directory to write compressed json",
-)
-
-
-def _make_outpath(outdir, path, k):
-    return outdir / f"{path.stem.split('.')[0]}-{k}-mer.json.blosc2"
 
 
 _click_command_opts = dict(

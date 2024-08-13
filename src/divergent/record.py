@@ -10,8 +10,6 @@ import numba
 from attrs import asdict, define, field, validators
 from cogent3 import get_moltype
 from cogent3.app import composable
-from cogent3.app import typing as c3_types
-from cogent3.core.alphabet import get_array_type
 from numpy import array, errstate, log2, nan_to_num, ndarray, uint8, uint64, zeros
 from numpy import divmod as np_divmod
 
@@ -174,20 +172,6 @@ class vector:
         kfreqs = non_zero if self.dtype == float else non_zero / non_zero.sum()
         # taking absolute value due to precision issues
         return fabs(-(kfreqs * log2(kfreqs)).sum())
-
-    def to_rich_dict(self):
-        data = asdict(self)
-        data["dtype"] = data["dtype"].__name__
-        data.pop("default")
-        # convert coords to str so orjson copes
-        data["data"] = list(data["data"].items())
-        return data
-
-    @classmethod
-    def from_dict(cls, data):
-        data["data"] = dict(data["data"])
-        data["dtype"] = _gettype(data["dtype"])
-        return cls(**data)
 
 
 @numba.jit(nopython=True)
@@ -398,17 +382,6 @@ class SeqArray:
         return len(self.data)
 
 
-@composable.define_app
-def seq_to_seqarray(seq: c3_types.SeqType) -> SeqArray:
-    as_indices = dv_utils.str2arr(moltype=seq.moltype)
-    return SeqArray(
-        seqid=seq.name,
-        data=as_indices(str(seq)),
-        moltype=seq.moltype,
-        source=seq.source,
-    )
-
-
 @define(slots=True, order=True, hash=True)
 class SeqRecord:
     """representation of a single sequence as kmer counts"""
@@ -494,15 +467,3 @@ def _get_canonical_states(moltype: str) -> bytes:
     if not (0 <= min(v) < max(v) < len(canonical)):
         raise ValueError(f"indices of canonical states {canonical} not sequential {v}")
     return "".join(canonical).encode("utf8")
-
-
-def _seq_to_all_kmers(seq: ndarray, states: bytes, k: int) -> ndarray:
-    """return all valid k-mers from seq"""
-    # positions with non-canonical characters are assigned value outside range
-    num_states = len(states)
-    dtype = get_array_type(num_states**k)
-
-    # k-mers that include an index for ambiguity character are excluded
-    result = zeros(len(seq) - k + 1, dtype=dtype)
-    result = kmer_indices(seq, result, num_states, k)
-    return result
