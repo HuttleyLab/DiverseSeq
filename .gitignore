@@ -132,3 +132,5 @@ dmypy.json
 # VSCode settigs
 .vscode/settings.json
 .vscode/*
+
+manuscript/*
