@@ -1,4 +1,5 @@
 import os
+import sys
 import tempfile
 from collections import OrderedDict
 from collections.abc import Mapping
@@ -247,7 +248,7 @@ def max(
 
     if max_size is not None and min_size > max_size:
         click.secho(f"{min_size=} is greater than {max_size}", fg="red")
-        exit(1)
+        sys.exit(1)
 
     if seqfile.suffix != ".dvgtseqs":
         click.secho(
@@ -256,7 +257,7 @@ def max(
             "to prepare the sequence data",
             fg="red",
         )
-        exit(1)
+        sys.exit(1)
 
     set_keepawake(keep_screen_awake=False)
 
