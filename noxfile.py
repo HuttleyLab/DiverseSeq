@@ -1,6 +1,5 @@
 import nox
 
-
 _py_versions = range(10, 13)
 
 

@@ -34,3 +34,5 @@ junit-*.xml
 doc/draw*
 dist/*
 working/*
+.ruff_cache/*
+manuscript/*

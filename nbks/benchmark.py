@@ -1,27 +1,22 @@
 import time
-
 from itertools import product
 from pathlib import Path
 
 import click
-
 from cogent3 import make_seq, make_table
 from cogent3.app.composable import define_app
 from cogent3.util import parallel as PAR
-from numpy.random import shuffle
-from rich.progress import track
-
 from divergent.record import seq_to_record
 from divergent.records import max_divergent
 from divergent.util import faster_load_fasta
-
+from numpy.random import shuffle
+from rich.progress import track
 
 try:
     from wakepy import set_keepawake, unset_keepawake
 except (ImportError, NotImplementedError):
     # may not be installed, or on linux where this library doesn't work
-    def _do_nothing_func(*args, **kwargs):
-        ...
+    def _do_nothing_func(*args, **kwargs): ...
 
     set_keepawake, unset_keepawake = _do_nothing_func, _do_nothing_func
 
@@ -73,14 +68,14 @@ class timed_run:
 
 
 _click_command_opts = dict(
-    no_args_is_help=True, context_settings={"show_default": True}
+    no_args_is_help=True,
+    context_settings={"show_default": True},
 )
 
 
 @click.group(**_click_command_opts)
 def main():
     """benchmarking exercises"""
-    pass
 
 
 @main.command(**_click_command_opts)
@@ -103,7 +98,8 @@ def run(seqdir, outpath, limit, parallel):
     )
     rows = list(track(series, total=len(settings)))
     table = make_table(
-        header=["k", "num_seqs", "rep", "time(s2r)", "time(maxd)"], data=rows
+        header=["k", "num_seqs", "rep", "time(s2r)", "time(maxd)"],
+        data=rows,
     )
     table.write(outpath)
 

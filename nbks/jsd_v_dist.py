@@ -3,26 +3,22 @@ from pathlib import Path
 from statistics import mean
 
 import click
-
 from cogent3 import make_table
 from cogent3.app import io
 from cogent3.app import typing as c3_types
 from cogent3.app.composable import define_app
 from cogent3.util import parallel as PAR
+from divergent.record import seq_to_record
+from divergent.records import max_divergent
 from numpy.random import choice
 from rich.progress import track
 from scipy.special import binom
-
-from divergent.record import SeqRecord, seq_to_record
-from divergent.records import max_divergent
-
 
 try:
     from wakepy import set_keepawake, unset_keepawake
 except (ImportError, NotImplementedError):
     # may not be installed, or on linux where this library doesn't work
-    def _do_nothing_func(*args, **kwargs):
-        ...
+    def _do_nothing_func(*args, **kwargs): ...
 
     set_keepawake, unset_keepawake = _do_nothing_func, _do_nothing_func
 
@@ -31,7 +27,7 @@ def get_combinations(all_vals, choose, number):
     indices = set()
     interval = range(len(all_vals))
     max_size = binom(len(all_vals), choose)
-    number = max_size if number > max_size else number
+    number = min(number, max_size)
     while len(indices) < number:
         candidate = tuple(sorted(choice(interval, size=choose, replace=False)))
         if candidate in indices:
@@ -142,7 +138,8 @@ def run(
 
 
 _click_command_opts = dict(
-    no_args_is_help=True, context_settings={"show_default": True}
+    no_args_is_help=True,
+    context_settings={"show_default": True},
 )
 
 
@@ -150,7 +147,11 @@ _click_command_opts = dict(
 @click.argument("seqdir", type=Path)
 def main(seqdir):
     settings = list(
-        product(range(2, 8), ("mean_jsd", "mean_delta_jsd", "total_jsd"), (True, False))
+        product(
+            range(2, 8),
+            ("mean_jsd", "mean_delta_jsd", "total_jsd"),
+            (True, False),
+        ),
     )
 
     order = "k", "stat", "max_set"
