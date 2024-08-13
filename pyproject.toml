@@ -48,10 +48,10 @@ test = [
     "pytest",
     "pytest-cov",
     "pytest-xdist",
-    "ruff==0.5.5",
+    "ruff==0.5.7",
 ]
 dev = [
-    "ruff==0.5.5",
+    "ruff==0.5.7",
     "cogapp",
     "docformatter",
     "flit",
