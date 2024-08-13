@@ -385,9 +385,6 @@ def test_kmer_freqs(seq, k):
     assert (got == expect).all()
 
 
-@pytest.mark.xfail(
-    reason="__app_registry does not exist on the plugin branch of cogent3",
-)
 def test_composable():
     from cogent3.app.composable import define_app
 
