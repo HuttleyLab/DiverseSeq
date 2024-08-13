@@ -175,13 +175,13 @@ class vector:
 
 
 @numba.jit(nopython=True)
-def coord_conversion_coeffs(num_states, k):
+def coord_conversion_coeffs(num_states, k):  # pragma: no cover
     """coefficients for multi-dimensional coordinate conversion into 1D index"""
     return array([num_states ** (i - 1) for i in range(k, 0, -1)])
 
 
 @numba.jit(nopython=True)
-def coord_to_index(coord, coeffs):
+def coord_to_index(coord, coeffs):  # pragma: no cover
     """converts a multi-dimensional coordinate into a 1D index"""
     return (coord * coeffs).sum()
 
