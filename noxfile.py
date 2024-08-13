@@ -14,7 +14,7 @@ def test(session):
     )
 
 
-@nox.session(python=["3.10"])
+@nox.session(python=["3.12"])
 def testcov(session):
     session.install(".[test]")
     session.chdir("tests")
