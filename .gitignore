@@ -134,3 +134,5 @@ dmypy.json
 .vscode/*
 
 manuscript/*
+paper/*
+jats/*
