@@ -44,7 +44,9 @@ as the scale of data sets becomes larger, the value of identifying analysis para
 
 if we imagine a 1D line, the idea is to sample points that are approximately evenly dispersed along the line
 
-# Mathematics
+# Definitions
+
+$k$-mer is a subsequence of length $k$.
 
 Define $f_i$ as the $k$-mer frequency vector for sequence $i$, and the set of $N$ such vectors as $\mathbb{F}$. The Jensen-Shannon Divergence for $\mathbb{F}$ is
 
@@ -54,10 +56,10 @@ JSD=H \left( \frac{1}{N}\sum_i^N f_i \right) - \overline{H(f)}
 
 where $\overline{H(f)}$ is the mean of the frequency vectors Shannon entropies.
 
-For sequence $i$, it's contribution to the total JSD is
+For sequence $i$, it's contribution to the total JSD of $\mathbb{F}$ is
 
 \begin{equation*}
-JSD_{\delta}(i)=JSD-JSD(\mathbb{F} - \{i\})
+JSD_{\delta}(i)=JSD(\mathbb{F})-JSD(\mathbb{F} - \{i\})
 \end{equation*}
 
 with this expression it becomes clearer that to measure entropy of the collection we only need to keep track of the totals of each $k$-mer, so the algorithm can be implemented with a single pass through the data with a small constant due to the need to update the chosen sequences
@@ -82,7 +84,12 @@ counterparts to the above
 
 # Performance
 
+## recovery of representatives from synthetic knowns
+
 ## statistical correspondence to tree-based distances
+
+
+
 
 ## compute time and memory
 
