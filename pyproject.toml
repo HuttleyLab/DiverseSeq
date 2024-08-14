@@ -15,7 +15,7 @@ dependencies = [
     "attrs",
     "blosc2",
     "click",
-    "cogent3 @ git+https://github.com/cogent3/cogent3.git",
+    "cogent3",
     "hdf5plugin",
     "h5py",
     "numpy>=2.0",
@@ -51,15 +51,31 @@ test = [
     "ruff==0.5.7",
 ]
 dev = [
-    "ruff==0.5.7",
     "cogapp",
     "docformatter",
     "flit",
+    "nox",
     "pytest",
     "pytest-cov",
     "pytest-xdist",
-    "nox",
+    "ruff==0.5.7",
 ]
+doc  = ["click",
+        "ipykernel",
+        "ipython",
+        "ipywidgets",
+        "jupyter-sphinx",
+        "jupyter_client",
+        "jupyterlab",
+        "jupytext",
+        "kaleido",
+        "nbconvert>5.4",
+        "nbformat",
+        "nbsphinx",
+        "numpydoc",
+        "pandas",
+        "plotly"
+        ]
 
 [project.entry-points."cogent3.app"]
 dvgt_write_seq_store = "divergent.io:dvgt_write_seq_store"
