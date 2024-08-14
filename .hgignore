@@ -37,3 +37,4 @@ working/*
 .ruff_cache/*
 manuscript/*
 paper/*
+jats/*
