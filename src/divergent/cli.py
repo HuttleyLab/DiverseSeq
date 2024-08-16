@@ -24,16 +24,6 @@ except (NotImplementedError, ImportError):
     from divergent.util import fake_wake as keep_running
 
 
-__author__ = "Gavin Huttley"
-__copyright__ = "Copyright 2022-, Gavin Huttley"
-__credits__ = ["Gavin Huttley"]
-__license__ = "BSD"
-__version__ = "2022.8.4"  # A DATE BASED VERSION
-__maintainer__ = "Gavin Huttley"
-__email__ = "Gavin.Huttley@anu.edu.au"
-__status__ = "alpha"
-
-
 LOGGER = CachingLogger()
 
 
