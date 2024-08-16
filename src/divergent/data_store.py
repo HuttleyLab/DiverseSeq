@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import Optional, Union
 
 import h5py
 import hdf5plugin
@@ -116,9 +115,9 @@ class HDF5DataStore(DataStoreABC):
 
     def write_log(self, *, unique_id: str, data: StrOrBytes) -> None: ...
 
-    def drop_not_completed(self, *, unique_id: Optional[str] = None) -> None: ...
+    def drop_not_completed(self, *, unique_id: str | None = None) -> None: ...
 
-    def md5(self, unique_id: str) -> Union[str, NoneType]:
+    def md5(self, unique_id: str) -> str | NoneType:
         with h5py.File(self._source, mode="a") as f:
             if f"md5/{unique_id}" in f:
                 dset = f[f"md5/{unique_id}"]

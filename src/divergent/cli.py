@@ -4,7 +4,6 @@ import tempfile
 from collections import OrderedDict
 from collections.abc import Mapping
 from pathlib import Path
-from typing import Optional
 
 import click
 from cogent3.app.composable import NotCompleted
@@ -46,8 +45,8 @@ class OrderedGroup(click.Group):
 
     def __init__(
         self,
-        name: Optional[str] = None,
-        commands: Optional[Mapping[str, click.Command]] = None,
+        name: str | None = None,
+        commands: Mapping[str, click.Command] | None = None,
         **kwargs,
     ):
         super().__init__(name, commands, **kwargs)

@@ -4,7 +4,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from functools import singledispatch
 from math import fabs, isclose
-from typing import Dict, Optional, Union
+from typing import Union
 
 import numba
 from attrs import asdict, define, field, validators
@@ -16,7 +16,7 @@ from numpy import divmod as np_divmod
 from divergent import util as dv_utils
 
 NumType = Union[float, int]
-PosDictType = Dict[int, NumType]
+PosDictType = dict[int, NumType]
 
 
 @singledispatch
@@ -68,7 +68,7 @@ def _(data: dict, size: int | None = None, dtype: type = int) -> ndarray:
 class vector:
     data: ndarray
     vector_length: int
-    default: Optional[NumType] = field(init=False)
+    default: NumType | None = field(init=False)
     dtype: type = float
     source: str = None
     name: str = None

@@ -8,11 +8,12 @@ from cogent3.app import io
 from cogent3.app import typing as c3_types
 from cogent3.app.composable import define_app
 from cogent3.util import parallel as PAR
-from divergent.record import seq_to_record
-from divergent.records import max_divergent
 from numpy.random import choice
 from rich.progress import track
 from scipy.special import binom
+
+from divergent.record import seq_to_record
+from divergent.records import max_divergent
 
 try:
     from wakepy import set_keepawake, unset_keepawake
@@ -157,7 +158,7 @@ def main(seqdir):
     order = "k", "stat", "max_set"
     rows = []
     for config in track(settings, description="Working on setting..."):
-        setting = dict(zip(order, config))
+        setting = dict(zip(order, config, strict=False))
         result, pvals = run(seqdir, min_size=5, dist_size=1000, **setting)
         size = len(result["divergent"])
         rows.append(list(config) + [size] + [sum(p < 0.1 for p in pvals), len(pvals)])

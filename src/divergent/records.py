@@ -18,7 +18,6 @@ SummedRecords is the container that simplifies these applications
 import itertools
 from functools import singledispatch
 from math import fsum
-from typing import Union
 
 import h5py
 from attrs import define, field
@@ -41,7 +40,7 @@ from divergent.record import SeqArray, SeqRecord, seqarray_to_record, vector
 
 
 @singledispatch
-def _jsd(summed_freqs: Union[vector, ndarray], summed_entropy: float, n: int) -> float:
+def _jsd(summed_freqs: vector | ndarray, summed_entropy: float, n: int) -> float:
     raise NotImplementedError
 
 
@@ -420,6 +419,9 @@ class dvgt_calc:
             )
 
         names, deltas = list(
-            zip(*[(r.name, r.delta_jsd) for r in [sr.lowest] + sr.records]),
+            zip(
+                *[(r.name, r.delta_jsd) for r in [sr.lowest] + sr.records],
+                strict=False,
+            ),
         )
         return make_table(data={"names": names, self.stat: deltas})

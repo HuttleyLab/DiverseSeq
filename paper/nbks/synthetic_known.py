@@ -4,11 +4,12 @@ from cogent3 import make_table, make_unaligned_seqs
 from cogent3.app import typing as c3_types
 from cogent3.app.composable import NotCompleted, define_app
 from cogent3.util import parallel as PAR
-from divergent.record import SeqRecord, seq_to_record
-from divergent.records import max_divergent
 from numpy import array
 from numpy.random import choice, shuffle
 from rich.progress import track
+
+from divergent.record import SeqRecord, seq_to_record
+from divergent.records import max_divergent
 
 try:
     from wakepy import set_keepawake, unset_keepawake

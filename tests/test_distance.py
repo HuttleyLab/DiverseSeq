@@ -1,7 +1,8 @@
 import pytest
-from divergent.distance import _intersect_union, jaccard
 from numpy import array
 from numpy.testing import assert_allclose
+
+from divergent.distance import _intersect_union, jaccard
 
 
 def _make_sample(type_):
