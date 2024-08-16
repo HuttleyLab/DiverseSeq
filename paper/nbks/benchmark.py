@@ -6,11 +6,12 @@ import click
 from cogent3 import make_seq, make_table
 from cogent3.app.composable import define_app
 from cogent3.util import parallel as PAR
+from numpy.random import shuffle
+from rich.progress import track
+
 from divergent.record import seq_to_record
 from divergent.records import max_divergent
 from divergent.util import faster_load_fasta
-from numpy.random import shuffle
-from rich.progress import track
 
 try:
     from wakepy import set_keepawake, unset_keepawake

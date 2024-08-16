@@ -1,5 +1,6 @@
 import pytest
 from cogent3 import get_moltype
+
 from divergent.util import arr2str, str2arr
 
 

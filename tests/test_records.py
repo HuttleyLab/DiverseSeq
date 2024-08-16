@@ -1,10 +1,11 @@
 import pytest
 from cogent3 import make_unaligned_seqs
 from cogent3.maths.measure import jsd
+from numpy.testing import assert_allclose
+
 from divergent.record import SeqRecord, kmer_counts
 from divergent.records import SummedRecords, max_divergent, most_divergent
 from divergent.util import str2arr
-from numpy.testing import assert_allclose
 
 
 @pytest.fixture()

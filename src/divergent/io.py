@@ -1,9 +1,8 @@
+import string
 import warnings
 from pathlib import Path
-from typing import Optional, Union
 
 from attrs import define
-from cogent3 import open_
 from cogent3.app import typing as c3_types
 from cogent3.app.composable import LOADER, WRITER, define_app
 from cogent3.app.data_store import (
@@ -14,12 +13,19 @@ from cogent3.app.data_store import (
     Mode,
     get_unique_id,
 )
+from cogent3.core import new_alphabet
 from cogent3.format.fasta import seqs_to_fasta
-from cogent3.parse.fasta import MinimalFastaParser
+from cogent3.parse.fasta import iter_fasta_records
 
 from divergent import util as dv_utils
 from divergent.data_store import HDF5DataStore
 from divergent.record import SeqArray
+
+converter = new_alphabet.convert_alphabet(
+    string.ascii_lowercase.encode("utf8"),
+    string.ascii_uppercase.encode("utf8"),
+    delete=b"\n\r\\l\t- ",
+)
 
 
 def _label_func(label):
@@ -32,17 +38,16 @@ def _label_from_filename(path):
 
 @define_app(app_type=LOADER)
 def faster_load_fasta(path: c3_types.IdentifierType, label_func=_label_func) -> dict:
-    with open_(path) as infile:
-        result = {}
-        for n, s in MinimalFastaParser(infile.read().splitlines()):
-            n = label_func(n)
-            if n in result and result[n] != s:
-                warnings.warn(
-                    f"duplicated seq label {n!r} in {path}, but different seqs",
-                    UserWarning,
-                )
-            result[n] = s.replace("-", "")
-        return result
+    result = {}
+    for n, s in iter_fasta_records(path, converter=converter):
+        n = label_func(n)
+        if n in result and result[n] != s:
+            warnings.warn(
+                f"duplicated seq label {n!r} in {path}, but different seqs",
+                UserWarning,
+            )
+        result[n] = s.decode("utf8")
+    return result
 
 
 @define
@@ -72,14 +77,12 @@ class dvgt_load_seqs:
 
     def main(self, data_member: DataMember) -> SeqArray:
         seq_path = Path(data_member.data_store.source) / data_member.unique_id
-
-        with open_(seq_path) as infile:
-            for _, seq in MinimalFastaParser(infile.read().splitlines()):
-                seq.replace("-", "")
+        for n, seq in iter_fasta_records(seq_path, converter=converter):
+            break
 
         return SeqArray(
             seqid=data_member.unique_id,
-            data=self.str2arr(seq),
+            data=self.str2arr(seq.decode("utf8")),
             moltype=self.moltype,
             source=data_member.data_store.source,
         )
@@ -102,7 +105,7 @@ class dvgt_write_prepped_seqs:
     def main(
         self,
         data: SeqArray,
-        identifier: Optional[str] = None,
+        identifier: str | None = None,
     ) -> c3_types.IdentifierType:
         unique_id = identifier or self.id_from_source(data.unique_id)
         return self.data_store.write(
@@ -119,9 +122,9 @@ class dvgt_write_seq_store:
 
     def __init__(
         self,
-        dest: Optional[c3_types.IdentifierType] = None,
-        limit: Optional[int] = None,
-        mode: Union[str, Mode] = OVERWRITE,
+        dest: c3_types.IdentifierType | None = None,
+        limit: int | None = None,
+        mode: str | Mode = OVERWRITE,
     ):
         self.dest = dest
         self.limit = limit
