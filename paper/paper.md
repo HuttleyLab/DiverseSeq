@@ -24,9 +24,12 @@ bibliography: paper.bib
 
 # Summary
 
-for many biological analyses, it's often beneficial to develop an understanding of the properties of a data set by working on a representative subset
+alignment free, tree free, low compute cost, high scalability
 
 sequences do not have to be related to each other
+
+for many biological analyses, it's often beneficial to develop an understanding of the properties of a data set by working on a representative subset
+
 
 it may be that the sampled data are descended from a common ancestor, or that they are not
 
