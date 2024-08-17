@@ -32,6 +32,18 @@ def test_get_seq_format_unknown(suffix):
     assert dvgt_util.get_seq_file_format(suffix) is None
 
 
+def test_determine_chunk_size():
+    got = list(dvgt_util.determine_chunk_size(10, 3))
+    assert got == [4, 3, 3]
+
+
+def test_chunked():
+    data = list(range(10))
+    got = list(dvgt_util.chunked(data, 3))
+    expect = [[0, 1, 2, 3], [4, 5, 6], [7, 8, 9]]
+    assert got == expect
+
+
 def test_pickle_compress_round_trip():
     data = dict(a=23, b="abcd")
     round_trip = (

@@ -97,3 +97,26 @@ def get_seq_file_format(suffix: str) -> str:
     if _fasta_format.match(suffix):
         return "fasta"
     return "genbank" if _genbank_format.match(suffix) else None
+
+
+def determine_chunk_size(total_items, num_chunks):
+    """chunk sizes for distributing items into approximately equal chunks"""
+    base_chunk_size = total_items // num_chunks
+    remainder = total_items % num_chunks
+
+    return [
+        base_chunk_size + 1 if i < remainder else base_chunk_size
+        for i in range(num_chunks)
+    ]
+
+
+def chunked(iterable, num_chunks, verbose=False):
+    sizes = determine_chunk_size(len(iterable), num_chunks)
+    if verbose:
+        print(f"chunk sizes: {sizes}")
+
+    cum_sizes = array(sizes).cumsum()
+    starts = [0] + cum_sizes[:-1].tolist()
+    start_stop = array([starts, cum_sizes]).T
+    for start, end in start_stop:
+        yield iterable[start:end]
