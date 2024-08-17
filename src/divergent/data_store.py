@@ -144,12 +144,11 @@ class HDF5DataStore(DataStoreABC):
         if not self._completed:
             self._completed = []
             with h5py.File(self._source, mode="a") as f:
-                for name, item in f.items():
-                    if isinstance(item, h5py.Dataset):
-                        self._completed.append(
-                            DataMember(data_store=self, unique_id=name),
-                        )
-
+                self._completed.extend(
+                    DataMember(data_store=self, unique_id=name)
+                    for name, item in f.items()
+                    if isinstance(item, h5py.Dataset)
+                )
         return self._completed
 
     @property
