@@ -34,7 +34,7 @@ from numpy import isclose as np_isclose
 from rich.progress import track
 
 from divergent import util as dvgt_util
-from divergent.record import SeqArray, SeqRecord, seqarray_to_record, vector
+from divergent.record import KmerSeq, SeqArray, seqarray_to_record, vector
 
 # needs a jsd method for a new sequence
 # needs summed entropy scores
@@ -65,7 +65,7 @@ def _(summed_freqs: ndarray, summed_entropy: float, n: int):
     return ke - entropy
 
 
-def _summed_stats(records: list[SeqRecord]) -> tuple[vector, float]:
+def _summed_stats(records: list[KmerSeq]) -> tuple[vector, float]:
     # takes series of records and sums quantitative parts
     sv = records[0].kfreqs
     vec = zeros(len(sv), dtype=float)
@@ -81,8 +81,8 @@ def _summed_stats(records: list[SeqRecord]) -> tuple[vector, float]:
 def _delta_jsd(
     total_kfreqs: vector,
     total_entropies: float,
-    records: list[SeqRecord],
-) -> list[SeqRecord]:
+    records: list[KmerSeq],
+) -> list[KmerSeq]:
     """measures contribution of each record to the total JSD"""
     n = len(records)
     total_jsd = _jsd(total_kfreqs, total_entropies, n)
@@ -100,7 +100,7 @@ def _delta_jsd(
     return result
 
 
-def _check_integrity(instance, attribute, records: list[SeqRecord]):
+def _check_integrity(instance, attribute, records: list[KmerSeq]):
     last = records[0]
     for r in records[1:]:
         if r.delta_jsd < last.delta_jsd:
@@ -115,17 +115,17 @@ class SummedRecords:
     # following check is in place for now until fully tested
     # TODO delete when convinced no longer required
 
-    records: list[SeqRecord] = field(validator=_check_integrity)
+    records: list[KmerSeq] = field(validator=_check_integrity)
     summed_kfreqs: vector
     summed_entropies: float
     total_jsd: float
     size: int = field(init=False)
     record_names: set = field(init=False)
-    lowest: SeqRecord = field(init=False)
+    lowest: KmerSeq = field(init=False)
 
     def __init__(
         self,
-        records: list[SeqRecord],
+        records: list[KmerSeq],
         summed_kfreqs: vector,
         summed_entropies: float,
         total_jsd: float,
@@ -140,7 +140,7 @@ class SummedRecords:
         self.summed_entropies = summed_entropies - self.lowest.entropy
 
     @classmethod
-    def from_records(cls, records: list[:SeqRecord]):
+    def from_records(cls, records: list[:KmerSeq]):
         size = len(records)
         summed_kfreqs, summed_entropies = _summed_stats(records)
         total_jsd = _jsd(summed_kfreqs, summed_entropies, size)
@@ -152,7 +152,7 @@ class SummedRecords:
 
     def _make_new(
         self,
-        records: list[:SeqRecord],
+        records: list[:KmerSeq],
         summed_kfreqs: vector,
         summed_entropies: float,
     ):
@@ -169,10 +169,10 @@ class SummedRecords:
         )
         return self.__class__(records, summed_kfreqs, summed_entropies, total_jsd)
 
-    def __contains__(self, item: SeqRecord):
+    def __contains__(self, item: KmerSeq):
         return item.name in self.record_names
 
-    def __add__(self, other: SeqRecord):
+    def __add__(self, other: KmerSeq):
         assert other not in self
         summed_kfreqs = self.summed_kfreqs + self.lowest.kfreqs + other.kfreqs
         summed_entropies = self.summed_entropies + self.lowest.entropy + other.entropy
@@ -182,7 +182,7 @@ class SummedRecords:
             summed_entropies,
         )
 
-    def __sub__(self, other: SeqRecord):
+    def __sub__(self, other: KmerSeq):
         if other not in self:
             raise ValueError(
                 f"cannot subtract record {other.name!r}, not present in self",
@@ -196,7 +196,7 @@ class SummedRecords:
     def iter_record_names(self):
         yield from self.record_names
 
-    def increases_jsd(self, record: SeqRecord) -> bool:
+    def increases_jsd(self, record: KmerSeq) -> bool:
         # whether total JSD increases when record is used
         j = _jsd(
             self.summed_kfreqs + record.kfreqs,
@@ -214,7 +214,7 @@ class SummedRecords:
         total = fsum([fsum(r.delta_jsd for r in self.records), self.lowest.delta_jsd])
         return total / self.size
 
-    def replaced_lowest(self, other: SeqRecord):
+    def replaced_lowest(self, other: KmerSeq):
         """returns new SummedRecords with other instead of lowest"""
         summed_kfreqs = self.summed_kfreqs + other.kfreqs
         summed_entropies = self.summed_entropies + other.entropy
@@ -235,7 +235,7 @@ class SummedRecords:
 
 
 def max_divergent(
-    records: list[SeqRecord],
+    records: list[KmerSeq],
     min_size: int = 2,
     max_size: int | None = None,
     stat: str = "mean_jsd",
@@ -344,7 +344,7 @@ def dvgt_final_max(
 
 
 def most_divergent(
-    records: list[SeqRecord],
+    records: list[KmerSeq],
     size: int,
     verbose: bool = False,
     show_progress: bool = False,
@@ -450,7 +450,7 @@ def records_from_seq_store(
     seq_names: list[str],
     k: int,
     limit: int | None,
-) -> list[SeqRecord]:
+) -> list[KmerSeq]:
     """converts sequences in seq_store into SeqRecord instances
 
     Parameters

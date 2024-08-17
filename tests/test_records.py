@@ -4,7 +4,7 @@ from cogent3.maths.measure import jsd
 from numpy.testing import assert_allclose
 
 from divergent import records as dvgt_records
-from divergent.record import SeqRecord, kmer_counts
+from divergent.record import KmerSeq, kmer_counts
 from divergent.util import str2arr
 
 
@@ -26,7 +26,7 @@ def _get_kfreqs_per_seq(seqs, k=1):
 
 def _make_records(kcounts, seqcoll):
     return [
-        SeqRecord(kcounts=kcounts[s.name], name=s.name, length=len(s))
+        KmerSeq(kcounts=kcounts[s.name], name=s.name, length=len(s))
         for s in seqcoll.seqs
         if s.name in kcounts
     ]
@@ -36,7 +36,7 @@ def _make_records(kcounts, seqcoll):
 def test_total_jsd(seqcoll, k):
     kcounts = _get_kfreqs_per_seq(seqcoll, k=k)
     records = [
-        SeqRecord(kcounts=kcounts[s.name], name=f"{s.name}-{k}", length=len(s))
+        KmerSeq(kcounts=kcounts[s.name], name=f"{s.name}-{k}", length=len(s))
         for s in seqcoll.seqs
     ]
     sr = dvgt_records.SummedRecords.from_records(records)
@@ -89,7 +89,7 @@ def test_mean_delta_jsd(seqcoll):
     k = 1
     kcounts = _get_kfreqs_per_seq(seqcoll, k=k)
     records = [
-        SeqRecord(kcounts=kcounts[s.name], name=s.name, length=len(s))
+        KmerSeq(kcounts=kcounts[s.name], name=s.name, length=len(s))
         for s in seqcoll.seqs
     ]
     sr_with_a = dvgt_records.SummedRecords.from_records(records)
@@ -140,7 +140,7 @@ def test_all_records(seqcoll):
     records = _make_records(kcounts, seqcoll)
     got = dvgt_records.most_divergent(records, size=3).all_records()
     assert len(got) == 3
-    assert isinstance(got[0], SeqRecord)
+    assert isinstance(got[0], KmerSeq)
 
 
 def test_merge_summed_records(DATA_DIR):

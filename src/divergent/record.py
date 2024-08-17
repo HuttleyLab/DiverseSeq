@@ -383,7 +383,7 @@ class SeqArray:
 
 
 @define(slots=True, order=True, hash=True)
-class SeqRecord:
+class KmerSeq:
     """representation of a single sequence as kmer counts"""
 
     kcounts: vector = field(eq=False, converter=_make_kcounts)
@@ -443,7 +443,7 @@ class _seq_to_kmers:
 
 @composable.define_app
 class seqarray_to_record(_seq_to_kmers):
-    def main(self, seq: SeqArray) -> SeqRecord:
+    def main(self, seq: SeqArray) -> KmerSeq:
         kwargs = dict(
             vector_length=len(self.canonical) ** self.k,
             dtype=int,
@@ -453,7 +453,7 @@ class seqarray_to_record(_seq_to_kmers):
         counts = kmer_counts(seq.data, len(self.canonical), self.k)
         kwargs["data"] = counts
 
-        return SeqRecord(
+        return KmerSeq(
             kcounts=vector(**kwargs),
             name=kwargs["name"],
             length=len(seq.data),

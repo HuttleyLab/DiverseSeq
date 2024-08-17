@@ -17,8 +17,8 @@ from numpy import (
 from numpy.testing import assert_allclose
 
 from divergent.record import (
+    KmerSeq,
     SeqArray,
-    SeqRecord,
     _gettype,
     coord_conversion_coeffs,
     coord_to_index,
@@ -55,7 +55,7 @@ def seqarray():
 def test_seqrecord_entropy(seq, entropy):
     arr = str2arr()(str(seq))
     kcounts = kmer_counts(arr, 4, 1)
-    sr = SeqRecord(kcounts=kcounts, name=seq.name, length=len(seq))
+    sr = KmerSeq(kcounts=kcounts, name=seq.name, length=len(seq))
     assert sr.entropy == entropy
 
 
@@ -63,13 +63,13 @@ def test_seqrecord_entropy(seq, entropy):
 def test_seqrecord_invalid_types(name, length):
     kcounts = array([1, 2, 3])
     with pytest.raises(TypeError):
-        SeqRecord(kcounts=kcounts, name=name, length=length)
+        KmerSeq(kcounts=kcounts, name=name, length=length)
 
 
 @pytest.mark.parametrize("kcounts", ((0, 1, 2), [0, 1, 2]))
 def test_seqrecord_invalid_kcounts(kcounts):
     with pytest.raises(TypeError):
-        SeqRecord(kcounts=kcounts, name="n1", length=1)
+        KmerSeq(kcounts=kcounts, name="n1", length=1)
 
 
 def test_seqrecord_compare():
@@ -77,11 +77,11 @@ def test_seqrecord_compare():
     kcounts = kmer_counts(arr, 4, 2)
     length = 10
     kwargs = dict(kcounts=kcounts, length=length)
-    sr1 = SeqRecord(name="n1", **kwargs)
+    sr1 = KmerSeq(name="n1", **kwargs)
     sr1.delta_jsd = 1.0
-    sr2 = SeqRecord(name="n2", **kwargs)
+    sr2 = KmerSeq(name="n2", **kwargs)
     sr2.delta_jsd = 2.0
-    sr3 = SeqRecord(name="n3", **kwargs)
+    sr3 = KmerSeq(name="n3", **kwargs)
     sr3.delta_jsd = 34.0
 
     rec = sorted((sr3, sr1, sr2))
@@ -390,10 +390,10 @@ def test_composable():
     from cogent3.app.composable import define_app
 
     @define_app
-    def matched_sr(records: list[SeqRecord]) -> bool:
+    def matched_sr(records: list[KmerSeq]) -> bool:
         return True
 
-    sr = SeqRecord(kcounts=numpy.array([1, 2, 3, 4], dtype=int), name="a", length=10)
+    sr = KmerSeq(kcounts=numpy.array([1, 2, 3, 4], dtype=int), name="a", length=10)
     app = matched_sr()
     got = app([sr])
     assert got
