@@ -158,3 +158,11 @@ class HDF5DataStore(DataStoreABC):
     @property
     def not_completed(self) -> list[DataMember]:
         return []
+
+
+def get_seqids_from_store(
+    seq_store: str | pathlib.Path,
+) -> list[str]:
+    """return the list of seqids in a sequence store"""
+    dstore = HDF5DataStore(seq_store, mode="r")
+    return [m.unique_id for m in dstore.completed]
