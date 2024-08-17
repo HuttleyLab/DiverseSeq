@@ -266,8 +266,7 @@ def max_divergent(
     if len(records) <= min_size:
         return sr
 
-    series = track(records, transient=True) if verbose else records
-    for r in series:
+    for r in track(records, transient=True, disable=not verbose):
         if r in sr:
             # already a member of the divergent set
             continue
@@ -321,6 +320,7 @@ def most_divergent(
     records: list[SeqRecord],
     size: int,
     verbose: bool = False,
+    show_progress: bool = False,
 ) -> SummedRecords:
     """returns size most divergent records
 
@@ -330,7 +330,8 @@ def most_divergent(
         list of SeqRecord instances
     size
         starting size of SummedRecords
-
+    show_progress
+        display progress bar
     """
     size = size or 2
     sr = SummedRecords.from_records(records[:size])
@@ -338,7 +339,7 @@ def most_divergent(
     if len(records) <= size:
         return sr
 
-    for r in track(records):
+    for r in track(records, disable=not show_progress):
         if r in sr:
             continue
 
