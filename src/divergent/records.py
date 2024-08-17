@@ -16,6 +16,7 @@ SummedRecords is the container that simplifies these applications
 """
 
 import itertools
+import sys
 from functools import singledispatch
 from math import fsum
 
@@ -90,7 +91,7 @@ def _delta_jsd(
         record.delta_jsd = total_jsd - jsd
         if isnan(record.delta_jsd):
             print(f"{record.name!r} had a nan")
-            exit(1)
+            sys.exit(1)
         result.append(record)
     return result
 
