@@ -8,7 +8,8 @@ from numpy import array
 from numpy.random import choice, shuffle
 from rich.progress import track
 
-from divergent.record import KmerSeq, seqarray_to_record
+from divergent import util as dvgt_utils
+from divergent.record import KmerSeq, SeqArray, seqarray_to_record
 from divergent.records import max_divergent
 
 POOL = {"a": "ACGGGGGT", "b": "ACCCCCGT", "c": "AAAAACGT", "d": "ACGTTTTT"}
@@ -38,10 +39,17 @@ class make_sample:
 @define_app
 class seqcoll_to_records:
     def __init__(self, k: int):
-        self.s2r = seqarray_to_record(k=k, moltype="dna")
+        self.s2a = dvgt_utils.str2arr(moltype="dna")
+        self.a2k = seqarray_to_record(k=k, moltype="dna")
 
     def main(self, seqs: c3_types.UnalignedSeqsType) -> list[KmerSeq]:
-        records = [self.s2r(s) for s in seqs.seqs]
+        records = []
+        for s in seqs.seqs:
+            sa = self.s2a(str(s))
+            ks = self.a2k(
+                SeqArray(seqid=s.name, data=sa, moltype="dna", source=seqs.info.source),
+            )
+            records.append(ks)
         shuffle(records)
         return records
 
@@ -139,7 +147,7 @@ def main():
     config = dict(
         seq_len=200,
         num_reps=50,
-        k=3,
+        k=1,
         repeats=3,
         pools=dict(balanced=BALANCED, imbalanced=IMBALANCED),
     )
@@ -150,6 +158,7 @@ def main():
     result_tables = []
     settings = list(product(pools, stats))
     series = PAR.as_completed(app, settings, max_workers=6)
+    series = map(app, settings)
     for t in track(series, total=len(settings), description="200bp sim"):
         if not t:
             print(t)
