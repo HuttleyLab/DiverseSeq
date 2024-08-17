@@ -179,12 +179,11 @@ class SummedRecords:
         )
 
     def __sub__(self, other: SeqRecord):
-        assert other in self
-        records = [r for r in self.records + [self.lowest] if r is not other]
-        if len(records) != len(self.records):
+        if other not in self:
             raise ValueError(
                 f"cannot subtract record {other.name!r}, not present in self",
             )
+        records = [r for r in self.records + [self.lowest] if r is not other]
 
         summed_kfreqs = self.summed_kfreqs + self.lowest.kfreqs - other.kfreqs
         summed_entropies = self.summed_entropies + self.lowest.entropy - other.entropy
