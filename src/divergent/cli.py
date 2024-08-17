@@ -1,4 +1,3 @@
-import os
 import sys
 import tempfile
 from collections import OrderedDict
@@ -10,6 +9,8 @@ from cogent3.app.composable import NotCompleted
 from cogent3.app.data_store import DataStoreDirectory
 from scitrack import CachingLogger
 
+from divergent import __version__
+from divergent import util as dvgt_util
 from divergent.io import dvgt_load_seqs, dvgt_write_prepped_seqs, dvgt_write_seq_store
 from divergent.records import dvgt_calc
 
@@ -81,14 +82,15 @@ _click_command_opts = dict(
     "--seqdir",
     required=True,
     type=Path,
-    help="directory containing fasta formatted sequence files",
+    help="directory containing sequence files",
 )
+@click.option("-sf", "--suffix", default="fa", help="sequence file suffix")
 @click.option(
     "-o",
     "--outpath",
     required=True,
     type=Path,
-    help="location to write processed seqs as HDF5",
+    help="location to write processed seqs",
 )
 @click.option("-p", "--parallel", is_flag=True, default=False, help="run in parallel")
 @click.option(
@@ -106,47 +108,59 @@ _click_command_opts = dict(
     help="Molecular type of sequences, defaults to DNA",
 )
 @click.option("-L", "--limit", type=int, help="number of sequences to process")
-def prep(seqdir, outpath, parallel, force_overwrite, moltype, limit):
-    """Writes processed sequences to an HDF5 file."""
-
-    with keep_running():
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            dvgtseqs_path = outpath.with_suffix(".dvgtseqs")
-            if dvgtseqs_path.exists() and not force_overwrite:
-                click.secho(
-                    "A file with the same name already exists. Existing data members will be skipped. "
-                    "Use the -F flag if you want to overwrite the existing file.",
-                    fg="blue",
-                )
-            elif dvgtseqs_path.exists() and force_overwrite:
-                os.remove(dvgtseqs_path)
-
-            if seqdir.is_file():
-                convert2dstore = dvgt_write_seq_store(dest=tmp_dir, limit=limit)
-                in_dstore = convert2dstore(seqdir)
-            else:
-                paths = list(seqdir.glob("**/*.fa*"))
-                if not paths:
-                    click.secho(f"{seqdir} contains no fasta paths", fg="red")
-                    sys.exit(1)
-                eg_path = Path(paths[0])
-                seqfile_suffix = eg_path.suffix
-                in_dstore = DataStoreDirectory(source=seqdir, suffix=seqfile_suffix)
-
-            prep_pipeline = dvgt_load_seqs(moltype=moltype) + dvgt_write_prepped_seqs(
-                dvgtseqs_path,
-                limit=limit,
-            )
-            result = prep_pipeline.apply_to(
-                in_dstore,
-                show_progress=True,
-                parallel=parallel,
-            )
-
+def prep(seqdir, suffix, outpath, parallel, force_overwrite, moltype, limit):
+    """Writes processed sequences to an outpath ending with .dvgtseqs file."""
+    dvgtseqs_path = outpath.with_suffix(".dvgtseqs")
+    if dvgtseqs_path.exists() and not force_overwrite:
         click.secho(
-            f"Successfully created {result}",
-            fg="green",
+            "A file with the same name already exists. Existing data members will be skipped. "
+            "Use the -F flag if you want to overwrite the existing file.",
+            fg="blue",
         )
+    elif dvgtseqs_path.exists() and force_overwrite:
+        dvgtseqs_path.unlink()
+
+    if suffix.startswith("."):
+        suffix = suffix[1:]
+
+    seq_format = dvgt_util.get_seq_file_format(suffix)
+    if seq_format is None:
+        click.secho(
+            f"Unrecognised sequence file suffix '{suffix}'",
+            fg="red",
+        )
+        sys.exit(1)
+
+    with keep_running(), tempfile.TemporaryDirectory() as tmp_dir:
+        if seqdir.is_file():
+            convert2dstore = dvgt_write_seq_store(dest=tmp_dir, limit=limit)
+            in_dstore = convert2dstore(seqdir)
+        else:
+            in_dstore = DataStoreDirectory(source=seqdir, suffix=suffix)
+            if not len(in_dstore):
+                click.secho(
+                    f"{seqdir} contains no files matching '*.{suffix}'",
+                    fg="red",
+                )
+                sys.exit(1)
+
+        prep_pipeline = dvgt_load_seqs(
+            moltype=moltype,
+            seq_format=seq_format,
+        ) + dvgt_write_prepped_seqs(
+            dvgtseqs_path,
+            limit=limit,
+        )
+        result = prep_pipeline.apply_to(
+            in_dstore,
+            show_progress=True,
+            parallel=parallel,
+        )
+
+    click.secho(
+        f"Successfully created {result}",
+        fg="green",
+    )
 
 
 @main.command(**_click_command_opts)

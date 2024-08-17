@@ -138,7 +138,7 @@ def test_k(runner, tmp_dir, processed_seq_path, k):
 
 def test_prep_seq_file(runner, tmp_dir, seq_path):
     outpath = tmp_dir / "test_prep_seq_file.dvgtseqs"
-    args = f"-s {seq_path} -o {outpath}".split()
+    args = f"-s {seq_path} -o {outpath} -sf fasta".split()
     r = runner.invoke(dvgt_prep, args, catch_exceptions=False)
     assert r.exit_code == 0, r.output
     _checked_h5_dstore(str(outpath))
@@ -185,7 +185,7 @@ def test_prep_max_rna(runner, tmp_dir, rna_seq_path):
 @pytest.mark.xfail(reason="todo: ensure source is propogated when input is file")
 def test_prep_source_from_file(runner, tmp_dir, seq_path):
     outpath = tmp_dir / "test_prep_source_from_file.dvgtseqs"
-    args = f"-s {seq_path} -o {outpath}".split()
+    args = f"-s {seq_path} -o {outpath} -sf fasta".split()
     r = runner.invoke(dvgt_prep, args)
 
     with h5py.File(outpath, mode="r") as f:
@@ -197,9 +197,9 @@ def test_prep_source_from_file(runner, tmp_dir, seq_path):
 
 def test_prep_source_from_directory(runner, tmp_dir, seq_dir):
     outpath = tmp_dir / "test_prep_source_from_directory.dvgtseqs"
-    args = f"-s {seq_dir} -o {outpath}".split()
+    args = f"-s {seq_dir} -o {outpath} -sf fasta".split()
     r = runner.invoke(dvgt_prep, args)
-
+    assert r.exit_code == 0, r.output
     with h5py.File(outpath, mode="r") as f:
         for name, dset in f.items():
             if name == "md5":

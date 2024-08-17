@@ -11,6 +11,13 @@ _LOG_TABLE = "logs"
 _MD5_TABLE = "md5"
 
 
+_HDF5_BLOSC2_KWARGS = hdf5plugin.Blosc2(
+    cname="blosclz",
+    clevel=3,
+    filters=hdf5plugin.Blosc2.BITSHUFFLE,
+)
+
+
 class HDF5DataStore(DataStoreABC):
     """Stores array data in HDF5 data sets. Associated information is
     stored as attributed on data sets.
@@ -48,7 +55,7 @@ class HDF5DataStore(DataStoreABC):
         """return all data set attributes connected to an identifier"""
         with h5py.File(self._source, mode="r") as f:
             data = f[unique_id]
-            attrs = {key: value for key, value in data.attrs.items()}
+            attrs = dict(data.attrs.items())
         return attrs
 
     def _write(
@@ -61,7 +68,7 @@ class HDF5DataStore(DataStoreABC):
     ) -> DataMember:
         with h5py.File(self._source, mode="a") as f:
             path = f"{subdir}/{unique_id}" if subdir else unique_id
-            dset = f.create_dataset(path, data=data, dtype="u1", **hdf5plugin.Blosc2())
+            dset = f.create_dataset(path, data=data, dtype="u1", **_HDF5_BLOSC2_KWARGS)
 
             if subdir == _LOG_TABLE:
                 return None

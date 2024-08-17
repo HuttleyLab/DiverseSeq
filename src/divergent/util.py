@@ -1,5 +1,6 @@
 import contextlib
 import pickle
+import re
 from typing import Any
 
 import blosc2
@@ -78,3 +79,21 @@ class arr2str:
 @contextlib.contextmanager
 def fake_wake(*args, **kwargs):
     yield
+
+
+# we allow for file suffixes to include compression extensions
+_fasta_format = re.compile("(fasta|mfa|faa|fna|fa)([.][a-zA-Z]+)?$")
+_genbank_format = re.compile("(genbank|gbk|gb|gbff)([.][a-zA-Z]+)?$")
+
+
+def get_seq_file_format(suffix: str) -> str:
+    """returns format string
+
+    Notes
+    -----
+    Based on cogent3 suffixes, returns either 'fasta' or 'genbank'
+    or None.
+    """
+    if _fasta_format.match(suffix):
+        return "fasta"
+    return "genbank" if _genbank_format.match(suffix) else None
