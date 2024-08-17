@@ -1,11 +1,11 @@
 import contextlib
 import pickle
 import re
-from typing import Any
 
 import blosc2
 from cogent3 import get_moltype
 from cogent3.app import composable
+from cogent3.app import typing as c3_types
 from numpy import array, ndarray, uint8
 
 
@@ -18,17 +18,17 @@ def blosc_decompress(data: bytes) -> bytes:
 def blosc_compress(data: bytes) -> bytes:
     return blosc2.compress(
         data,
-        shuffle=blosc2.Filter.BITSHUFFLE,
+        filter=blosc2.Filter.BITSHUFFLE,
     )
 
 
 @composable.define_app
-def pickle_data(data: Any) -> bytes:
+def pickle_data(data: c3_types.SerialisableType) -> bytes:
     return pickle.dumps(data)
 
 
 @composable.define_app
-def unpickle_data(data: bytes) -> Any:
+def unpickle_data(data: bytes) -> c3_types.SerialisableType:
     return pickle.loads(data)
 
 

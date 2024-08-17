@@ -30,3 +30,15 @@ def test_get_seq_format(suffix):
 @pytest.mark.parametrize("suffix", ("gbkgz", "paml"))
 def test_get_seq_format_unknown(suffix):
     assert dvgt_util.get_seq_file_format(suffix) is None
+
+
+def test_pickle_compress_round_trip():
+    data = dict(a=23, b="abcd")
+    round_trip = (
+        dvgt_util.pickle_data()
+        + dvgt_util.blosc_compress()
+        + dvgt_util.blosc_decompress()
+        + dvgt_util.unpickle_data()
+    )
+    got = round_trip(data)
+    assert got == data
