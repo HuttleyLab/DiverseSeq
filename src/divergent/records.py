@@ -220,12 +220,12 @@ class SummedRecords:
 def max_divergent(
     records: list[SeqRecord],
     min_size: int = 2,
-    max_size: int = None,
+    max_size: int | None = None,
     stat: str = "mean_jsd",
     max_set: bool = True,
     verbose: bool = False,
 ) -> SummedRecords:
-    """returns SummedRecords that maximises mean stat
+    """returns SummedRecords that maximises stat
 
     Parameters
     ----------
@@ -256,9 +256,11 @@ def max_divergent(
     series = track(records, transient=True) if verbose else records
     for r in series:
         if r in sr:
+            # already a member of the divergent set
             continue
 
         if not sr.increases_jsd(r):
+            # does not increase total JSD
             continue
 
         nsr = sr + r
