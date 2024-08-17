@@ -216,6 +216,19 @@ class SummedRecords:
         summed_entropies = self.summed_entropies + other.entropy
         return self._make_new([other] + self.records, summed_kfreqs, summed_entropies)
 
+    def to_table(self):
+        names, deltas = list(
+            zip(
+                *[(r.name, r.delta_jsd) for r in [self.lowest] + self.records],
+                strict=False,
+            ),
+        )
+        return make_table(data={"names": names, "delta_jsd": deltas})
+
+    def all_records(self):
+        """returns all records in order of delta_jsd"""
+        return [self.lowest] + self.records
+
 
 def max_divergent(
     records: list[SeqRecord],

@@ -11,8 +11,7 @@ from divergent.util import str2arr
 @pytest.fixture()
 def seqcoll():
     data = {"a": "AAAA", "b": "AAAA", "c": "TTTT", "d": "ACGT"}
-    seqs = make_unaligned_seqs(data, moltype="dna")
-    return seqs
+    return make_unaligned_seqs(data, moltype="dna")
 
 
 def _get_kfreqs_per_seq(seqs, k=1):
@@ -132,3 +131,13 @@ def test_most_divergent(seqcoll):
     records = _make_records(kcounts, seqcoll)
     got = dvgt_records.most_divergent(records, size=3)
     assert got.size == 3
+    assert got.to_table().shape == (3, 2)
+
+
+def test_all_records(seqcoll):
+    k = 1
+    kcounts = _get_kfreqs_per_seq(seqcoll, k=k)
+    records = _make_records(kcounts, seqcoll)
+    got = dvgt_records.most_divergent(records, size=3).all_records()
+    assert len(got) == 3
+    assert isinstance(got[0], SeqRecord)
