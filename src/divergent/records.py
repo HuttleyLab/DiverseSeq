@@ -16,20 +16,25 @@ SummedRecords is the container that simplifies these applications
 """
 
 import itertools
+import pathlib
+import random
+import sys
+import typing
 from functools import singledispatch
 from math import fsum
 
+import click
 import h5py
 from attrs import define, field
 from cogent3 import make_table
-from cogent3.app import typing as c3_types
-from cogent3.app.composable import define_app
-from cogent3.util import parallel as PAR
+from cogent3.app.composable import NotCompleted, define_app
+from cogent3.app.data_store import DataStoreABC
 from numpy import empty, isnan, log2, ndarray, random, uint8, zeros
 from numpy import isclose as np_isclose
 from rich.progress import track
 
-from divergent.record import SeqArray, SeqRecord, seqarray_to_record, vector
+from divergent import util as dvgt_util
+from divergent.record import KmerSeq, SeqArray, seqarray_to_record, vector
 
 # needs a jsd method for a new sequence
 # needs summed entropy scores
@@ -60,7 +65,7 @@ def _(summed_freqs: ndarray, summed_entropy: float, n: int):
     return ke - entropy
 
 
-def _summed_stats(records: list[SeqRecord]) -> tuple[vector, float]:
+def _summed_stats(records: list[KmerSeq]) -> tuple[vector, float]:
     # takes series of records and sums quantitative parts
     sv = records[0].kfreqs
     vec = zeros(len(sv), dtype=float)
@@ -76,8 +81,8 @@ def _summed_stats(records: list[SeqRecord]) -> tuple[vector, float]:
 def _delta_jsd(
     total_kfreqs: vector,
     total_entropies: float,
-    records: list[SeqRecord],
-) -> list[SeqRecord]:
+    records: list[KmerSeq],
+) -> list[KmerSeq]:
     """measures contribution of each record to the total JSD"""
     n = len(records)
     total_jsd = _jsd(total_kfreqs, total_entropies, n)
@@ -90,12 +95,12 @@ def _delta_jsd(
         record.delta_jsd = total_jsd - jsd
         if isnan(record.delta_jsd):
             print(f"{record.name!r} had a nan")
-            exit(1)
+            sys.exit(1)
         result.append(record)
     return result
 
 
-def _check_integrity(instance, attribute, records: list[SeqRecord]):
+def _check_integrity(instance, attribute, records: list[KmerSeq]):
     last = records[0]
     for r in records[1:]:
         if r.delta_jsd < last.delta_jsd:
@@ -110,17 +115,17 @@ class SummedRecords:
     # following check is in place for now until fully tested
     # TODO delete when convinced no longer required
 
-    records: list[SeqRecord] = field(validator=_check_integrity)
+    records: list[KmerSeq] = field(validator=_check_integrity)
     summed_kfreqs: vector
     summed_entropies: float
     total_jsd: float
     size: int = field(init=False)
     record_names: set = field(init=False)
-    lowest: SeqRecord = field(init=False)
+    lowest: KmerSeq = field(init=False)
 
     def __init__(
         self,
-        records: list[SeqRecord],
+        records: list[KmerSeq],
         summed_kfreqs: vector,
         summed_entropies: float,
         total_jsd: float,
@@ -135,7 +140,7 @@ class SummedRecords:
         self.summed_entropies = summed_entropies - self.lowest.entropy
 
     @classmethod
-    def from_records(cls, records: list[:SeqRecord]):
+    def from_records(cls, records: list[:KmerSeq]):
         size = len(records)
         summed_kfreqs, summed_entropies = _summed_stats(records)
         total_jsd = _jsd(summed_kfreqs, summed_entropies, size)
@@ -147,7 +152,7 @@ class SummedRecords:
 
     def _make_new(
         self,
-        records: list[:SeqRecord],
+        records: list[:KmerSeq],
         summed_kfreqs: vector,
         summed_entropies: float,
     ):
@@ -164,10 +169,10 @@ class SummedRecords:
         )
         return self.__class__(records, summed_kfreqs, summed_entropies, total_jsd)
 
-    def __contains__(self, item: SeqRecord):
+    def __contains__(self, item: KmerSeq):
         return item.name in self.record_names
 
-    def __add__(self, other: SeqRecord):
+    def __add__(self, other: KmerSeq):
         assert other not in self
         summed_kfreqs = self.summed_kfreqs + self.lowest.kfreqs + other.kfreqs
         summed_entropies = self.summed_entropies + self.lowest.entropy + other.entropy
@@ -177,13 +182,12 @@ class SummedRecords:
             summed_entropies,
         )
 
-    def __sub__(self, other: SeqRecord):
-        assert other in self
-        records = [r for r in self.records + [self.lowest] if r is not other]
-        if len(records) != len(self.records):
+    def __sub__(self, other: KmerSeq):
+        if other not in self:
             raise ValueError(
                 f"cannot subtract record {other.name!r}, not present in self",
             )
+        records = [r for r in self.records + [self.lowest] if r is not other]
 
         summed_kfreqs = self.summed_kfreqs + self.lowest.kfreqs - other.kfreqs
         summed_entropies = self.summed_entropies + self.lowest.entropy - other.entropy
@@ -192,7 +196,7 @@ class SummedRecords:
     def iter_record_names(self):
         yield from self.record_names
 
-    def increases_jsd(self, record: SeqRecord) -> bool:
+    def increases_jsd(self, record: KmerSeq) -> bool:
         # whether total JSD increases when record is used
         j = _jsd(
             self.summed_kfreqs + record.kfreqs,
@@ -210,22 +214,35 @@ class SummedRecords:
         total = fsum([fsum(r.delta_jsd for r in self.records), self.lowest.delta_jsd])
         return total / self.size
 
-    def replaced_lowest(self, other: SeqRecord):
+    def replaced_lowest(self, other: KmerSeq):
         """returns new SummedRecords with other instead of lowest"""
         summed_kfreqs = self.summed_kfreqs + other.kfreqs
         summed_entropies = self.summed_entropies + other.entropy
         return self._make_new([other] + self.records, summed_kfreqs, summed_entropies)
 
+    def to_table(self):
+        names, deltas = list(
+            zip(
+                *[(r.name, r.delta_jsd) for r in [self.lowest] + self.records],
+                strict=False,
+            ),
+        )
+        return make_table(data={"names": names, "delta_jsd": deltas})
+
+    def all_records(self):
+        """returns all records in order of delta_jsd"""
+        return [self.lowest] + self.records
+
 
 def max_divergent(
-    records: list[SeqRecord],
+    records: list[KmerSeq],
     min_size: int = 2,
-    max_size: int = None,
+    max_size: int | None = None,
     stat: str = "mean_jsd",
     max_set: bool = True,
     verbose: bool = False,
 ) -> SummedRecords:
-    """returns SummedRecords that maximises mean stat
+    """returns SummedRecords that maximises stat
 
     Parameters
     ----------
@@ -253,12 +270,13 @@ def max_divergent(
     if len(records) <= min_size:
         return sr
 
-    series = track(records, transient=True) if verbose else records
-    for r in series:
+    for r in track(records, transient=True, disable=not verbose):
         if r in sr:
+            # already a member of the divergent set
             continue
 
         if not sr.increases_jsd(r):
+            # does not increase total JSD
             continue
 
         nsr = sr + r
@@ -267,27 +285,50 @@ def max_divergent(
             sr = SummedRecords.from_records(sr.records)
 
     if max_set:
-        sr = _maximal_stat(sr, verbose, stat, min_size)
+        app = dvgt_final_max(stat=stat, min_size=min_size, verbose=verbose)
+        sr = app([sr])
     elif verbose:
         num_neg = sum(r.delta_jsd < 0 for r in [sr.lowest] + sr.records)
         print(f"Records with delta_jsd < 0 is {num_neg}")
     return sr
 
 
-def _maximal_stat(
-    sr: SummedRecords,
-    verbose: bool,
+@define_app
+def dvgt_final_max(
+    summed: list[SummedRecords],
+    *,
     stat: str,
-    size: int,
+    min_size: int,
+    verbose: bool,
 ) -> SummedRecords:
-    if sr.size == size:
+    """returns the set that maximises stat
+
+    Parameters
+    ----------
+    sr
+        SummedRecords instance
+    stat
+        name of a SummedRecords attribute that returns the statistic
+    min_size
+        the minimum size of the set
+    verbose
+        display extra information
+    """
+    if len(summed) > 1:
+        records = list(itertools.chain.from_iterable(sr.all_records() for sr in summed))
+        random.shuffle(records)
+        sr = SummedRecords.from_records(records)
+    else:
+        sr = summed[0]
+
+    if sr.size == min_size:
         return sr
 
     results = {getattr(sr, stat): sr}
     orig_size = sr.size
     orig_stat = getattr(sr, stat)
 
-    while sr.size > size:
+    while sr.size > min_size:
         sr = sr.from_records(sr.records)
         results[getattr(sr, stat)] = sr
 
@@ -303,9 +344,10 @@ def _maximal_stat(
 
 
 def most_divergent(
-    records: list[SeqRecord],
+    records: list[KmerSeq],
     size: int,
     verbose: bool = False,
+    show_progress: bool = False,
 ) -> SummedRecords:
     """returns size most divergent records
 
@@ -315,7 +357,8 @@ def most_divergent(
         list of SeqRecord instances
     size
         starting size of SummedRecords
-
+    show_progress
+        display progress bar
     """
     size = size or 2
     sr = SummedRecords.from_records(records[:size])
@@ -323,7 +366,7 @@ def most_divergent(
     if len(records) <= size:
         return sr
 
-    for r in track(records):
+    for r in track(records, disable=not show_progress):
         if r in sr:
             continue
 
@@ -338,90 +381,208 @@ def most_divergent(
     return sr
 
 
-def make_task_iterator(func, tasks, parallel):
-    if not parallel:
-        return map(func, tasks)
-    workers = PAR.get_size() - 1
-    return PAR.as_completed(func, tasks, max_workers=workers)
-
-
 @define_app
-class dvgt_calc:
-    """Apply Divergent to dvgtseq datastore"""
+class dvgt_max:
+    """return the maximally divergent sequences"""
 
     def __init__(
         self,
-        mode: str,
         *,
+        seq_store: DataStoreABC,
         k: int = 3,
-        parallel: bool = False,
-        limit: int = None,
         min_size: int = 7,
         max_size: int = None,
         stat: str = "mean_delta_jsd",
+        limit: int = None,
         verbose=0,
     ) -> None:
-        """Identify the seqs that maximise average delta JSD
+        """
 
         Parameters
         ----------
-        mode:
-            "max" finds maximum average delta JSD
-            "most" finds maximum average delta JSD for set of given size
-
+        seq_store
+            path to divergent sequence store
+        k
+            k-mer size
+        min_size
+            the minimum number of sequences to be included in the divergent set
+        max_size
+            the maximum number of sequences to be included in the divergent set
+        stat
+            the stat to use for selecting whether to include a sequence
+        limit
+            limit number of sequence records to process
+        stat
+            the statistic to use for optimising, by default "mean_delta_jsd"
+        verbose
+            extra info display
         """
-        self.mode = mode
-        self.parallel = parallel
+        self.seq_store = seq_store
         self.k = k
         self.limit = limit
-        self.min_size = min_size
         self.max_size = max_size
+        self.min_size = min_size
         self.stat = stat
         self.verbose = verbose
 
-    def main(self, dvgtseqs: c3_types.IdentifierType) -> c3_types.TabularType:
-        with h5py.File(dvgtseqs, mode="r") as f:
-            limit = self.limit or len(f.keys())
-            seqs = []
-            for name, dset in itertools.islice(f.items(), limit):
-                # skip groups corresponding to md5 and not_completed
-                if isinstance(dset, h5py.Group):
-                    continue
-                orig_moltype = dset.attrs["moltype"]
-                source = dset.attrs["source"]
-                out = empty(len(dset), dtype=uint8)
-                dset.read_direct(out)
-                seqs.append(
-                    SeqArray(seqid=name, data=out, moltype=orig_moltype, source=source),
-                )
-
-        make_records = seqarray_to_record(k=self.k, moltype=orig_moltype)
-        tasks = make_task_iterator(make_records, seqs, self.parallel)
-
-        records = []
-        for result in track(tasks, total=len(seqs), update_period=1):
-            if not result:
-                print(result)
-                exit()
-            records.append(result)
-
-        random.shuffle(records)
-        if self.mode == "most":
-            # TODO: throw error if user has not provided arg for min_size
-            sr = most_divergent(records, size=self.min_size, verbose=self.verbose > 0)
-        elif self.mode == "max":
-            sr = max_divergent(
-                records,
-                min_size=self.min_size,
-                max_size=self.max_size,
-                stat=self.stat,
-                verbose=self.verbose > 0,
-            )
-
-        names, deltas = list(
-            zip(
-                *[(r.name, r.delta_jsd) for r in [sr.lowest] + sr.records],
-                strict=False,
-            ),
+    def main(self, seq_names: list[str]) -> SummedRecords:
+        records = records_from_seq_store(
+            seq_store=self.seq_store,
+            seq_names=seq_names,
+            limit=self.limit,
+            k=self.k,
         )
-        return make_table(data={"names": names, self.stat: deltas})
+        # TODO: add ability to set random number seed
+        random.shuffle(records)
+        return max_divergent(
+            records=records,
+            min_size=self.min_size,
+            max_size=self.max_size,
+            stat=self.stat,
+            verbose=self.verbose > 0,
+            max_set=False,
+        )
+
+
+def records_from_seq_store(
+    *,
+    seq_store: str | pathlib.Path,
+    seq_names: list[str],
+    k: int,
+    limit: int | None,
+) -> list[KmerSeq]:
+    """converts sequences in seq_store into SeqRecord instances
+
+    Parameters
+    ----------
+    seq_store
+        path to divergent sequence store
+    seq_names
+        list of names that are members of the seq_store
+    limit
+        limit number of sequence records to process
+    k
+        k-mer size
+
+    Returns
+    -------
+        sequences are converted into vector of k-mer counts
+    """
+    with h5py.File(seq_store, mode="r") as f:
+        limit = limit or len(f.keys())
+        seqs = []
+        for name in itertools.islice(seq_names, limit):
+            dset = f[name]
+            # skip groups corresponding to md5 and not_completed
+            if isinstance(dset, h5py.Group):
+                continue
+            orig_moltype = dset.attrs["moltype"]
+            source = dset.attrs["source"]
+            out = empty(len(dset), dtype=uint8)
+            dset.read_direct(out)
+            seqs.append(
+                SeqArray(seqid=name, data=out, moltype=orig_moltype, source=source),
+            )
+    make_records = seqarray_to_record(k=k, moltype=orig_moltype)
+    records = []
+    for result in map(make_records, seqs):
+        if not result:
+            print(result)
+            sys.exit(1)
+        records.append(result)
+    return records
+
+
+@define_app
+class dvgt_nmost:
+    """return the N most divergent sequences"""
+
+    def __init__(
+        self,
+        *,
+        seq_store: DataStoreABC,
+        k: int = 3,
+        limit: int = None,
+        n: int,
+        verbose=0,
+    ) -> None:
+        """
+
+        Parameters
+        ----------
+        seq_store
+            path to divergent sequence store
+        n
+            the number of divergent sequences
+        k
+            k-mer size
+        limit
+            limit number of sequence records to process
+        stat
+            the statistic to use for optimising, by default "mean_delta_jsd"
+        verbose
+            extra info display
+        """
+        self.seq_store = seq_store
+        self.k = k
+        self.limit = limit
+        self.max_size = n
+        self.verbose = verbose
+
+    def main(self, seq_names: list[str]) -> SummedRecords:
+        records = records_from_seq_store(
+            seq_store=self.seq_store,
+            seq_names=seq_names,
+            limit=self.limit,
+            k=self.k,
+        )
+        # TODO: add ability to set random number seed
+        random.shuffle(records)
+        return most_divergent(records, size=self.max_size, verbose=self.verbose > 0)
+
+
+@define_app
+def dvgt_final_nmost(summed: list[SummedRecords]) -> SummedRecords:
+    """selects the best n records from a list of SummedRecords
+
+    Notes
+    -----
+    Useful for aggregating results from multiple runs.
+    """
+    size = max(sr.size for sr in summed)
+    records = list(itertools.chain.from_iterable(sr.all_records() for sr in summed))
+    random.shuffle(records)
+    return most_divergent(records, size=size, verbose=False, show_progress=False)
+
+
+def apply_app(
+    *,
+    app: dvgt_max,
+    seqids: list[str],
+    numprocs: int,
+    verbose: bool,
+    finalise: typing.Callable[[list[SummedRecords]], SummedRecords],
+) -> SummedRecords:
+    with dvgt_util.keep_running():
+        if numprocs == 1 or len(seqids) < numprocs:
+            result = app(seqids)
+        else:
+            seqids = dvgt_util.chunked(seqids, numprocs, verbose=verbose)
+            result = list(
+                app.as_completed(
+                    seqids,
+                    parallel=True,
+                    par_kw=dict(max_workers=numprocs),
+                    show_progress=True,
+                ),
+            )
+            result = finalise(result)
+
+        if isinstance(result, NotCompleted):
+            click.secho(
+                message=f"{result.type}: {result.message}",
+                fg="red",
+            )
+            sys.exit(1)
+
+    return result

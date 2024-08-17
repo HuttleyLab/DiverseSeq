@@ -1,14 +1,14 @@
 import pytest
 from cogent3 import get_moltype
 
-from divergent.util import arr2str, str2arr
+from divergent import util as dvgt_util
 
 
 def test_str2arr():
     dna = get_moltype("dna")
     s = "ACGTT"
     expect = dna.alphabet.to_indices(s)
-    app = str2arr()
+    app = dvgt_util.str2arr()
     g = app(s)
     assert (g == expect).all()
     g = app("ACGNT")
@@ -17,6 +17,40 @@ def test_str2arr():
 
 @pytest.mark.parametrize("seq", ("ACGTT", "ACGNT", "AYGTT", ""))
 def test_arr2str(seq):
-    app = str2arr() + arr2str()
+    app = dvgt_util.str2arr() + dvgt_util.arr2str()
     got = app(seq)
     assert got == seq
+
+
+@pytest.mark.parametrize("suffix", ("fa", "fasta", "genbank", "gbk", "gbk.gz"))
+def test_get_seq_format(suffix):
+    assert dvgt_util.get_seq_file_format(suffix) in ("fasta", "genbank")
+
+
+@pytest.mark.parametrize("suffix", ("gbkgz", "paml"))
+def test_get_seq_format_unknown(suffix):
+    assert dvgt_util.get_seq_file_format(suffix) is None
+
+
+def test_determine_chunk_size():
+    got = list(dvgt_util.determine_chunk_size(10, 3))
+    assert got == [4, 3, 3]
+
+
+def test_chunked():
+    data = list(range(10))
+    got = list(dvgt_util.chunked(data, 3))
+    expect = [[0, 1, 2, 3], [4, 5, 6], [7, 8, 9]]
+    assert got == expect
+
+
+def test_pickle_compress_round_trip():
+    data = dict(a=23, b="abcd")
+    round_trip = (
+        dvgt_util.pickle_data()
+        + dvgt_util.blosc_compress()
+        + dvgt_util.blosc_decompress()
+        + dvgt_util.unpickle_data()
+    )
+    got = round_trip(data)
+    assert got == data

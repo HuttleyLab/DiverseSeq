@@ -81,7 +81,10 @@ doc  = ["click",
 dvgt_write_seq_store = "divergent.io:dvgt_write_seq_store"
 dvgt_load_seqs = "divergent.io:dvgt_load_seqs"
 dvgt_write_prepped_seqs = "divergent.io:dvgt_write_prepped_seqs"
-dvgt_calc = "divergent.records:dvgt_calc"
+dvgt_max = "divergent.records:dvgt_max"
+dvgt_final_max = "divergent.records:dvgt_final_max"
+dvgt_nmost = "divergent.records:dvgt_nmost"
+dvgt_final_nmost = "divergent.records:dvgt_final_nmost"
 
 [tool.pytest.ini_options]
 addopts = ["--strict-config", "-ra"]

@@ -1,9 +1,10 @@
-from pathlib import Path
+import pathlib
 
 import h5py
 import hdf5plugin
-from cogent3.app.data_store import DataMember, DataStoreABC, Mode, NoneType, StrOrBytes
-from numpy import empty, ndarray, uint8
+import numpy
+import numpy.typing
+from cogent3.app.data_store import DataMember, DataStoreABC, Mode, StrOrBytes
 from scitrack import get_text_hexdigest
 
 _NOT_COMPLETED_TABLE = "not_completed"
@@ -11,18 +12,30 @@ _LOG_TABLE = "logs"
 _MD5_TABLE = "md5"
 
 
+_HDF5_BLOSC2_KWARGS = hdf5plugin.Blosc2(
+    cname="blosclz",
+    clevel=3,
+    filters=hdf5plugin.Blosc2.BITSHUFFLE,
+)
+
+
 class HDF5DataStore(DataStoreABC):
     """Stores array data in HDF5 data sets. Associated information is
     stored as attributed on data sets.
     """
 
-    def __init__(self, source: str | Path, mode: Mode = "w", limit: int = None) -> None:
-        self._source = Path(source)
+    def __init__(
+        self,
+        source: str | pathlib.Path,
+        mode: Mode = "w",
+        limit: int = None,
+    ) -> None:
+        self._source = pathlib.Path(source)
         self._mode = Mode(mode)
         self._limit = limit
 
     @property
-    def source(self) -> Path:
+    def source(self) -> pathlib.Path:
         """string that references connecting to data store"""
         return self._source
 
@@ -35,12 +48,12 @@ class HDF5DataStore(DataStoreABC):
     def limit(self):
         return self._limit
 
-    def read(self, unique_id: str) -> ndarray:
+    def read(self, unique_id: str) -> numpy.ndarray:
         """reads and return array data corresponding to identifier"""
         with h5py.File(self._source, mode="r") as f:
             # TODO: this will fail if the unique_id is not in the file
             data = f[unique_id]
-            out = empty(len(data), dtype=uint8)
+            out = numpy.empty(len(data), dtype=numpy.uint8)
             data.read_direct(out)
         return out
 
@@ -48,7 +61,7 @@ class HDF5DataStore(DataStoreABC):
         """return all data set attributes connected to an identifier"""
         with h5py.File(self._source, mode="r") as f:
             data = f[unique_id]
-            attrs = {key: value for key, value in data.attrs.items()}
+            attrs = dict(data.attrs.items())
         return attrs
 
     def _write(
@@ -56,12 +69,12 @@ class HDF5DataStore(DataStoreABC):
         *,
         subdir: str,
         unique_id: str,
-        data: ndarray,
+        data: numpy.ndarray,
         **kwargs,
     ) -> DataMember:
         with h5py.File(self._source, mode="a") as f:
             path = f"{subdir}/{unique_id}" if subdir else unique_id
-            dset = f.create_dataset(path, data=data, dtype="u1", **hdf5plugin.Blosc2())
+            dset = f.create_dataset(path, data=data, dtype="u1", **_HDF5_BLOSC2_KWARGS)
 
             if subdir == _LOG_TABLE:
                 return None
@@ -69,7 +82,7 @@ class HDF5DataStore(DataStoreABC):
             if subdir == _NOT_COMPLETED_TABLE:
                 member = DataMember(
                     data_store=self,
-                    unique_id=Path(_NOT_COMPLETED_TABLE) / unique_id,
+                    unique_id=pathlib.Path(_NOT_COMPLETED_TABLE) / unique_id,
                 )
 
             elif not subdir:
@@ -82,7 +95,7 @@ class HDF5DataStore(DataStoreABC):
             f.create_dataset(f"{_MD5_TABLE}/{unique_id}", data=md5, dtype=md5_dtype)
         return member
 
-    def write(self, *, unique_id: str, data: ndarray, **kwargs) -> DataMember:
+    def write(self, *, unique_id: str, data: numpy.ndarray, **kwargs) -> DataMember:
         """Writes a completed record to a dataset in the HDF5 file.
 
         Parameters
@@ -117,7 +130,7 @@ class HDF5DataStore(DataStoreABC):
 
     def drop_not_completed(self, *, unique_id: str | None = None) -> None: ...
 
-    def md5(self, unique_id: str) -> str | NoneType:
+    def md5(self, unique_id: str) -> str | None:
         with h5py.File(self._source, mode="a") as f:
             if f"md5/{unique_id}" in f:
                 dset = f[f"md5/{unique_id}"]
@@ -131,12 +144,11 @@ class HDF5DataStore(DataStoreABC):
         if not self._completed:
             self._completed = []
             with h5py.File(self._source, mode="a") as f:
-                for name, item in f.items():
-                    if isinstance(item, h5py.Dataset):
-                        self._completed.append(
-                            DataMember(data_store=self, unique_id=name),
-                        )
-
+                self._completed.extend(
+                    DataMember(data_store=self, unique_id=name)
+                    for name, item in f.items()
+                    if isinstance(item, h5py.Dataset)
+                )
         return self._completed
 
     @property
@@ -146,3 +158,11 @@ class HDF5DataStore(DataStoreABC):
     @property
     def not_completed(self) -> list[DataMember]:
         return []
+
+
+def get_seqids_from_store(
+    seq_store: str | pathlib.Path,
+) -> list[str]:
+    """return the list of seqids in a sequence store"""
+    dstore = HDF5DataStore(seq_store, mode="r")
+    return [m.unique_id for m in dstore.completed]

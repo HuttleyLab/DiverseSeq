@@ -1,18 +1,17 @@
 import pytest
-from cogent3 import make_unaligned_seqs
+from cogent3 import load_unaligned_seqs, make_unaligned_seqs
 from cogent3.maths.measure import jsd
 from numpy.testing import assert_allclose
 
-from divergent.record import SeqRecord, kmer_counts
-from divergent.records import SummedRecords, max_divergent, most_divergent
+from divergent import records as dvgt_records
+from divergent.record import KmerSeq, kmer_counts
 from divergent.util import str2arr
 
 
 @pytest.fixture()
 def seqcoll():
     data = {"a": "AAAA", "b": "AAAA", "c": "TTTT", "d": "ACGT"}
-    seqs = make_unaligned_seqs(data, moltype="dna")
-    return seqs
+    return make_unaligned_seqs(data, moltype="dna")
 
 
 def _get_kfreqs_per_seq(seqs, k=1):
@@ -27,7 +26,7 @@ def _get_kfreqs_per_seq(seqs, k=1):
 
 def _make_records(kcounts, seqcoll):
     return [
-        SeqRecord(kcounts=kcounts[s.name], name=s.name, length=len(s))
+        KmerSeq(kcounts=kcounts[s.name], name=s.name, length=len(s))
         for s in seqcoll.seqs
         if s.name in kcounts
     ]
@@ -37,10 +36,10 @@ def _make_records(kcounts, seqcoll):
 def test_total_jsd(seqcoll, k):
     kcounts = _get_kfreqs_per_seq(seqcoll, k=k)
     records = [
-        SeqRecord(kcounts=kcounts[s.name], name=f"{s.name}-{k}", length=len(s))
+        KmerSeq(kcounts=kcounts[s.name], name=f"{s.name}-{k}", length=len(s))
         for s in seqcoll.seqs
     ]
-    sr = SummedRecords.from_records(records)
+    sr = dvgt_records.SummedRecords.from_records(records)
     freqs = {n: v.astype(float) / v.sum() for n, v in kcounts.items()}
     expect = jsd(*list(freqs.values()))
     assert_allclose(sr.total_jsd, expect)
@@ -50,7 +49,7 @@ def test_add(seqcoll):
     k = 1
     kcounts = _get_kfreqs_per_seq(seqcoll, k=k)
     records = _make_records(kcounts, seqcoll)
-    sr = SummedRecords.from_records(records[:-1])
+    sr = dvgt_records.SummedRecords.from_records(records[:-1])
     orig = id(sr)
     sr = sr + records[-1]
     assert id(sr) != orig
@@ -63,7 +62,7 @@ def test_sub(seqcoll):
     k = 1
     kcounts = _get_kfreqs_per_seq(seqcoll, k=k)
     records = _make_records(kcounts, seqcoll)
-    sr = SummedRecords.from_records(records)
+    sr = dvgt_records.SummedRecords.from_records(records)
     assert sr.size == 4
     orig = id(sr)
     sr = sr - records[-1]
@@ -82,7 +81,7 @@ def test_increases_jsd(seqcoll, exclude, expect):
     kcounts = _get_kfreqs_per_seq(seqcoll, k=1)
     records = {r.name: r for r in _make_records(kcounts, seqcoll)}
     excluded = records.pop(exclude)
-    sr = SummedRecords.from_records(list(records.values()))
+    sr = dvgt_records.SummedRecords.from_records(list(records.values()))
     assert sr.increases_jsd(excluded) == expect
 
 
@@ -90,11 +89,13 @@ def test_mean_delta_jsd(seqcoll):
     k = 1
     kcounts = _get_kfreqs_per_seq(seqcoll, k=k)
     records = [
-        SeqRecord(kcounts=kcounts[s.name], name=s.name, length=len(s))
+        KmerSeq(kcounts=kcounts[s.name], name=s.name, length=len(s))
         for s in seqcoll.seqs
     ]
-    sr_with_a = SummedRecords.from_records(records)
-    sr_without_a = SummedRecords.from_records([r for r in records if r.name != "a"])
+    sr_with_a = dvgt_records.SummedRecords.from_records(records)
+    sr_without_a = dvgt_records.SummedRecords.from_records(
+        [r for r in records if r.name != "a"],
+    )
     assert sr_without_a.mean_delta_jsd > sr_with_a.mean_delta_jsd
 
 
@@ -102,7 +103,7 @@ def test_replaced_lowest(seqcoll):
     k = 1
     kcounts = _get_kfreqs_per_seq(seqcoll, k=k)
     records = _make_records(kcounts, seqcoll)
-    sr = SummedRecords.from_records(records[:-1])
+    sr = dvgt_records.SummedRecords.from_records(records[:-1])
     lowest = sr.lowest
     nsr = sr.replaced_lowest(records[-1])
 
@@ -120,7 +121,7 @@ def test_max_divergent(seqcoll):
     k = 1
     kcounts = _get_kfreqs_per_seq(seqcoll, k=k)
     records = _make_records(kcounts, seqcoll)
-    got = max_divergent(records, min_size=2)
+    got = dvgt_records.max_divergent(records, min_size=2)
     assert got.size == 2
 
 
@@ -128,5 +129,30 @@ def test_most_divergent(seqcoll):
     k = 1
     kcounts = _get_kfreqs_per_seq(seqcoll, k=k)
     records = _make_records(kcounts, seqcoll)
-    got = most_divergent(records, size=3)
+    got = dvgt_records.most_divergent(records, size=3)
     assert got.size == 3
+    assert got.to_table().shape == (3, 2)
+
+
+def test_all_records(seqcoll):
+    k = 1
+    kcounts = _get_kfreqs_per_seq(seqcoll, k=k)
+    records = _make_records(kcounts, seqcoll)
+    got = dvgt_records.most_divergent(records, size=3).all_records()
+    assert len(got) == 3
+    assert isinstance(got[0], KmerSeq)
+
+
+def test_merge_summed_records(DATA_DIR):
+    path = DATA_DIR / "brca1.dvgtseqs"
+    names = load_unaligned_seqs(DATA_DIR / "brca1.fasta").names
+    app = dvgt_records.dvgt_nmost(seq_store=path, n=5, k=1)
+    sr1 = app(names[:10])
+    sr2 = app(names[10:20])
+    rnames1 = sr1.record_names
+    rnames2 = sr2.record_names
+    got = dvgt_records.dvgt_final_nmost()([sr1, sr2])
+    final_selected = got.record_names
+    assert len(final_selected) == 5
+    assert set(final_selected) != set(rnames1)
+    assert set(final_selected) != set(rnames2)

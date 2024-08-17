@@ -14,17 +14,23 @@ from cogent3.app.data_store import (
     get_unique_id,
 )
 from cogent3.core import new_alphabet
-from cogent3.format.fasta import seqs_to_fasta
-from cogent3.parse.fasta import iter_fasta_records
+from cogent3.format import fasta as format_fasta
+from cogent3.parse import fasta, genbank
 
 from divergent import util as dv_utils
 from divergent.data_store import HDF5DataStore
 from divergent.record import SeqArray
 
-converter = new_alphabet.convert_alphabet(
+converter_fasta = new_alphabet.convert_alphabet(
     string.ascii_lowercase.encode("utf8"),
     string.ascii_uppercase.encode("utf8"),
-    delete=b"\n\r\\l\t- ",
+    delete=b"\n\r\t- ",
+)
+
+converter_genbank = new_alphabet.convert_alphabet(
+    string.ascii_lowercase.encode("utf8"),
+    string.ascii_uppercase.encode("utf8"),
+    delete=b"\n\r\t- 0123456789",
 )
 
 
@@ -39,7 +45,7 @@ def _label_from_filename(path):
 @define_app(app_type=LOADER)
 def faster_load_fasta(path: c3_types.IdentifierType, label_func=_label_func) -> dict:
     result = {}
-    for n, s in iter_fasta_records(path, converter=converter):
+    for n, s in fasta.iter_fasta_records(path, converter=converter_fasta):
         n = label_func(n)
         if n in result and result[n] != s:
             warnings.warn(
@@ -60,7 +66,7 @@ class filename_seqname:
 class dvgt_load_seqs:
     """Load and proprocess sequences from seq datastore"""
 
-    def __init__(self, moltype: str = "dna"):
+    def __init__(self, moltype: str = "dna", seq_format: str = "fasta"):
         """load fasta sequences from a data store
 
         Parameters
@@ -74,10 +80,19 @@ class dvgt_load_seqs:
         """
         self.moltype = moltype
         self.str2arr = dv_utils.str2arr(moltype=self.moltype)
+        self.seq_format = seq_format
 
     def main(self, data_member: DataMember) -> SeqArray:
         seq_path = Path(data_member.data_store.source) / data_member.unique_id
-        for n, seq in iter_fasta_records(seq_path, converter=converter):
+        if self.seq_format == "fasta":
+            parser = fasta.iter_fasta_records(seq_path, converter=converter_fasta)
+        else:
+            parser = genbank.iter_genbank_records(
+                seq_path,
+                converter=converter_genbank,
+                convert_features=None,
+            )
+        for _, seq, *_ in parser:
             break
 
         return SeqArray(
@@ -144,7 +159,10 @@ class dvgt_write_seq_store:
         seqs = self.loader(fasta_path)
 
         for seq_id, seq_data in seqs.items():
-            fasta_seq_data = seqs_to_fasta({seq_id: seq_data}, block_size=80)
+            fasta_seq_data = format_fasta.seqs_to_fasta(
+                {seq_id: seq_data},
+                block_size=1_000_000_000,
+            )
             out_dstore.write(unique_id=seq_id, data=fasta_seq_data)
 
         return out_dstore

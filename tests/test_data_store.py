@@ -4,7 +4,7 @@ import pytest
 from cogent3 import load_unaligned_seqs
 from numpy.testing import assert_array_equal
 
-from divergent.data_store import HDF5DataStore
+from divergent import data_store
 from divergent.io import dvgt_load_seqs, dvgt_write_prepped_seqs, dvgt_write_seq_store
 from divergent.util import str2arr
 
@@ -29,7 +29,7 @@ def brca1_dstore(tmp_path):
 
 @pytest.fixture(scope="function")
 def hdf5_dstore(tmp_path):
-    return HDF5DataStore(tmp_path / "hdf5_dstore")
+    return data_store.HDF5DataStore(tmp_path / "hdf5_dstore")
 
 
 def test_dvgt_write_seq_store(brca1_dstore, brca1_seqs):
@@ -51,3 +51,13 @@ def test_prep_pipeline(brca1_seqs, brca1_dstore, hdf5_dstore, parallel):
     str_to_array = str2arr(moltype="dna")
     orig_seq_data = str_to_array(brca1_seqs.get_seq("Cat")._seq.seq)
     assert_array_equal(seq_data, orig_seq_data)
+
+
+def test_get_seqids(DATA_DIR):
+    fasta_path = DATA_DIR / "brca1.fasta"
+    expect = set(load_unaligned_seqs(fasta_path).names)
+    store_path = DATA_DIR / "brca1.dvgtseqs"
+
+    got = data_store.get_seqids_from_store(store_path)
+
+    assert set(got) == expect
