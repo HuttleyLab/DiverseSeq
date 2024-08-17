@@ -4,7 +4,7 @@ from pathlib import Path
 
 from attrs import define
 from cogent3.app import typing as c3_types
-from cogent3.app.composable import LOADER, WRITER, define_app
+from cogent3.app.composable import LOADER, NON_COMPOSABLE, WRITER, define_app
 from cogent3.app.data_store import (
     OVERWRITE,
     DataMember,
@@ -131,7 +131,7 @@ class dvgt_write_prepped_seqs:
         )
 
 
-@define_app(app_type=WRITER)
+@define_app(app_type=NON_COMPOSABLE)
 class dvgt_write_seq_store:
     """Write a seq datastore with data from a single fasta file"""
 
