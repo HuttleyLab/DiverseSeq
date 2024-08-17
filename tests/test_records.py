@@ -1,5 +1,5 @@
 import pytest
-from cogent3 import make_unaligned_seqs
+from cogent3 import load_unaligned_seqs, make_unaligned_seqs
 from cogent3.maths.measure import jsd
 from numpy.testing import assert_allclose
 
@@ -141,3 +141,18 @@ def test_all_records(seqcoll):
     got = dvgt_records.most_divergent(records, size=3).all_records()
     assert len(got) == 3
     assert isinstance(got[0], SeqRecord)
+
+
+def test_merge_summed_records(DATA_DIR):
+    path = DATA_DIR / "brca1.dvgtseqs"
+    names = load_unaligned_seqs(DATA_DIR / "brca1.fasta").names
+    app = dvgt_records.dvgt_nmost(seq_store=path, n=5, k=1)
+    sr1 = app(names[:10])
+    sr2 = app(names[10:20])
+    rnames1 = sr1.record_names
+    rnames2 = sr2.record_names
+    got = dvgt_records.dvgt_final_nmost()([sr1, sr2])
+    final_selected = got.record_names
+    assert len(final_selected) == 5
+    assert set(final_selected) != set(rnames1)
+    assert set(final_selected) != set(rnames2)
