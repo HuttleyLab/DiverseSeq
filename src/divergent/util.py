@@ -8,6 +8,19 @@ from cogent3.app import composable
 from cogent3.app import typing as c3_types
 from numpy import array, ndarray, uint8
 
+try:
+    from wakepy.keep import running as keep_running
+
+    # trap flaky behaviour on linux
+    with keep_running():
+        ...
+
+except (NotImplementedError, ImportError):
+
+    @contextlib.contextmanager
+    def keep_running(*args, **kwargs):
+        yield
+
 
 @composable.define_app
 def blosc_decompress(data: bytes) -> bytes:
@@ -74,11 +87,6 @@ class arr2str:
 
         b = data.tobytes().translate(self.translation)
         return bytearray(b).decode("utf8")
-
-
-@contextlib.contextmanager
-def fake_wake(*args, **kwargs):
-    yield
 
 
 # we allow for file suffixes to include compression extensions

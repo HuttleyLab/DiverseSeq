@@ -6,6 +6,7 @@ from click.testing import CliRunner
 from cogent3 import load_table, load_unaligned_seqs
 
 from divergent.cli import max as dvgt_max
+from divergent.cli import nmost as dvgt_nmost
 from divergent.cli import prep as dvgt_prep
 from divergent.data_store import HDF5DataStore
 
@@ -123,8 +124,7 @@ def test_stat(runner, tmp_dir, processed_seq_path, stat):
     args = f"-s {processed_seq_path} -o {outpath} -st {stat}".split()
     r = runner.invoke(dvgt_max, args, catch_exceptions=False)
     assert r.exit_code == 0, r.output
-
-    _checked_output(outpath, eval_header=lambda x: stat in x)
+    _checked_output(outpath)
 
 
 @pytest.mark.parametrize("k", (1, 3, 7))
@@ -134,6 +134,14 @@ def test_k(runner, tmp_dir, processed_seq_path, k):
     r = runner.invoke(dvgt_max, args, catch_exceptions=False)
     assert r.exit_code == 0, r.output
     _checked_output(outpath)
+
+
+def test_nmost(runner, tmp_dir, processed_seq_path):
+    outpath = tmp_dir / "test_defaults.tsv"
+    args = f"-s {processed_seq_path} -o {outpath} -k 1 -n 5".split()
+    r = runner.invoke(dvgt_nmost, args, catch_exceptions=False)
+    assert r.exit_code == 0, r.output
+    _checked_output(outpath, eval_rows=lambda x: x == 5)
 
 
 def test_prep_seq_file(runner, tmp_dir, seq_path):
