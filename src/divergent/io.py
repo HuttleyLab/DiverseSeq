@@ -109,17 +109,15 @@ class dvgt_load_seqs:
 
 
 @define_app(app_type=WRITER)
-class dvgt_write_prepped_seqs:
-    """Write preprocessed seqs to a dvgtseq datastore"""
+class dvgt_write_seqs:
+    """Write seqs as numpy arrays to a HDF5DataStore"""
 
     def __init__(
         self,
-        dest: c3_types.IdentifierType,
-        limit: int = None,
+        data_store: HDF5DataStore,
         id_from_source: callable = get_unique_id,
     ):
-        self.dest = dest
-        self.data_store = HDF5DataStore(self.dest, limit=limit)
+        self.data_store = data_store
         self.id_from_source = id_from_source
 
     def main(
@@ -137,22 +135,33 @@ class dvgt_write_prepped_seqs:
 
 
 @define_app(app_type=NON_COMPOSABLE)
-class dvgt_write_seq_store:
-    """Write a seq datastore with data from a single fasta file"""
+class dvgt_file_to_dir:
+    """Convert a single sequence file into a directory data store"""
 
     def __init__(
         self,
         dest: c3_types.IdentifierType | None = None,
+        seq_format: str = "fasta",
         limit: int | None = None,
         mode: str | Mode = OVERWRITE,
     ):
+        """
+        Parameters
+        ----------
+        dest
+            name for the output directory, defaults to name of the input file
+        limit
+            the number of sequences to be written defaults to all
+        mode
+            directory creation mode, by default OVERWRITE
+        """
         self.dest = dest
         self.limit = limit
         self.mode = mode
-        self.loader = faster_load_fasta()
+        self.seq_format = seq_format
 
-    def main(self, fasta_path: c3_types.IdentifierType) -> DataStoreABC:
-        outpath = Path(self.dest) if self.dest else Path(fasta_path).with_suffix("")
+    def main(self, seq_path: c3_types.IdentifierType) -> DataStoreABC:
+        outpath = Path(self.dest) if self.dest else Path(seq_path).with_suffix("")
         outpath.mkdir(parents=True, exist_ok=True)
         out_dstore = DataStoreDirectory(
             source=outpath,
@@ -161,11 +170,12 @@ class dvgt_write_seq_store:
             limit=self.limit,
         )
 
-        seqs = self.loader(fasta_path)
+        parser = get_format_parser(seq_path, self.seq_format)
+        seqs = {n: seq for n, seq, *_ in parser}
 
         for seq_id, seq_data in seqs.items():
             fasta_seq_data = format_fasta.seqs_to_fasta(
-                {seq_id: seq_data},
+                {seq_id: seq_data.decode("utf8")},
                 block_size=1_000_000_000,
             )
             out_dstore.write(unique_id=seq_id, data=fasta_seq_data)
