@@ -62,6 +62,18 @@ class filename_seqname:
     name: str
 
 
+def get_format_parser(seq_path, seq_format):
+    if seq_format == "fasta":
+        parser = fasta.iter_fasta_records(seq_path, converter=converter_fasta)
+    else:
+        parser = genbank.iter_genbank_records(
+            seq_path,
+            converter=converter_genbank,
+            convert_features=None,
+        )
+    return parser
+
+
 @define_app(app_type=LOADER)
 class dvgt_load_seqs:
     """Load and proprocess sequences from seq datastore"""
@@ -84,14 +96,7 @@ class dvgt_load_seqs:
 
     def main(self, data_member: DataMember) -> SeqArray:
         seq_path = Path(data_member.data_store.source) / data_member.unique_id
-        if self.seq_format == "fasta":
-            parser = fasta.iter_fasta_records(seq_path, converter=converter_fasta)
-        else:
-            parser = genbank.iter_genbank_records(
-                seq_path,
-                converter=converter_genbank,
-                convert_features=None,
-            )
+        parser = get_format_parser(seq_path, self.seq_format)
         for _, seq, *_ in parser:
             break
 
