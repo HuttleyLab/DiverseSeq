@@ -27,7 +27,7 @@ class HDF5DataStore(DataStoreABC):
     def __init__(
         self,
         source: str | pathlib.Path,
-        mode: Mode = "w",
+        mode: Mode = "r",
         limit: int = None,
     ) -> None:
         self._source = pathlib.Path(source)
