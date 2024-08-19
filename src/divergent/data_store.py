@@ -217,7 +217,7 @@ class HDF5DataStore(DataStoreABC):
                 contextlib.redirect_stderr(devnull),
                 contextlib.redirect_stdout(devnull),
             ):
-                with contextlib.suppress(ValueError, AttributeError):
+                with contextlib.suppress(ValueError, AttributeError, RuntimeError):
                     if self._is_open:
                         self._file.flush()
 
