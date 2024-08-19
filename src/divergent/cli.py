@@ -255,7 +255,7 @@ def max(
     result = dvgt_records.apply_app(
         app=app,
         seqids=seqids,
-        numprocs=1,
+        numprocs=numprocs,
         verbose=verbose,
         finalise=finalise,
     )

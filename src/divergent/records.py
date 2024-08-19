@@ -583,6 +583,7 @@ def apply_app(
                     show_progress=True,
                 ),
             )
+            result = [r.obj for r in result]
             result = finalise(result)
 
         if isinstance(result, NotCompleted):
