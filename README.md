@@ -25,8 +25,9 @@ Options:
   --help     Show this message and exit.
 
 Commands:
-  prep  Writes processed sequences to an HDF5 file.
-  max   Identify the seqs that maximise average delta JSD
+  prep   Writes processed sequences to an outpath ending with .dvgtseqs file.
+  max    Identify the seqs that maximise average delta JSD
+  nmost  Identify n seqs that maximise average delta JSD
 
 ```
 <!-- [[[end]]] -->
@@ -51,12 +52,12 @@ cog.out(
 ```
 Usage: dvgt prep [OPTIONS]
 
-  Writes processed sequences to an HDF5 file.
+  Writes processed sequences to an outpath ending with .dvgtseqs file.
 
 Options:
-  -s, --seqdir PATH        directory containing fasta formatted sequence files
-                           [required]
-  -o, --outpath PATH       location to write processed seqs as HDF5  [required]
+  -s, --seqdir PATH        directory containing sequence files  [required]
+  -sf, --suffix TEXT       sequence file suffix  [default: fa]
+  -o, --outpath PATH       location to write processed seqs  [required]
   -p, --parallel           run in parallel
   -F, --force_overwrite    Overwrite existing file if it exists
   -m, --moltype [dna|rna]  Molecular type of sequences, defaults to DNA
@@ -90,17 +91,15 @@ Usage: dvgt max [OPTIONS]
   Identify the seqs that maximise average delta JSD
 
 Options:
-  -s, --seqfile PATH              HDF5 file containing sequences, must have been
-                                  processed by the 'prep' command  [required]
+  -s, --seqfile PATH              path to .dvtgseqs file  [required]
   -o, --outpath PATH              the input string will be cast to Path instance
   -z, --min_size INTEGER          minimum size of divergent set  [default: 7]
   -zp, --max_size INTEGER         maximum size of divergent set
-  -x, --fixed_size                result will have number of seqs of `min_size`
   -k INTEGER                      k-mer size  [default: 3]
   -st, --stat [total_jsd|mean_delta_jsd|mean_jsd]
                                   statistic to maximise  [default:
                                   mean_delta_jsd]
-  -p, --parallel                  run in parallel
+  -np, --numprocs INTEGER         number of processes  [default: 1]
   -L, --limit INTEGER             number of sequences to process
   -T, --test_run                  reduce number of paths and size of query seqs
   -v, --verbose                   is an integer indicating number of cl
