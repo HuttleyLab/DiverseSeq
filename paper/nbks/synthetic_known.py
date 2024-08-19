@@ -166,7 +166,7 @@ def main():
 
     config["seq_len"] = 1000
     app = eval_condition(**config)
-    stats = "mean_delta_jsd", "mean_jsd"
+    stats = "mean_delta_jsd", "total_jsd", "mean_jsd"
     pools = "balanced", "imbalanced"
     settings = list(product(pools, stats))
     series = PAR.as_completed(app, settings, max_workers=6)
@@ -180,8 +180,12 @@ def main():
         result_tables.append(t)
 
     app = eval_condition(**config)
-    table = result_tables[0].appended("Pool", result_tables[1:])
-    table.write("synthetic_knowns_summary.tsv")
+    table = result_tables[0].appended("pool", result_tables[1:])
+    table = table.sorted(columns=["seq_len", "pool", "stat"])
+    table.columns["correct%"] = (
+        100 * table.columns["mean(correct)"] / config["num_reps"]
+    )
+    table.write("synthetic_known_summary.tsv")
     print(table)
 
 
