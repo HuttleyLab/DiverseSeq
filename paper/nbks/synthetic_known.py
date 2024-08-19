@@ -8,19 +8,19 @@ from numpy import array
 from numpy.random import choice, shuffle
 from rich.progress import track
 
-from divergent.record import SeqRecord, seq_to_record
+from divergent import util as dvgt_utils
+from divergent.record import KmerSeq, SeqArray, seqarray_to_record
 from divergent.records import max_divergent
 
-try:
-    from wakepy import set_keepawake, unset_keepawake
-except (ImportError, NotImplementedError):
-    # may not be installed, or on linux where this library doesn't work
-    def _do_nothing_func(*args, **kwargs): ...
-
-    set_keepawake, unset_keepawake = _do_nothing_func, _do_nothing_func
-
-
 POOL = {"a": "ACGGGGGT", "b": "ACCCCCGT", "c": "AAAAACGT", "d": "ACGTTTTT"}
+
+
+def seqs_from_pool(pool: str, num_seqs: int, seq_len: int) -> dict:
+    """generate synthetic sequences from a pool"""
+    return {
+        f"{pool}-{i}": "".join(choice(list(POOL[pool]), size=seq_len))
+        for i in range(num_seqs)
+    }
 
 
 @define_app
@@ -39,10 +39,17 @@ class make_sample:
 @define_app
 class seqcoll_to_records:
     def __init__(self, k: int):
-        self.s2r = seq_to_record(k=k, moltype="dna")
+        self.s2a = dvgt_utils.str2arr(moltype="dna")
+        self.a2k = seqarray_to_record(k=k, moltype="dna")
 
-    def main(self, seqs: c3_types.UnalignedSeqsType) -> list[SeqRecord]:
-        records = [self.s2r(s) for s in seqs.seqs]
+    def main(self, seqs: c3_types.UnalignedSeqsType) -> list[KmerSeq]:
+        records = []
+        for s in seqs.seqs:
+            sa = self.s2a(str(s))
+            ks = self.a2k(
+                SeqArray(seqid=s.name, data=sa, moltype="dna", source=seqs.info.source),
+            )
+            records.append(ks)
         shuffle(records)
         return records
 
@@ -61,7 +68,7 @@ class true_positive:
         self.size = size
         self.stat = stat
 
-    def main(self, records: list[SeqRecord]) -> bool:
+    def main(self, records: list[KmerSeq]) -> bool:
         result = max_divergent(
             records,
             min_size=self.size,
@@ -84,13 +91,6 @@ class true_positive:
                 f"found pool {found_pools} != {self.expected}",
             )
         return True
-
-
-def seqs_from_pool(pool: str, num_seqs: int, seq_len: int) -> dict:
-    return {
-        f"{pool}-{i}": "".join(choice(list(POOL[pool]), size=seq_len))
-        for i in range(num_seqs)
-    }
 
 
 def do_run(pool, num_reps, seq_len, k=3, stat="mean_jsd"):
@@ -142,14 +142,12 @@ class eval_condition:
 
 
 def main():
-    set_keepawake(keep_screen_awake=False)
-
     BALANCED = dict(a=25, b=25, c=25, d=25)
     IMBALANCED = dict(a=1, b=49, c=25, d=25)
     config = dict(
         seq_len=200,
         num_reps=50,
-        k=3,
+        k=1,
         repeats=3,
         pools=dict(balanced=BALANCED, imbalanced=IMBALANCED),
     )
@@ -160,6 +158,7 @@ def main():
     result_tables = []
     settings = list(product(pools, stats))
     series = PAR.as_completed(app, settings, max_workers=6)
+    series = map(app, settings)
     for t in track(series, total=len(settings), description="200bp sim"):
         if not t:
             print(t)
@@ -184,8 +183,6 @@ def main():
     table = result_tables[0].appended("Pool", result_tables[1:])
     table.write("synthetic_knowns_summary.tsv")
     print(table)
-
-    unset_keepawake()
 
 
 if __name__ == "__main__":

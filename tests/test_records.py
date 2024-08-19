@@ -156,3 +156,17 @@ def test_merge_summed_records(DATA_DIR):
     assert len(final_selected) == 5
     assert set(final_selected) != set(rnames1)
     assert set(final_selected) != set(rnames2)
+
+
+def test_dvgt_select_max(DATA_DIR):
+    seqs = load_unaligned_seqs(DATA_DIR / "brca1.fasta", moltype="dna").degap()
+    app = dvgt_records.dvgt_select_max(k=1, min_size=2, max_size=5)
+    got = app(seqs)
+    assert 2 <= got.num_seqs <= 5
+
+
+def test_dvgt_select_nmost(DATA_DIR):
+    seqs = load_unaligned_seqs(DATA_DIR / "brca1.fasta", moltype="dna").degap()
+    app = dvgt_records.dvgt_select_nmost(k=1, n=5)
+    got = app(seqs)
+    assert got.num_seqs == 5

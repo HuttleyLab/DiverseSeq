@@ -5,7 +5,6 @@ from collections.abc import Mapping
 from pathlib import Path
 
 import click
-import hdf5plugin  # noqa
 from cogent3.app import data_store as c3_data_store
 from scitrack import CachingLogger
 
@@ -13,7 +12,7 @@ from divergent import __version__
 from divergent import data_store as dvgt_data_store
 from divergent import records as dvgt_records
 from divergent import util as dvgt_util
-from divergent.io import dvgt_load_seqs, dvgt_write_prepped_seqs, dvgt_write_seq_store
+from divergent.io import dvgt_file_to_dir, dvgt_load_seqs, dvgt_write_seqs
 
 LOGGER = CachingLogger()
 
@@ -143,7 +142,7 @@ def prep(seqdir, suffix, outpath, parallel, force_overwrite, moltype, limit):
 
     with dvgt_util.keep_running(), tempfile.TemporaryDirectory() as tmp_dir:
         if seqdir.is_file():
-            convert2dstore = dvgt_write_seq_store(dest=tmp_dir, limit=limit)
+            convert2dstore = dvgt_file_to_dir(dest=tmp_dir, limit=limit)
             in_dstore = convert2dstore(seqdir)
         else:
             in_dstore = c3_data_store.DataStoreDirectory(source=seqdir, suffix=suffix)
@@ -154,12 +153,13 @@ def prep(seqdir, suffix, outpath, parallel, force_overwrite, moltype, limit):
                 )
                 sys.exit(1)
 
+        out_dstore = dvgt_data_store.HDF5DataStore(source=dvgtseqs_path, mode="w")
+
         prep_pipeline = dvgt_load_seqs(
             moltype=moltype,
             seq_format=seq_format,
-        ) + dvgt_write_prepped_seqs(
-            dvgtseqs_path,
-            limit=limit,
+        ) + dvgt_write_seqs(
+            data_store=out_dstore,
         )
         result = prep_pipeline.apply_to(
             in_dstore,
@@ -167,6 +167,7 @@ def prep(seqdir, suffix, outpath, parallel, force_overwrite, moltype, limit):
             parallel=parallel,
         )
 
+    out_dstore.close()
     click.secho(
         f"Successfully created {result}",
         fg="green",
@@ -254,7 +255,7 @@ def max(
     result = dvgt_records.apply_app(
         app=app,
         seqids=seqids,
-        numprocs=1,
+        numprocs=numprocs,
         verbose=verbose,
         finalise=finalise,
     )

@@ -1,55 +1,71 @@
 import pathlib
 
 import pytest
-from cogent3 import load_unaligned_seqs
+from cogent3 import load_unaligned_seqs, make_unaligned_seqs
 from numpy.testing import assert_array_equal
 
 from divergent import data_store
-from divergent.io import dvgt_load_seqs, dvgt_write_prepped_seqs, dvgt_write_seq_store
+from divergent import io as dvgt_io
+from divergent import record as dvgt_record
 from divergent.util import str2arr
 
 DATADIR = pathlib.Path(__file__).parent / "data"
 
 
-@pytest.fixture(scope="session")
-def tmp_path(tmpdir_factory):
-    return tmpdir_factory.mktemp("dvgt")
-
-
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def brca1_seqs():
-    return load_unaligned_seqs(DATADIR / "brca1.fasta", moltype="dna")
+    return load_unaligned_seqs(DATADIR / "brca1.fasta", moltype="dna").degap()
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
+def brca1_5(brca1_seqs):
+    seqs = brca1_seqs.take_seqs(["Cat", "Dog", "Wombat", "Horse", "Rat"])
+    return make_unaligned_seqs(
+        data={s.name: str(s[:20]) for s in seqs.seqs},
+        moltype="dna",
+    )
+
+
+@pytest.fixture(scope="function")
 def brca1_dstore(tmp_path):
-    dstore_maker = dvgt_write_seq_store(tmp_path / "brca1_dstore")
+    dstore_maker = dvgt_io.dvgt_file_to_dir(tmp_path / "brca1_dstore")
     return dstore_maker(DATADIR / "brca1.fasta")
 
 
 @pytest.fixture(scope="function")
-def hdf5_dstore(tmp_path):
-    return data_store.HDF5DataStore(tmp_path / "hdf5_dstore")
+def brca1_5_dstore(tmp_path, brca1_5):
+    fasta_path = tmp_path / "brca1_5.fasta"
+    brca1_5.write(fasta_path)
+    dstore_maker = dvgt_io.dvgt_file_to_dir(tmp_path / "brca1_5_dstore")
+    return dstore_maker(fasta_path)
 
 
-def test_dvgt_write_seq_store(brca1_dstore, brca1_seqs):
+@pytest.fixture(scope="function")
+def hdf5_dstore_path(tmp_path):
+    return tmp_path / "hdf5_dstore"
+
+
+def test_dvgt_file_to_dir(brca1_5_dstore, brca1_5):
     # directory contains the same number of sequences as the input file
-    assert brca1_seqs.num_seqs == len(brca1_dstore.completed)
+    assert brca1_5.num_seqs == len(brca1_5_dstore.completed)
 
 
-@pytest.mark.parametrize("parallel", (True, False))
-def test_prep_pipeline(brca1_seqs, brca1_dstore, hdf5_dstore, parallel):
+@pytest.mark.parametrize("parallel", (False, True))
+def test_prep_pipeline(brca1_5, brca1_5_dstore, hdf5_dstore_path, parallel):
     # initialise and apply pipeline
-    prep = dvgt_load_seqs(moltype="dna") + dvgt_write_prepped_seqs(hdf5_dstore.source)
-    result = prep.apply_to(brca1_dstore, parallel=parallel)
+    dstore = data_store.HDF5DataStore(source=hdf5_dstore_path, mode="w")
+    prep = dvgt_io.dvgt_load_seqs(moltype="dna") + dvgt_io.dvgt_write_seqs(
+        data_store=dstore,
+    )
+    result = prep.apply_to(brca1_5_dstore, parallel=parallel)
 
     # output datastore contains same number of records as seqs in orig file
-    assert brca1_seqs.num_seqs == len(result.completed)
+    assert brca1_5.num_seqs == len(result.completed)
 
     # check the sequence data matches
     seq_data = result.read("Cat")
     str_to_array = str2arr(moltype="dna")
-    orig_seq_data = str_to_array(brca1_seqs.get_seq("Cat")._seq.seq)
+    orig_seq_data = str_to_array(str(brca1_5.get_seq("Cat")))
     assert_array_equal(seq_data, orig_seq_data)
 
 
@@ -61,3 +77,14 @@ def test_get_seqids(DATA_DIR):
     got = data_store.get_seqids_from_store(store_path)
 
     assert set(got) == expect
+
+
+def test_in_memory(brca1_5):
+    dstore = data_store.HDF5DataStore(source=":memory:", mode="w", in_memory=True)
+    writer = dvgt_io.dvgt_write_seqs(
+        data_store=dstore,
+    )
+    prep = dvgt_record.seq_to_seqarray(moltype="dna") + writer
+    prep.apply_to(brca1_5.seqs, id_from_source=lambda x: x.name, logger=False)
+    assert len(dstore) == brca1_5.num_seqs
+    assert dstore.read("Cat").shape == (20,)

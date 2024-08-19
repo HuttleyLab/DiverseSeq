@@ -15,18 +15,19 @@ identify the set of sequences that maximise delta-JSD
 SummedRecords is the container that simplifies these applications
 """
 
+import functools
 import itertools
 import pathlib
 import random
 import sys
 import typing
-from functools import singledispatch
 from math import fsum
 
 import click
 import h5py
 from attrs import define, field
 from cogent3 import make_table
+from cogent3.app import typing as c3_types
 from cogent3.app.composable import NotCompleted, define_app
 from cogent3.app.data_store import DataStoreABC
 from numpy import empty, isnan, log2, ndarray, random, uint8, zeros
@@ -34,7 +35,13 @@ from numpy import isclose as np_isclose
 from rich.progress import track
 
 from divergent import util as dvgt_util
-from divergent.record import KmerSeq, SeqArray, seqarray_to_record, vector
+from divergent.record import (
+    KmerSeq,
+    SeqArray,
+    seq_to_seqarray,
+    seqarray_to_kmerseq,
+    vector,
+)
 
 # needs a jsd method for a new sequence
 # needs summed entropy scores
@@ -44,7 +51,7 @@ from divergent.record import KmerSeq, SeqArray, seqarray_to_record, vector
 # the least contributor omitted)
 
 
-@singledispatch
+@functools.singledispatch
 def _jsd(summed_freqs: vector | ndarray, summed_entropy: float, n: int) -> float:
     raise NotImplementedError
 
@@ -270,7 +277,8 @@ def max_divergent(
     if len(records) <= min_size:
         return sr
 
-    for r in track(records, transient=True, disable=not verbose):
+    series = track(records, transient=True) if verbose else records
+    for r in series:
         if r in sr:
             # already a member of the divergent set
             continue
@@ -366,7 +374,8 @@ def most_divergent(
     if len(records) <= size:
         return sr
 
-    for r in track(records, disable=not show_progress):
+    series = track(records) if show_progress else records
+    for r in series:
         if r in sr:
             continue
 
@@ -483,7 +492,7 @@ def records_from_seq_store(
             seqs.append(
                 SeqArray(seqid=name, data=out, moltype=orig_moltype, source=source),
             )
-    make_records = seqarray_to_record(k=k, moltype=orig_moltype)
+    make_records = seqarray_to_kmerseq(k=k, moltype=orig_moltype)
     records = []
     for result in map(make_records, seqs):
         if not result:
@@ -518,8 +527,6 @@ class dvgt_nmost:
             k-mer size
         limit
             limit number of sequence records to process
-        stat
-            the statistic to use for optimising, by default "mean_delta_jsd"
         verbose
             extra info display
         """
@@ -576,6 +583,7 @@ def apply_app(
                     show_progress=True,
                 ),
             )
+            result = [r.obj for r in result]
             result = finalise(result)
 
         if isinstance(result, NotCompleted):
@@ -586,3 +594,88 @@ def apply_app(
             sys.exit(1)
 
     return result
+
+
+# single apps that combine multiple apps to work off a sequence collection
+# app convert seq coll to SequenceArray and converts those into KmerSeq instances
+
+
+@define_app
+class dvgt_select_max:
+    """selects the maximally divergent seqs from a sequence collection"""
+
+    def __init__(
+        self,
+        min_size: int = 3,
+        max_size: int = 10,
+        stat: str = "mean_jsd",
+        moltype: str = "dna",
+        k: int = 4,
+    ) -> None:
+        """
+        Parameters
+        ----------
+        min_size
+            minimum size of the divergent set
+        max_size
+            the maximum size if the divergent set
+        stat
+            statistic for maximising the set, either mean_delta_jsd, mean_jsd, total_jsd
+        moltype
+            molecular type of the sequences
+        k
+            k-mer size
+        """
+        self._s2k = seq_to_seqarray(moltype=moltype) + seqarray_to_kmerseq(
+            k=k,
+            moltype=moltype,
+        )
+        self.min_size = min_size
+        self.max_size = max_size
+        self.stat = stat
+
+    def main(self, seqs: c3_types.UnalignedSeqsType) -> c3_types.UnalignedSeqsType:
+        records = [self._s2k(seq) for seq in seqs.seqs]
+        for record in records:
+            if not record:
+                print(record)
+                return None
+        result = max_divergent(
+            records=records,
+            min_size=self.min_size,
+            max_size=self.max_size,
+            stat=self.stat,
+        )
+        return seqs.take_seqs(result.record_names)
+
+
+@define_app
+class dvgt_select_nmost:
+    def __init__(
+        self,
+        n: int = 3,
+        moltype: str = "dna",
+        k: int = 4,
+    ) -> None:
+        """
+        Parameters
+        ----------
+        n
+            the number of divergent sequences
+        k
+            k-mer size
+        """
+        self._s2k = seq_to_seqarray(moltype=moltype) + seqarray_to_kmerseq(
+            k=k,
+            moltype=moltype,
+        )
+        self.n = n
+        self.moltype = moltype
+
+    def main(self, seqs: c3_types.UnalignedSeqsType) -> c3_types.UnalignedSeqsType:
+        records = [self._s2k(seq) for seq in seqs.seqs]
+        result = most_divergent(
+            records=records,
+            size=self.n,
+        )
+        return seqs.take_seqs(result.record_names)
