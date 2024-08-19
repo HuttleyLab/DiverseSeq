@@ -129,6 +129,7 @@ class SummedRecords:
     size: int = field(init=False)
     record_names: set = field(init=False)
     lowest: KmerSeq = field(init=False)
+    _stats: dvgt_util.summary_stats = field(init=False)
 
     def __init__(
         self,
@@ -145,6 +146,7 @@ class SummedRecords:
         # NOTE we exclude lowest record from freqs and entropy
         self.summed_kfreqs = summed_kfreqs - self.lowest.kfreqs
         self.summed_entropies = summed_entropies - self.lowest.entropy
+        self._stats = dvgt_util.summary_stats(array([r.delta_jsd for r in records]))
 
     @classmethod
     def from_records(cls, records: list[:KmerSeq]):
@@ -218,8 +220,18 @@ class SummedRecords:
 
     @property
     def mean_delta_jsd(self):
-        total = fsum([fsum(r.delta_jsd for r in self.records), self.lowest.delta_jsd])
-        return total / self.size
+        """mean of delta_jsd"""
+        return self._stats.mean
+
+    @property
+    def std_delta_jsd(self):
+        """unbiased standard deviation of delta_jsd"""
+        return self._stats.std
+
+    @property
+    def cov_delta_jsd(self):
+        """coeff of variation of delta_jsd"""
+        return self._stats.cov
 
     def replaced_lowest(self, other: KmerSeq):
         """returns new SummedRecords with other instead of lowest"""

@@ -1,4 +1,6 @@
 import contextlib
+import functools
+import math
 import pickle
 import re
 
@@ -128,3 +130,32 @@ def chunked(iterable, num_chunks, verbose=False):
     start_stop = numpy.array([starts, cum_sizes]).T
     for start, end in start_stop:
         yield iterable[start:end]
+
+
+class summary_stats:
+    """computes the summary statistics for a set of numbers"""
+
+    def __init__(self, numbers: numpy.ndarray):
+        self._numbers = numbers
+
+    @functools.cached_property
+    def n(self):
+        return len(self._numbers)
+
+    @functools.cached_property
+    def mean(self):
+        return math.fsum(self._numbers) / self.n
+
+    @functools.cached_property
+    def var(self):
+        """unbiased estimate of the variance"""
+        return math.fsum((x - self.mean) ** 2 for x in self._numbers) / (self.n - 1)
+
+    @functools.cached_property
+    def std(self):
+        """standard deviation"""
+        return self.var**0.5
+
+    @functools.cached_property
+    def cov(self):
+        return self.std / self.mean
