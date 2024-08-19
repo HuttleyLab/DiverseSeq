@@ -602,7 +602,12 @@ def apply_app(
 
 @define_app
 class dvgt_select_max:
-    """selects the maximally divergent seqs from a sequence collection"""
+    """selects the maximally divergent seqs from a sequence collection
+
+    Notes
+    -----
+    Sequence order of input is randomised.
+    """
 
     def __init__(
         self,
@@ -611,6 +616,7 @@ class dvgt_select_max:
         stat: str = "mean_jsd",
         moltype: str = "dna",
         k: int = 4,
+        seed: int | None = None,
     ) -> None:
         """
         Parameters
@@ -625,6 +631,8 @@ class dvgt_select_max:
             molecular type of the sequences
         k
             k-mer size
+        seed
+            random number seed
         """
         self._s2k = seq_to_seqarray(moltype=moltype) + seqarray_to_kmerseq(
             k=k,
@@ -633,9 +641,11 @@ class dvgt_select_max:
         self.min_size = min_size
         self.max_size = max_size
         self.stat = stat
+        self._rng = random.default_rng(seed)
 
     def main(self, seqs: c3_types.UnalignedSeqsType) -> c3_types.UnalignedSeqsType:
         records = [self._s2k(seq) for seq in seqs.seqs]
+        self._rng.shuffle(records)
         for record in records:
             if not record:
                 print(record)
@@ -651,11 +661,19 @@ class dvgt_select_max:
 
 @define_app
 class dvgt_select_nmost:
+    """selects the n-most divergent seqs from a sequence collection
+
+    Notes
+    -----
+    Sequence order of input is randomised.
+    """
+
     def __init__(
         self,
         n: int = 3,
         moltype: str = "dna",
         k: int = 4,
+        seed: int | None = None,
     ) -> None:
         """
         Parameters
@@ -664,6 +682,8 @@ class dvgt_select_nmost:
             the number of divergent sequences
         k
             k-mer size
+        seed
+            random number seed
         """
         self._s2k = seq_to_seqarray(moltype=moltype) + seqarray_to_kmerseq(
             k=k,
@@ -671,9 +691,11 @@ class dvgt_select_nmost:
         )
         self.n = n
         self.moltype = moltype
+        self._rng = random.default_rng(seed)
 
     def main(self, seqs: c3_types.UnalignedSeqsType) -> c3_types.UnalignedSeqsType:
         records = [self._s2k(seq) for seq in seqs.seqs]
+        self._rng.shuffle(records)
         result = most_divergent(
             records=records,
             size=self.n,
