@@ -602,12 +602,7 @@ def apply_app(
 
 @define_app
 class dvgt_select_max:
-    """selects the maximally divergent seqs from a sequence collection
-
-    Notes
-    -----
-    Sequence order of input is randomised.
-    """
+    """selects the maximally divergent seqs from a sequence collection"""
 
     def __init__(
         self,
@@ -633,6 +628,10 @@ class dvgt_select_max:
             k-mer size
         seed
             random number seed
+
+        Notes
+        -----
+        Sequence order of input is randomised.
         """
         self._s2k = seq_to_seqarray(moltype=moltype) + seqarray_to_kmerseq(
             k=k,
@@ -661,12 +660,7 @@ class dvgt_select_max:
 
 @define_app
 class dvgt_select_nmost:
-    """selects the n-most divergent seqs from a sequence collection
-
-    Notes
-    -----
-    Sequence order of input is randomised.
-    """
+    """selects the n-most divergent seqs from a sequence collection"""
 
     def __init__(
         self,
@@ -684,6 +678,10 @@ class dvgt_select_nmost:
             k-mer size
         seed
             random number seed
+
+        Notes
+        -----
+        Sequence order of input is randomised.
         """
         self._s2k = seq_to_seqarray(moltype=moltype) + seqarray_to_kmerseq(
             k=k,
