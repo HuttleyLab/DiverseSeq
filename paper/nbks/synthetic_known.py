@@ -13,7 +13,7 @@ from divergent.record import KmerSeq, SeqArray, seqarray_to_kmerseq
 from divergent.records import max_divergent
 
 POOL = {"a": "ACGGGGGT", "b": "ACCCCCGT", "c": "AAAAACGT", "d": "ACGTTTTT"}
-
+STATS = "stdev", "cov"
 
 def seqs_from_pool(pool: str, num_seqs: int, seq_len: int) -> dict:
     """generate synthetic sequences from a pool"""
@@ -93,7 +93,7 @@ class true_positive:
         return True
 
 
-def do_run(pool, num_reps, seq_len, k=3, stat="mean_jsd"):
+def do_run(pool, num_reps, seq_len, k=3, stat="stdev"):
     make_seqs = make_sample(pool, seq_len=seq_len)
     s2r = seqcoll_to_records(k=k)
     finds_true = true_positive(set(POOL), stat=stat, size=2)
@@ -152,11 +152,10 @@ def main():
         pools=dict(balanced=BALANCED, imbalanced=IMBALANCED),
     )
     app = eval_condition(**config)
-    stats = "mean_delta_jsd", "total_jsd", "mean_jsd"
     pools = "balanced", "imbalanced"
 
     result_tables = []
-    settings = list(product(pools, stats))
+    settings = list(product(pools, STATS))
     series = PAR.as_completed(app, settings, max_workers=6)
     series = map(app, settings)
     for t in track(series, total=len(settings), description="200bp sim"):
@@ -166,9 +165,8 @@ def main():
 
     config["seq_len"] = 1000
     app = eval_condition(**config)
-    stats = "mean_delta_jsd", "total_jsd", "mean_jsd"
     pools = "balanced", "imbalanced"
-    settings = list(product(pools, stats))
+    settings = list(product(pools, STATS))
     series = PAR.as_completed(app, settings, max_workers=6)
     for t in track(
         series,
