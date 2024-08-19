@@ -5,7 +5,6 @@ from collections.abc import Mapping
 from pathlib import Path
 
 import click
-import hdf5plugin  # noqa
 from cogent3.app import data_store as c3_data_store
 from scitrack import CachingLogger
 

@@ -277,7 +277,8 @@ def max_divergent(
     if len(records) <= min_size:
         return sr
 
-    for r in track(records, transient=True, disable=not verbose):
+    series = track(records, transient=True) if verbose else records
+    for r in series:
         if r in sr:
             # already a member of the divergent set
             continue
@@ -373,7 +374,8 @@ def most_divergent(
     if len(records) <= size:
         return sr
 
-    for r in track(records, disable=not show_progress):
+    series = track(records) if show_progress else records
+    for r in series:
         if r in sr:
             continue
 
