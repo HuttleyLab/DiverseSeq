@@ -26,7 +26,7 @@ from divergent.record import (
     indices_to_seqs,
     kmer_counts,
     kmer_indices,
-    seqarray_to_record,
+    seqarray_to_kmerseq,
     vector,
 )
 from divergent.util import str2arr
@@ -417,7 +417,7 @@ def test__gettype(dtype):
 
 @pytest.mark.parametrize("k", (1, 2, 3))
 def test_seqarray_to_record(seqarray, k):
-    s2r = seqarray_to_record(k=k, moltype="dna")
+    s2r = seqarray_to_kmerseq(k=k, moltype="dna")
     rec = s2r(seqarray)
 
     assert rec.name == "seq1"

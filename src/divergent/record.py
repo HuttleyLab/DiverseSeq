@@ -10,6 +10,7 @@ import numba
 from attrs import asdict, define, field, validators
 from cogent3 import get_moltype
 from cogent3.app import composable
+from cogent3.app import typing as c3_types
 from numpy import array, errstate, log2, nan_to_num, ndarray, uint8, uint64, zeros
 from numpy import divmod as np_divmod
 
@@ -412,37 +413,43 @@ class KmerSeq:
         return vector(data=kfreqs, vector_length=len(kfreqs), dtype=float)
 
 
-class _seq_to_kmers:
-    def __init__(self, k: int, moltype: str):
-        """compute k-mers
+@composable.define_app
+class seq_to_seqarray:
+    """Convert a cogent3 Sequence to a SeqArray"""
 
-        Parameters
-        ----------
-        k : int
-            size of k-mers
-        moltype : MolType
-            cogent3 molecular type
+    def __init__(
+        self,
+        moltype: str = "dna",
+    ):
+        self.moltype = moltype
+        self.str2arr = dv_utils.str2arr(moltype=self.moltype)
 
-        Raises
-        ------
-        ValueError
-            if the mapping from characters to integers is not sequential
-
-        Notes
-        -----
-        The sequence is converted to indices using states of canonical characters
-        defined by moltype. Each k-mer is then a k-dimension coordinate. We
-        convert those into a 1D coordinate. Use indices_to_seqs to convert
-        indices back into k-mer sequences.
-        """
-        self.k = k
-        self.canonical = _get_canonical_states(moltype)
-        self.seq2array = dv_utils.str2arr(moltype=moltype)
-        self.compress_pickled = dv_utils.pickle_data() + dv_utils.blosc_compress()
+    def main(self, seq: c3_types.SeqType) -> SeqArray:
+        return SeqArray(
+            seqid=seq.name,
+            data=self.str2arr(str(seq)),
+            moltype=self.moltype,
+            source=seq.info.source or seq.name,
+        )
 
 
 @composable.define_app
-class seqarray_to_record(_seq_to_kmers):
+class seqarray_to_kmerseq:
+    """converts a sequence numpy array to a KmerSeq"""
+
+    def __init__(self, k: int, moltype: str):
+        """
+        Parameters
+        ----------
+        k
+            size of k-mers
+        moltype
+            cogent3 molecular type
+        """
+        self.moltype = moltype
+        self.k = k
+        self.canonical = _get_canonical_states(moltype)
+
     def main(self, seq: SeqArray) -> KmerSeq:
         kwargs = dict(
             vector_length=len(self.canonical) ** self.k,

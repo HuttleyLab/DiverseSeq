@@ -6,6 +6,7 @@ from numpy.testing import assert_array_equal
 
 from divergent import data_store
 from divergent import io as dvgt_io
+from divergent import record as dvgt_record
 from divergent.util import str2arr
 
 DATADIR = pathlib.Path(__file__).parent / "data"
@@ -83,7 +84,7 @@ def test_in_memory(brca1_5):
     writer = dvgt_io.dvgt_write_seqs(
         data_store=dstore,
     )
-    prep = dvgt_io.seq_to_seqarray(moltype="dna") + writer
+    prep = dvgt_record.seq_to_seqarray(moltype="dna") + writer
     prep.apply_to(brca1_5.seqs, id_from_source=lambda x: x.name, logger=False)
     assert len(dstore) == brca1_5.num_seqs
     assert dstore.read("Cat").shape == (20,)

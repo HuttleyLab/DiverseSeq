@@ -34,7 +34,13 @@ from numpy import isclose as np_isclose
 from rich.progress import track
 
 from divergent import util as dvgt_util
-from divergent.record import KmerSeq, SeqArray, seqarray_to_record, vector
+from divergent.record import (
+    KmerSeq,
+    SeqArray,
+    seq_to_seqarray,
+    seqarray_to_kmerseq,
+    vector,
+)
 
 # needs a jsd method for a new sequence
 # needs summed entropy scores
@@ -483,7 +489,7 @@ def records_from_seq_store(
             seqs.append(
                 SeqArray(seqid=name, data=out, moltype=orig_moltype, source=source),
             )
-    make_records = seqarray_to_record(k=k, moltype=orig_moltype)
+    make_records = seqarray_to_kmerseq(k=k, moltype=orig_moltype)
     records = []
     for result in map(make_records, seqs):
         if not result:
@@ -518,8 +524,6 @@ class dvgt_nmost:
             k-mer size
         limit
             limit number of sequence records to process
-        stat
-            the statistic to use for optimising, by default "mean_delta_jsd"
         verbose
             extra info display
         """
