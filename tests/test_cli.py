@@ -160,6 +160,7 @@ def test_prep_outpath_without_suffix(runner, tmp_dir, seq_path):
     _checked_h5_dstore(str(outpath) + ".dvgtseqs")
 
 
+@pytest.mark.skipif(sys.platform.startswith("win"), reason="Test skipped on Windows")
 def test_prep_force_override(runner, tmp_dir, seq_path):
     outpath = tmp_dir / "test_prep_force_override.dvgtseqs"
     args = f"-s {seq_path} -o {outpath}".split()
