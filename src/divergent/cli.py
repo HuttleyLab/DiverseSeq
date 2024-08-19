@@ -192,6 +192,13 @@ def prep(seqdir, suffix, outpath, parallel, force_overwrite, moltype, limit):
     help="maximum size of divergent set",
 )
 @_k
+@click.option(
+    "-st",
+    "--stat",
+    type=click.Choice(["stdev", "cov"]),
+    default="stdev",
+    help="statistic to maximise",
+)
 @_num_procs
 @_limit
 @click.option(
@@ -206,6 +213,7 @@ def max(
     outpath,
     min_size,
     max_size,
+    stat,
     k,
     numprocs,
     limit,
@@ -235,10 +243,12 @@ def max(
         k=k,
         min_size=min_size,
         max_size=max_size,
+        stat=stat,
         limit=limit,
         verbose=verbose,
     )
     finalise = dvgt_records.dvgt_final_max(
+        stat=stat,
         min_size=min_size,
         verbose=verbose,
     )
