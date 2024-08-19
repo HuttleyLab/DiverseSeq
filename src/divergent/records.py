@@ -15,12 +15,12 @@ identify the set of sequences that maximise delta-JSD
 SummedRecords is the container that simplifies these applications
 """
 
+import functools
 import itertools
 import pathlib
 import random
 import sys
 import typing
-from functools import singledispatch
 from math import fsum
 
 import click
@@ -44,7 +44,7 @@ from divergent.record import KmerSeq, SeqArray, seqarray_to_record, vector
 # the least contributor omitted)
 
 
-@singledispatch
+@functools.singledispatch
 def _jsd(summed_freqs: vector | ndarray, summed_entropy: float, n: int) -> float:
     raise NotImplementedError
 
