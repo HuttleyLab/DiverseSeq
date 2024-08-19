@@ -42,17 +42,32 @@ class HDF5DataStore(DataStoreABC):
         source: str | pathlib.Path,
         mode: Mode = "r",
         limit: int = None,
+        in_memory: bool = False,
     ) -> None:
+        if in_memory:
+            h5_kwargs = dict(
+                driver="core",
+                backing_store=False,
+            )
+            source = "memory"
+            mode = "w"
+        else:
+            h5_kwargs = {}
+
         self._source = pathlib.Path(source)
+
         self._mode = Mode(mode)
+        if self._mode == Mode.r and not self._source.exists():
+            raise OSError(f"{self._source!s} not found")
         self._limit = limit
+        self._h5_kwargs = h5_kwargs
         self._file = h5py.File(source, mode=self.mode.name, **self._h5_kwargs)
         self._is_open = True
         self._completed = []
 
     def __getstate__(self):
         init_vals = self._init_vals.copy()
-        init_vals["mode"] = "r"
+        init_vals["mode"] = "w" if init_vals["in_memory"] else "r"
         return init_vals
 
     def __setstate__(self, state):

@@ -5,7 +5,7 @@ from cogent3 import load_unaligned_seqs, make_unaligned_seqs
 from numpy.testing import assert_array_equal
 
 from divergent import data_store
-from divergent.io import dvgt_file_to_dir, dvgt_load_seqs, dvgt_write_seqs
+from divergent import io as dvgt_io
 from divergent.util import str2arr
 
 DATADIR = pathlib.Path(__file__).parent / "data"
@@ -27,7 +27,7 @@ def brca1_5(brca1_seqs):
 
 @pytest.fixture(scope="function")
 def brca1_dstore(tmp_path):
-    dstore_maker = dvgt_file_to_dir(tmp_path / "brca1_dstore")
+    dstore_maker = dvgt_io.dvgt_file_to_dir(tmp_path / "brca1_dstore")
     return dstore_maker(DATADIR / "brca1.fasta")
 
 
@@ -35,7 +35,7 @@ def brca1_dstore(tmp_path):
 def brca1_5_dstore(tmp_path, brca1_5):
     fasta_path = tmp_path / "brca1_5.fasta"
     brca1_5.write(fasta_path)
-    dstore_maker = dvgt_file_to_dir(tmp_path / "brca1_5_dstore")
+    dstore_maker = dvgt_io.dvgt_file_to_dir(tmp_path / "brca1_5_dstore")
     return dstore_maker(fasta_path)
 
 
@@ -53,7 +53,9 @@ def test_dvgt_file_to_dir(brca1_5_dstore, brca1_5):
 def test_prep_pipeline(brca1_5, brca1_5_dstore, hdf5_dstore_path, parallel):
     # initialise and apply pipeline
     dstore = data_store.HDF5DataStore(source=hdf5_dstore_path, mode="w")
-    prep = dvgt_load_seqs(moltype="dna") + dvgt_write_seqs(data_store=dstore)
+    prep = dvgt_io.dvgt_load_seqs(moltype="dna") + dvgt_io.dvgt_write_seqs(
+        data_store=dstore,
+    )
     result = prep.apply_to(brca1_5_dstore, parallel=parallel)
 
     # output datastore contains same number of records as seqs in orig file
@@ -74,3 +76,14 @@ def test_get_seqids(DATA_DIR):
     got = data_store.get_seqids_from_store(store_path)
 
     assert set(got) == expect
+
+
+def test_in_memory(brca1_5):
+    dstore = data_store.HDF5DataStore(source=":memory:", mode="w", in_memory=True)
+    writer = dvgt_io.dvgt_write_seqs(
+        data_store=dstore,
+    )
+    prep = dvgt_io.seq_to_seqarray(moltype="dna") + writer
+    prep.apply_to(brca1_5.seqs, id_from_source=lambda x: x.name, logger=False)
+    assert len(dstore) == brca1_5.num_seqs
+    assert dstore.read("Cat").shape == (20,)
