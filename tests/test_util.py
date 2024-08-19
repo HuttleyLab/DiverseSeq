@@ -1,5 +1,7 @@
+import numpy
 import pytest
 from cogent3 import get_moltype
+from numpy.testing import assert_allclose
 
 from divergent import util as dvgt_util
 
@@ -54,3 +56,11 @@ def test_pickle_compress_round_trip():
     )
     got = round_trip(data)
     assert got == data
+
+
+def test_summary_stats():
+    data = numpy.random.randint(low=0, high=5, size=100)
+    stats = dvgt_util.summary_stats(data)
+    assert_allclose(stats.mean, data.mean())
+    assert_allclose(stats.std, data.std(ddof=1))
+    assert_allclose(stats.cov, data.std(ddof=1) / data.mean())

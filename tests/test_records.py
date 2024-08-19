@@ -121,7 +121,7 @@ def test_max_divergent(seqcoll):
     k = 1
     kcounts = _get_kfreqs_per_seq(seqcoll, k=k)
     records = _make_records(kcounts, seqcoll)
-    got = dvgt_records.max_divergent(records, min_size=2)
+    got = dvgt_records.max_divergent(records, min_size=2, max_size=2)
     assert got.size == 2
 
 

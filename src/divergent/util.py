@@ -1,12 +1,14 @@
 import contextlib
+import functools
+import math
 import pickle
 import re
 
 import blosc2
+import numpy
 from cogent3 import get_moltype
 from cogent3.app import composable
 from cogent3.app import typing as c3_types
-from numpy import array, ndarray, uint8
 
 try:
     from wakepy.keep import running as keep_running
@@ -59,12 +61,12 @@ class str2arr:
             "".join(chr(i) for i in range(len(extended))).encode("utf8"),
         )
 
-    def main(self, data: str) -> ndarray:
+    def main(self, data: str) -> numpy.ndarray:
         if self.max_length:
             data = data[: self.max_length]
 
         b = data.encode("utf8").translate(self.translation)
-        return array(memoryview(bytearray(b)), dtype=uint8)
+        return numpy.array(memoryview(bytearray(b)), dtype=numpy.uint8)
 
 
 @composable.define_app
@@ -81,7 +83,7 @@ class arr2str:
             extended.encode("utf8"),
         )
 
-    def main(self, data: ndarray) -> str:
+    def main(self, data: numpy.ndarray) -> str:
         if self.max_length:
             data = data[: self.max_length]
 
@@ -123,8 +125,37 @@ def chunked(iterable, num_chunks, verbose=False):
     if verbose:
         print(f"chunk sizes: {sizes}")
 
-    cum_sizes = array(sizes).cumsum()
+    cum_sizes = numpy.array(sizes).cumsum()
     starts = [0] + cum_sizes[:-1].tolist()
-    start_stop = array([starts, cum_sizes]).T
+    start_stop = numpy.array([starts, cum_sizes]).T
     for start, end in start_stop:
         yield iterable[start:end]
+
+
+class summary_stats:
+    """computes the summary statistics for a set of numbers"""
+
+    def __init__(self, numbers: numpy.ndarray):
+        self._numbers = numbers
+
+    @functools.cached_property
+    def n(self):
+        return len(self._numbers)
+
+    @functools.cached_property
+    def mean(self):
+        return math.fsum(self._numbers) / self.n
+
+    @functools.cached_property
+    def var(self):
+        """unbiased estimate of the variance"""
+        return math.fsum((x - self.mean) ** 2 for x in self._numbers) / (self.n - 1)
+
+    @functools.cached_property
+    def std(self):
+        """standard deviation"""
+        return self.var**0.5
+
+    @functools.cached_property
+    def cov(self):
+        return self.std / self.mean

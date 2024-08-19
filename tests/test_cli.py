@@ -119,10 +119,9 @@ def test_min_gt_max_fail(runner, tmp_dir, processed_seq_path):
     assert r.exit_code != 0, r.output
 
 
-@pytest.mark.parametrize("stat", ("total_jsd", "mean_jsd", "mean_delta_jsd"))
-def test_stat(runner, tmp_dir, processed_seq_path, stat):
+def test_stat(runner, tmp_dir, processed_seq_path):
     outpath = tmp_dir / "test_defaults.tsv"
-    args = f"-s {processed_seq_path} -o {outpath} -st {stat}".split()
+    args = f"-s {processed_seq_path} -o {outpath}".split()
     r = runner.invoke(dvgt_max, args, catch_exceptions=False)
     assert r.exit_code == 0, r.output
     _checked_output(outpath)

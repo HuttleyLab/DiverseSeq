@@ -91,20 +91,17 @@ Usage: dvgt max [OPTIONS]
   Identify the seqs that maximise average delta JSD
 
 Options:
-  -s, --seqfile PATH              path to .dvtgseqs file  [required]
-  -o, --outpath PATH              the input string will be cast to Path instance
-  -z, --min_size INTEGER          minimum size of divergent set  [default: 7]
-  -zp, --max_size INTEGER         maximum size of divergent set
-  -k INTEGER                      k-mer size  [default: 3]
-  -st, --stat [total_jsd|mean_delta_jsd|mean_jsd]
-                                  statistic to maximise  [default:
-                                  mean_delta_jsd]
-  -np, --numprocs INTEGER         number of processes  [default: 1]
-  -L, --limit INTEGER             number of sequences to process
-  -T, --test_run                  reduce number of paths and size of query seqs
-  -v, --verbose                   is an integer indicating number of cl
-                                  occurrences  [default: 0]
-  --help                          Show this message and exit.
+  -s, --seqfile PATH       path to .dvtgseqs file  [required]
+  -o, --outpath PATH       the input string will be cast to Path instance
+  -z, --min_size INTEGER   minimum size of divergent set  [default: 7]
+  -zp, --max_size INTEGER  maximum size of divergent set
+  -k INTEGER               k-mer size  [default: 3]
+  -np, --numprocs INTEGER  number of processes  [default: 1]
+  -L, --limit INTEGER      number of sequences to process
+  -T, --test_run           reduce number of paths and size of query seqs
+  -v, --verbose            is an integer indicating number of cl occurrences
+                           [default: 0]
+  --help                   Show this message and exit.
 
 ```
 <!-- [[[end]]] -->
