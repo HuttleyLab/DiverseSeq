@@ -30,7 +30,7 @@ from cogent3 import make_table
 from cogent3.app import typing as c3_types
 from cogent3.app.composable import NotCompleted, define_app
 from cogent3.app.data_store import DataStoreABC
-from numpy import empty, isnan, log2, ndarray, random, uint8, zeros
+from numpy import array, empty, isnan, log2, ndarray, random, uint8, zeros
 from numpy import isclose as np_isclose
 from rich.progress import track
 
@@ -234,7 +234,7 @@ class SummedRecords:
         return self._stats.cov
 
     def replaced_lowest(self, other: KmerSeq):
-        """returns new SummedRecords with other instead of lowest"""
+        """returns new instance with other instead of lowest"""
         summed_kfreqs = self.summed_kfreqs + other.kfreqs
         summed_entropies = self.summed_entropies + other.entropy
         return self._make_new([other] + self.records, summed_kfreqs, summed_entropies)
@@ -257,11 +257,10 @@ def max_divergent(
     records: list[KmerSeq],
     min_size: int = 2,
     max_size: int | None = None,
-    stat: str = "mean_jsd",
     max_set: bool = True,
     verbose: bool = False,
 ) -> SummedRecords:
-    """returns SummedRecords that maximises stat
+    """returns SummedRecords that maximises the stdev(delta_jsd)
 
     Parameters
     ----------
@@ -271,18 +270,13 @@ def max_divergent(
         starting size of SummedRecords
     max_size
         defines upper limit of SummedRecords size
-    stat
-        either mean_delta_jsd, mean_jsd, total_jsd
     max_set
-        postprocess to identify subset that maximises stat
+        postprocess to identify subset that maximises stdev(delta_jsd)
 
     Notes
     -----
     This is sensitive to the order of records.
     """
-    if stat not in ("mean_jsd", "mean_delta_jsd", "total_jsd"):
-        raise ValueError(f"unknown value of stat {stat}")
-
     max_size = max_size or len(records)
     sr = SummedRecords.from_records(records[:min_size])
 
@@ -300,12 +294,12 @@ def max_divergent(
             continue
 
         nsr = sr + r
-        sr = nsr if getattr(nsr, stat) > getattr(sr, stat) else sr.replaced_lowest(r)
+        sr = nsr if nsr.std_delta_jsd > sr.std_delta_jsd else sr.replaced_lowest(r)
         if sr.size > max_size:
             sr = SummedRecords.from_records(sr.records)
 
     if max_set:
-        app = dvgt_final_max(stat=stat, min_size=min_size, verbose=verbose)
+        app = dvgt_final_max(min_size=min_size, verbose=verbose)
         sr = app([sr])
     elif verbose:
         num_neg = sum(r.delta_jsd < 0 for r in [sr.lowest] + sr.records)
@@ -317,18 +311,15 @@ def max_divergent(
 def dvgt_final_max(
     summed: list[SummedRecords],
     *,
-    stat: str,
     min_size: int,
     verbose: bool,
 ) -> SummedRecords:
-    """returns the set that maximises stat
+    """returns the set that maximises stdev(delta_jsd)
 
     Parameters
     ----------
     sr
         SummedRecords instance
-    stat
-        name of a SummedRecords attribute that returns the statistic
     min_size
         the minimum size of the set
     verbose
@@ -344,20 +335,20 @@ def dvgt_final_max(
     if sr.size == min_size:
         return sr
 
-    results = {getattr(sr, stat): sr}
+    results = {sr.std_delta_jsd: sr}
     orig_size = sr.size
-    orig_stat = getattr(sr, stat)
+    orig_stat = sr.std_delta_jsd
 
     while sr.size > min_size:
         sr = sr.from_records(sr.records)
-        results[getattr(sr, stat)] = sr
+        results[sr.std_delta_jsd] = sr
 
     sr = results[max(results)]
 
     if verbose:
         print(
             f"Reduced size from {orig_size} to {sr.size}",
-            f" Increased {stat} from {orig_stat:.3f} to {getattr(sr, stat):.3f}",
+            f" Increased std(delta_jsd) from {orig_stat:.3f} to {sr.std_delta_jsd:.3f}",
             sep="\n",
         )
     return sr
@@ -404,7 +395,7 @@ def most_divergent(
 
 @define_app
 class dvgt_max:
-    """return the maximally divergent sequences"""
+    """return the set of sequences that maximise stdev(delta_jsd)"""
 
     def __init__(
         self,
@@ -413,7 +404,6 @@ class dvgt_max:
         k: int = 3,
         min_size: int = 7,
         max_size: int = None,
-        stat: str = "mean_delta_jsd",
         limit: int = None,
         verbose=0,
     ) -> None:
@@ -429,12 +419,8 @@ class dvgt_max:
             the minimum number of sequences to be included in the divergent set
         max_size
             the maximum number of sequences to be included in the divergent set
-        stat
-            the stat to use for selecting whether to include a sequence
         limit
             limit number of sequence records to process
-        stat
-            the statistic to use for optimising, by default "mean_delta_jsd"
         verbose
             extra info display
         """
@@ -443,7 +429,6 @@ class dvgt_max:
         self.limit = limit
         self.max_size = max_size
         self.min_size = min_size
-        self.stat = stat
         self.verbose = verbose
 
     def main(self, seq_names: list[str]) -> SummedRecords:
@@ -459,7 +444,6 @@ class dvgt_max:
             records=records,
             min_size=self.min_size,
             max_size=self.max_size,
-            stat=self.stat,
             verbose=self.verbose > 0,
             max_set=False,
         )
@@ -614,13 +598,12 @@ def apply_app(
 
 @define_app
 class dvgt_select_max:
-    """selects the maximally divergent seqs from a sequence collection"""
+    """selects the seqs from a sequence collection that maximise stdev(delta_jsd)"""
 
     def __init__(
         self,
         min_size: int = 3,
         max_size: int = 10,
-        stat: str = "mean_jsd",
         moltype: str = "dna",
         k: int = 4,
         seed: int | None = None,
@@ -632,8 +615,6 @@ class dvgt_select_max:
             minimum size of the divergent set
         max_size
             the maximum size if the divergent set
-        stat
-            statistic for maximising the set, either mean_delta_jsd, mean_jsd, total_jsd
         moltype
             molecular type of the sequences
         k
@@ -651,7 +632,6 @@ class dvgt_select_max:
         )
         self.min_size = min_size
         self.max_size = max_size
-        self.stat = stat
         self._rng = random.default_rng(seed)
 
     def main(self, seqs: c3_types.UnalignedSeqsType) -> c3_types.UnalignedSeqsType:
@@ -665,7 +645,6 @@ class dvgt_select_max:
             records=records,
             min_size=self.min_size,
             max_size=self.max_size,
-            stat=self.stat,
         )
         return seqs.take_seqs(result.record_names)
 
