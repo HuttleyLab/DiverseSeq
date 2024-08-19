@@ -3,20 +3,19 @@ from pathlib import Path
 from statistics import mean, stdev
 
 import click
-from cogent3 import make_table, get_app
+from cogent3 import make_table
 from cogent3.app import io
 from cogent3.app import typing as c3_types
 from cogent3.app.composable import define_app
 from cogent3.util import parallel as PAR
+from numpy import isnan, array
 from numpy.random import choice
-from numpy import isnan
 from rich.progress import track
 from scipy.special import binom
 
-from divergent.record import seqarray_to_kmerseq
-from divergent.records import max_divergent
-from divergent import util as dvgt_utils
 from divergent import records as dvgt_records
+from divergent import util as dvgt_utils
+from divergent.records import max_divergent
 
 
 def get_combinations(all_vals, choose, number):
@@ -32,22 +31,33 @@ def get_combinations(all_vals, choose, number):
     return [[all_vals[i] for i in combo] for combo in indices]
 
 
-
-
-class mean_dist:
+class calc_mean:
     def __init__(self, aln):
         self.dists = aln.distance_matrix(calc="paralinear", drop_invalid=False)
         self.num = len(aln.names)
 
     def __call__(self, names):
         dists = self.dists.take_dists(names)
-        return mean(v for v in dists.to_dict().values() if not isnan(v))
+        values = [v for v in dists.to_dict().values() if not isnan(v)]
+        stats = dvgt_utils.summary_stats(array(values))
+        return stats.mean
 
 
 @define_app
 class assess_distances:
-    def __init__(self,*, k, min_size, max_size, stat, max_set, dist_size: int = 1000) -> None:
-        self._s2k = dvgt_records.seq_to_seqarray(moltype="dna") + dvgt_records.seqarray_to_kmerseq(
+    def __init__(
+        self,
+        *,
+        k,
+        min_size,
+        max_size,
+        stat,
+        max_set,
+        dist_size: int = 1000,
+    ) -> None:
+        self._s2k = dvgt_records.seq_to_seqarray(
+            moltype="dna",
+        ) + dvgt_records.seqarray_to_kmerseq(
             k=k,
             moltype="dna",
         )
@@ -58,16 +68,22 @@ class assess_distances:
         self.max_set = max_set
 
     def main(self, aln: c3_types.AlignedSeqsType) -> dict:
-        get_mean = mean_dist(aln)
+        mean_dist = calc_mean(aln)
         records = [self._s2k(s) for s in aln.degap().seqs]
-        divergent = max_divergent(records, min_size=self.min_size, max_size=self.max_size, stat=self.stat, max_set=self.max_set)
+        divergent = max_divergent(
+            records,
+            min_size=self.min_size,
+            max_size=self.max_size,
+            stat=self.stat,
+            max_set=self.max_set,
+        )
         num = divergent.size
         combinations = get_combinations(aln.names, num, self.dist_size)
 
-        stats = {"observed": [True], "mean(dist)": [get_mean(divergent.record_names)]}
+        stats = {"observed": [True], "mean(dist)": [mean_dist(divergent.record_names)]}
         for names in combinations:
             stats["observed"].append(False)
-            stats["mean(dist)"].append(get_mean(names))
+            stats["mean(dist)"].append(mean_dist(names))
 
         dists = stats["mean(dist)"]
         obs = dists[0]
@@ -92,7 +108,14 @@ def run(
 ):
     with dvgt_utils.keep_running():
         loader = io.load_aligned(moltype="dna")
-        make_distn = assess_distances(dist_size=dist_size, k=k, min_size=min_size, max_size=10, stat=stat, max_set=max_set)
+        make_distn = assess_distances(
+            dist_size=dist_size,
+            k=k,
+            min_size=min_size,
+            max_size=10,
+            stat=stat,
+            max_set=max_set,
+        )
 
         app = loader + make_distn
         dstore = io.open_data_store(aln_dir, suffix="fa", limit=limit)
@@ -102,11 +125,10 @@ def run(
         for result in series:
             if not result:
                 continue
-            result["pval"] =  result["num_gt"] / result["dist_size"]
+            result["pval"] = result["num_gt"] / result["dist_size"]
             result["num_divergent"] = len(result.pop("divergent"))
             result.pop("stats")
             results.append(result)
-
 
     return results
 
@@ -122,8 +144,8 @@ _click_command_opts = dict(
 def main(seqdir):
     settings = list(
         product(
-            range(2, 8),
-            ("mean_jsd", "mean_delta_jsd", "total_jsd"),
+            range(2, 11),
+            ("stdev", "cov"),
             (True, False),
         ),
     )
@@ -134,9 +156,16 @@ def main(seqdir):
         setting = dict(zip(order, config, strict=False))
         result = run(seqdir, min_size=5, dist_size=1000, **setting)
         sizes = [r["num_divergent"] for r in result]
-        rows.append(list(config) + [mean(sizes), stdev(sizes)] + [100 * sum(r["pval"] < 0.05 for r in result) / len(result)])
+        rows.append(
+            list(config)
+            + [mean(sizes), stdev(sizes)]
+            + [100 * sum(r["pval"] < 0.05 for r in result) / len(result)],
+        )
 
-    table = make_table(header=list(order) + ["mean(size)", "stdev(size)", "(p-value<0.05)%"], data=rows)
+    table = make_table(
+        header=list(order) + ["mean(size)", "stdev(size)", "(p-value<0.05)%"],
+        data=rows,
+    )
     print(table)
     table.write("jsd_v_dist.tsv")
 

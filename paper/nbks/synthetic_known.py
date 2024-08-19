@@ -15,6 +15,7 @@ from divergent.records import max_divergent
 POOL = {"a": "ACGGGGGT", "b": "ACCCCCGT", "c": "AAAAACGT", "d": "ACGTTTTT"}
 STATS = "stdev", "cov"
 
+
 def seqs_from_pool(pool: str, num_seqs: int, seq_len: int) -> dict:
     """generate synthetic sequences from a pool"""
     return {
