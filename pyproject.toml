@@ -15,7 +15,7 @@ dependencies = [
     "attrs",
     "blosc2",
     "click",
-    "cogent3",
+    "cogent3 @ git+https://github.com/cogent3/cogent3.git@develop",
     "hdf5plugin",
     "h5py",
     "numpy>=2.0",
@@ -78,13 +78,8 @@ doc  = ["click",
         ]
 
 [project.entry-points."cogent3.app"]
-dvgt_file_to_dir = "divergent.io:dvgt_file_to_dir"
-dvgt_load_seqs = "divergent.io:dvgt_load_seqs"
-dvgt_write_seqs = "divergent.io:dvgt_write_seqs"
-dvgt_max = "divergent.records:dvgt_max"
-dvgt_final_max = "divergent.records:dvgt_final_max"
-dvgt_nmost = "divergent.records:dvgt_nmost"
-dvgt_final_nmost = "divergent.records:dvgt_final_nmost"
+dvgt_select_nmost = "divergent.records:dvgt_select_nmost"
+dvgt_select_max = "divergent.records:dvgt_select_max"
 
 [tool.pytest.ini_options]
 addopts = ["--strict-config", "-ra"]

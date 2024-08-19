@@ -27,6 +27,7 @@ import click
 import h5py
 from attrs import define, field
 from cogent3 import make_table
+from cogent3.app import typing as c3_types
 from cogent3.app.composable import NotCompleted, define_app
 from cogent3.app.data_store import DataStoreABC
 from numpy import empty, isnan, log2, ndarray, random, uint8, zeros
@@ -590,3 +591,88 @@ def apply_app(
             sys.exit(1)
 
     return result
+
+
+# single apps that combine multiple apps to work off a sequence collection
+# app convert seq coll to SequenceArray and converts those into KmerSeq instances
+
+
+@define_app
+class dvgt_select_max:
+    """selects the maximally divergent seqs from a sequence collection"""
+
+    def __init__(
+        self,
+        min_size: int = 3,
+        max_size: int = 10,
+        stat: str = "mean_jsd",
+        moltype: str = "dna",
+        k: int = 4,
+    ) -> None:
+        """
+        Parameters
+        ----------
+        min_size
+            minimum size of the divergent set
+        max_size
+            the maximum size if the divergent set
+        stat
+            statistic for maximising the set, either mean_delta_jsd, mean_jsd, total_jsd
+        moltype
+            molecular type of the sequences
+        k
+            k-mer size
+        """
+        self._s2k = seq_to_seqarray(moltype=moltype) + seqarray_to_kmerseq(
+            k=k,
+            moltype=moltype,
+        )
+        self.min_size = min_size
+        self.max_size = max_size
+        self.stat = stat
+
+    def main(self, seqs: c3_types.UnalignedSeqsType) -> c3_types.UnalignedSeqsType:
+        records = [self._s2k(seq) for seq in seqs.seqs]
+        for record in records:
+            if not record:
+                print(record)
+                return None
+        result = max_divergent(
+            records=records,
+            min_size=self.min_size,
+            max_size=self.max_size,
+            stat=self.stat,
+        )
+        return seqs.take_seqs(result.record_names)
+
+
+@define_app
+class dvgt_select_nmost:
+    def __init__(
+        self,
+        n: int = 3,
+        moltype: str = "dna",
+        k: int = 4,
+    ) -> None:
+        """
+        Parameters
+        ----------
+        n
+            the number of divergent sequences
+        k
+            k-mer size
+        """
+        self._s2k = seq_to_seqarray(moltype=moltype) + seqarray_to_kmerseq(
+            k=k,
+            moltype=moltype,
+        )
+        self.n = n
+        self.moltype = moltype
+
+    def main(self, seqs: c3_types.UnalignedSeqsType) -> c3_types.UnalignedSeqsType:
+        records = [self._s2k(seq) for seq in seqs.seqs]
+        result = most_divergent(
+            records=records,
+            size=self.n,
+        )
+        return seqs.take_seqs(result.record_names)
