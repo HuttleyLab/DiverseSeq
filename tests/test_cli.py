@@ -1,4 +1,5 @@
 import pathlib
+import sys
 
 import h5py
 import pytest
@@ -144,6 +145,7 @@ def test_nmost(runner, tmp_dir, processed_seq_path):
     _checked_output(outpath, eval_rows=lambda x: x == 5)
 
 
+@pytest.mark.skipif(sys.platform.startswith("win"), reason="Test skipped on Windows")
 def test_prep_seq_file(runner, tmp_dir, seq_path):
     outpath = tmp_dir / "test_prep_seq_file.dvgtseqs"
     args = f"-s {seq_path} -o {outpath} -sf fasta".split()
@@ -152,6 +154,7 @@ def test_prep_seq_file(runner, tmp_dir, seq_path):
     _checked_h5_dstore(str(outpath))
 
 
+@pytest.mark.skipif(sys.platform.startswith("win"), reason="Test skipped on Windows")
 def test_prep_outpath_without_suffix(runner, tmp_dir, seq_path):
     outpath = tmp_dir / "test_prep_outpath_without_suffix"
     args = f"-s {seq_path} -o {outpath}".split()
