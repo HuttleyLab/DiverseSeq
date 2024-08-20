@@ -1,5 +1,4 @@
 import string
-import warnings
 from pathlib import Path
 
 from attrs import define
@@ -42,20 +41,6 @@ def _label_from_filename(path):
     return Path(path).stem.split(".")[0]
 
 
-@define_app(app_type=LOADER)
-def faster_load_fasta(path: c3_types.IdentifierType, label_func=_label_func) -> dict:
-    result = {}
-    for n, s in fasta.iter_fasta_records(path, converter=converter_fasta):
-        n = label_func(n)
-        if n in result and result[n] != s:
-            warnings.warn(
-                f"duplicated seq label {n!r} in {path}, but different seqs",
-                UserWarning,
-            )
-        result[n] = s.decode("utf8")
-    return result
-
-
 @define
 class filename_seqname:
     source: str
@@ -63,15 +48,15 @@ class filename_seqname:
 
 
 def get_format_parser(seq_path, seq_format):
-    if seq_format == "fasta":
-        parser = fasta.iter_fasta_records(seq_path, converter=converter_fasta)
-    else:
-        parser = genbank.iter_genbank_records(
+    return (
+        fasta.iter_fasta_records(seq_path, converter=converter_fasta)
+        if seq_format == "fasta"
+        else genbank.iter_genbank_records(
             seq_path,
             converter=converter_genbank,
             convert_features=None,
         )
-    return parser
+    )
 
 
 @define_app(app_type=LOADER)
