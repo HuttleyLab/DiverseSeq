@@ -1,14 +1,11 @@
 import contextlib
 import functools
 import math
-import pickle
 import re
 
-import blosc2
 import numpy
 from cogent3 import get_moltype
 from cogent3.app import composable
-from cogent3.app import typing as c3_types
 
 try:
     from wakepy.keep import running as keep_running
@@ -22,29 +19,6 @@ except (NotImplementedError, ImportError):
     @contextlib.contextmanager
     def keep_running(*args, **kwargs):
         yield
-
-
-@composable.define_app
-def blosc_decompress(data: bytes) -> bytes:
-    return blosc2.decompress(data)
-
-
-@composable.define_app
-def blosc_compress(data: bytes) -> bytes:
-    return blosc2.compress(
-        data,
-        filter=blosc2.Filter.BITSHUFFLE,
-    )
-
-
-@composable.define_app
-def pickle_data(data: c3_types.SerialisableType) -> bytes:
-    return pickle.dumps(data)
-
-
-@composable.define_app
-def unpickle_data(data: bytes) -> c3_types.SerialisableType:
-    return pickle.loads(data)
 
 
 @composable.define_app
