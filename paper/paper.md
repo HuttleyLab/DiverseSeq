@@ -19,7 +19,8 @@ affiliations:
    index: 1
 date: 13 August 2024
 bibliography: paper.bib
-
+header-includes:
+  - \input{header.tex}
 ---
 
 # Summary
