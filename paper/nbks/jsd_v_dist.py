@@ -86,7 +86,7 @@ class compare_sets:
         gt = sum(v >= obs for v in dists[1:])
         return {
             "stats": stats,
-            "divergent": len(divergent.names),
+            "divergent": len(divergent.names),  # size oif the divergent set
             "dist_size": len(combinations),
             "num_gt": gt,
             "source": aln.info.source,
@@ -94,7 +94,7 @@ class compare_sets:
 
 
 def run(
-    aln_dir: Path,
+    store_path: Path,
     stat,
     k: int = 4,
     min_size: int = 7,
@@ -115,9 +115,8 @@ def run(
         )
 
         app = loader + make_distn
-        dstore = io.open_data_store(aln_dir, suffix="fa", limit=limit)
+        dstore = io.open_data_store(store_path, suffix="fa", limit=limit)
 
-        kw = {} if serial else dict(parallel=True, par_kw=dict(max_workers=10))
         results = []
         for result in app.as_completed(dstore, parallel=not serial):
             if not result:
@@ -138,25 +137,44 @@ _click_command_opts = dict(
 
 
 @click.command(**_click_command_opts)
-@click.argument("seqdir", type=Path)
-@click.option("-x", "--max_k", type=int, default=11, help="test run")
-@click.option("-T", "--test_run", is_flag=True, help="test run")
+@click.argument("data_path", type=Path)
+@click.option(
+    "-o",
+    "--outpath",
+    type=Path,
+    default=Path("jsd_v_dist.tsv"),
+    help="writes output to this file",
+)
+@click.option(
+    "-x",
+    "--max_k",
+    type=int,
+    default=11,
+    help="upper bound for k-mer size, not inclusive",
+)
+@click.option("-r", "--repeats", type=int, default=3, help="repeats per condition")
+@click.option("-D", "--dry_run", is_flag=True, help="don't write output")
 @click.option("-S", "--serial", is_flag=True, help="run on 1 CPU")
-def main(seqdir, test_run, max_k, serial):
-    settings = list(
-        product(
-            range(2, max_k),  # k values
-            (5, 10),  # min_size values
-            (10,),  # max_size value
-            ("stdev", "cov"),  # stat values
-        ),
+def main(data_path, outpath, dry_run, max_k, serial, repeats):
+    """measures performance of divergent using a directory containg fasta
+    formatted alignment files of DNA sequences"""
+    settings = (
+        list(
+            product(
+                range(2, max_k),  # k values
+                (5, 10),  # min_size values
+                (10,),  # max_size value
+                ("stdev", "cov"),  # stat values
+            ),
+        )
+        * repeats
     )
 
     order = "k", "min_size", "max_size", "stat"
     rows = []
     for config in track(settings, description="Working on setting..."):
         setting = dict(zip(order, config, strict=False))
-        result = run(seqdir, dist_size=1000, serial=serial, **setting)
+        result = run(data_path, dist_size=1000, serial=serial, **setting)
         sizes = [r["num_divergent"] for r in result]
         rows.append(
             list(config)
@@ -169,8 +187,8 @@ def main(seqdir, test_run, max_k, serial):
         data=rows,
     )
     print(table)
-    if not test_run:
-        table.write("jsd_v_dist.tsv")
+    if not dry_run:
+        table.write(outpath)
 
 
 if __name__ == "__main__":
