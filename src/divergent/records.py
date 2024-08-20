@@ -18,19 +18,18 @@ SummedRecords is the container that simplifies these applications
 import functools
 import itertools
 import pathlib
-import random
 import sys
 import typing
 from math import fsum
 
 import click
 import h5py
+import numpy
 from attrs import define, field
 from cogent3 import make_table
 from cogent3.app import typing as c3_types
 from cogent3.app.composable import NotCompleted, define_app
 from cogent3.app.data_store import DataStoreABC
-from numpy import array, empty, isnan, log2, ndarray, random, uint8, zeros
 from numpy import isclose as np_isclose
 from rich.progress import track
 
@@ -52,7 +51,7 @@ from divergent.record import (
 
 
 @functools.singledispatch
-def _jsd(summed_freqs: vector | ndarray, summed_entropy: float, n: int) -> float:
+def _jsd(summed_freqs: vector | numpy.ndarray, summed_entropy: float, n: int) -> float:
     raise NotImplementedError
 
 
@@ -64,18 +63,18 @@ def _(summed_freqs: vector, summed_entropy: float, n: int):
 
 
 @_jsd.register
-def _(summed_freqs: ndarray, summed_entropy: float, n: int):
+def _(summed_freqs: numpy.ndarray, summed_entropy: float, n: int):
     kfreqs = summed_freqs / n
     entropy = summed_entropy / n
     kfreqs = kfreqs[~np_isclose(kfreqs, 0)]
-    ke = -(kfreqs * log2(kfreqs)).sum()
+    ke = -(kfreqs * numpy.log2(kfreqs)).sum()
     return ke - entropy
 
 
 def _summed_stats(records: list[KmerSeq]) -> tuple[vector, float]:
     # takes series of records and sums quantitative parts
     sv = records[0].kfreqs
-    vec = zeros(len(sv), dtype=float)
+    vec = numpy.zeros(len(sv), dtype=float)
     entropies = []
     for record in records:
         vec += record.kfreqs
@@ -100,7 +99,7 @@ def _delta_jsd(
         summed_entropies = total_entropies - record.entropy
         jsd = _jsd(summed_kfreqs, summed_entropies, n - 1)
         record.delta_jsd = total_jsd - jsd
-        if isnan(record.delta_jsd):
+        if numpy.isnan(record.delta_jsd):
             print(f"{record.name!r} had a nan")
             sys.exit(1)
         result.append(record)
@@ -146,7 +145,9 @@ class SummedRecords:
         # NOTE we exclude lowest record from freqs and entropy
         self.summed_kfreqs = summed_kfreqs - self.lowest.kfreqs
         self.summed_entropies = summed_entropies - self.lowest.entropy
-        self._stats = dvgt_util.summary_stats(array([r.delta_jsd for r in records]))
+        self._stats = dvgt_util.summary_stats(
+            numpy.array([r.delta_jsd for r in records]),
+        )
 
     @classmethod
     def from_records(cls, records: list[:KmerSeq]):
@@ -343,7 +344,7 @@ def dvgt_final_max(
     """
     if len(summed) > 1:
         records = list(itertools.chain.from_iterable(sr.all_records() for sr in summed))
-        random.shuffle(records)
+        numpy.random.shuffle(records)
         sr = SummedRecords.from_records(records)
     else:
         sr = summed[0]
@@ -463,7 +464,7 @@ class dvgt_max:
             k=self.k,
         )
         # TODO: add ability to set random number seed
-        random.shuffle(records)
+        numpy.random.shuffle(records)
         return max_divergent(
             records=records,
             min_size=self.min_size,
@@ -508,7 +509,7 @@ def records_from_seq_store(
                 continue
             orig_moltype = dset.attrs["moltype"]
             source = dset.attrs["source"]
-            out = empty(len(dset), dtype=uint8)
+            out = numpy.empty(len(dset), dtype=numpy.uint8)
             dset.read_direct(out)
             seqs.append(
                 SeqArray(seqid=name, data=out, moltype=orig_moltype, source=source),
@@ -565,7 +566,7 @@ class dvgt_nmost:
             k=self.k,
         )
         # TODO: add ability to set random number seed
-        random.shuffle(records)
+        numpy.random.shuffle(records)
         return most_divergent(records, size=self.max_size, verbose=self.verbose > 0)
 
 
@@ -579,7 +580,7 @@ def dvgt_final_nmost(summed: list[SummedRecords]) -> SummedRecords:
     """
     size = max(sr.size for sr in summed)
     records = list(itertools.chain.from_iterable(sr.all_records() for sr in summed))
-    random.shuffle(records)
+    numpy.random.shuffle(records)
     return most_divergent(records, size=size, verbose=False, show_progress=False)
 
 
@@ -661,7 +662,7 @@ class dvgt_select_max:
         self.min_size = min_size
         self.max_size = max_size
         self.stat = stat
-        self._rng = random.default_rng(seed)
+        self._rng = numpy.random.default_rng(seed)
 
     def main(self, seqs: c3_types.UnalignedSeqsType) -> c3_types.UnalignedSeqsType:
         records = [self._s2k(seq) for seq in seqs.seqs]
@@ -710,7 +711,7 @@ class dvgt_select_nmost:
         )
         self.n = n
         self.moltype = moltype
-        self._rng = random.default_rng(seed)
+        self._rng = numpy.random.default_rng(seed)
 
     def main(self, seqs: c3_types.UnalignedSeqsType) -> c3_types.UnalignedSeqsType:
         records = [self._s2k(seq) for seq in seqs.seqs]

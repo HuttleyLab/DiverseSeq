@@ -10,9 +10,9 @@ from scitrack import CachingLogger
 
 from divergent import __version__
 from divergent import data_store as dvgt_data_store
+from divergent import io as dvgt_io
 from divergent import records as dvgt_records
 from divergent import util as dvgt_util
-from divergent.io import dvgt_file_to_dir, dvgt_load_seqs, dvgt_write_seqs
 
 LOGGER = CachingLogger()
 
@@ -142,7 +142,7 @@ def prep(seqdir, suffix, outpath, parallel, force_overwrite, moltype, limit):
 
     with dvgt_util.keep_running(), tempfile.TemporaryDirectory() as tmp_dir:
         if seqdir.is_file():
-            convert2dstore = dvgt_file_to_dir(dest=tmp_dir, limit=limit)
+            convert2dstore = dvgt_io.dvgt_file_to_dir(dest=tmp_dir, limit=limit)
             in_dstore = convert2dstore(seqdir)
         else:
             in_dstore = c3_data_store.DataStoreDirectory(source=seqdir, suffix=suffix)
@@ -155,10 +155,10 @@ def prep(seqdir, suffix, outpath, parallel, force_overwrite, moltype, limit):
 
         out_dstore = dvgt_data_store.HDF5DataStore(source=dvgtseqs_path, mode="w")
 
-        prep_pipeline = dvgt_load_seqs(
+        prep_pipeline = dvgt_io.dvgt_load_seqs(
             moltype=moltype,
             seq_format=seq_format,
-        ) + dvgt_write_seqs(
+        ) + dvgt_io.dvgt_write_seqs(
             data_store=out_dstore,
         )
         result = prep_pipeline.apply_to(
