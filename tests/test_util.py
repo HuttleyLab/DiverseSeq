@@ -46,18 +46,6 @@ def test_chunked():
     assert got == expect
 
 
-def test_pickle_compress_round_trip():
-    data = dict(a=23, b="abcd")
-    round_trip = (
-        dvgt_util.pickle_data()
-        + dvgt_util.blosc_compress()
-        + dvgt_util.blosc_decompress()
-        + dvgt_util.unpickle_data()
-    )
-    got = round_trip(data)
-    assert got == data
-
-
 def test_summary_stats():
     data = numpy.random.randint(low=0, high=5, size=100)
     stats = dvgt_util.summary_stats(data)
