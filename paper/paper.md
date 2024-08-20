@@ -91,6 +91,7 @@ counterparts to the above
 
 ## statistical correspondence to tree-based distances
 
+For homologous DNA sequences, increasing the amount of elapsed time since they shared a common ancestor increases their genetic distance. We also expect that the JSD between two sequences will increase proportional to the amount of time since they last shared a common ancestor. These lead to the expectation that there should be a relationship between genetic distance and JSD. This in turn leads us to formulate the following hypothesis for a divergent set with $N$ sequences. If JSD is uninformative, then the set of sequences chosen by `divergent` will be a random collection of size $N$. Under the alternate hypothesis, the minimum genetic distance between sequences chosen by `divergent` will be larger than the minimum between $N$ sequences chosen at random.
 
 
 
