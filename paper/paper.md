@@ -39,11 +39,14 @@ Divergent is implemented using Python and provides both a command-line interface
 
 # Statement of need
 
-current tools [@balaban.2019.plosone] are computationally costly in terms of requiring existence of a multiple sequence alignment or a phylogenetic tree or a pairwise distance matrix
-
-drawing insights from biological sequence data typically involves establishing relationships to existing sequence data
+Many bioinformatics analyses are costly in terms of compute time. Tools that facilitate the development of smaller scale prototypes can accelerate the execution of research projects without requiring enormous resources. 
 
 as the scale of data sets becomes larger, the value of identifying analysis parameters on a representative subset of the data increases
+
+Current tools [@balaban.2019.plosone] require existence of a multiple sequence alignment or a phylogenetic tree or a pairwise distance matrix. Algorithms for all these approaches require homologous sequences as input. Each of those components is in turn computationally expensive.
+
+Divergent is more flexible than published approaches. It is alignment free and does not require sequences to be related. As we show, in the case of homologous sequences, the set selected by divergent is comparable to what would be expected under published approaches. Moreover, the algorithm is linear in time.
+
 
 if we imagine a 1D line, the idea is to sample points that are approximately evenly dispersed along the line
 
@@ -65,7 +68,7 @@ For sequence $i$, it's contribution to the total JSD of $\mathbb{F}$ is
 JSD_{\delta}(i)=JSD(\mathbb{F})-JSD(\mathbb{F} - \{i\})
 \end{equation*}
 
-with this expression it becomes clearer that to measure entropy of the collection we only need to keep track of the totals of each $k$-mer, so the algorithm can be implemented with a single pass through the data with a small constant due to the need to update the chosen sequences
+with this expression it becomes clearer that to measure entropy of the collection we only need to keep track of the totals of each $k$-mer. Thus, the algorithm can be implemented with a single pass through the data with a small constant due to the need to update the chosen sequences
 
 Add a figure describing the core algorithm as a flow chart.
 
@@ -77,9 +80,9 @@ choice of k
 
 # `dvgt` command line application
 
-- prep
-- sample *n*
-- sample maximally divergent
+- `prep`converts sequences into numpy arrays for faster processing
+- `nmost` samples the n sequences that increase JSD 
+- `max` samples divergent sequences that maximise a user specified statistic, either the standard deviation or the coefficient of variation of $JSD_{\delta}$.
 
 # `dvgt` cogent3 apps
 
@@ -89,10 +92,9 @@ counterparts to the above
 
 ## recovery of representatives from synthetic knowns
 
-## statistical correspondence to tree-based distances
+## Testing a hypothesis about the relationship with tree-based sampling
 
-For homologous DNA sequences, increasing the amount of elapsed time since they shared a common ancestor increases their genetic distance. We also expect that the JSD between two sequences will increase proportional to the amount of time since they last shared a common ancestor. These lead to the expectation that there should be a relationship between genetic distance and JSD. This in turn leads us to formulate the following hypothesis for a divergent set with $N$ sequences. If JSD is uninformative, then the set of sequences chosen by `divergent` will be a random collection of size $N$. Under the alternate hypothesis, the minimum genetic distance between sequences chosen by `divergent` will be larger than the minimum between $N$ sequences chosen at random.
-
+For homologous DNA sequences, increasing the amount of elapsed time since they shared a common ancestor increases their genetic distance. We also expect that the JSD between two sequences will increase proportional to the amount of time since they last shared a common ancestor. These lead to the expectation that there should be a relationship between genetic distance and JSD. This in turn leads us to formulate the following hypothesis for a divergent set with $N$ sequences. If JSD is uninformative, then the set of sequences chosen by `divergent` will be no better than a randomly selected set of size $N$. Under the alternate hypothesis, we expect the minimum genetic distance between the sequences chosen by `divergent` will be larger than that between a randomly selected set of $N$ sequences.
 
 
 ## compute time and memory
