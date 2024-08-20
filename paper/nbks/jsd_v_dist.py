@@ -8,14 +8,13 @@ from cogent3.app import io
 from cogent3.app import typing as c3_types
 from cogent3.app.composable import define_app
 from cogent3.util import parallel as PAR
-from numpy import isnan, array
+from numpy import array, isnan
 from numpy.random import choice
 from rich.progress import track
 from scipy.special import binom
 
-from divergent import records as dvgt_records
 from divergent import util as dvgt_utils
-from divergent.records import max_divergent
+from divergent.records import dvgt_select_max
 
 
 def get_combinations(all_vals, choose, number):
@@ -38,9 +37,8 @@ class calc_mean:
 
     def __call__(self, names):
         dists = self.dists.take_dists(names)
-        values = [v for v in dists.to_dict().values() if not isnan(v)]
-        stats = dvgt_utils.summary_stats(array(values))
-        return stats.mean
+        values = array([v for v in dists.to_dict().values() if not isnan(v)])
+        return values.min()
 
 
 @define_app
@@ -52,35 +50,25 @@ class assess_distances:
         min_size,
         max_size,
         stat,
-        max_set,
         dist_size: int = 1000,
     ) -> None:
-        self._s2k = dvgt_records.seq_to_seqarray(
-            moltype="dna",
-        ) + dvgt_records.seqarray_to_kmerseq(
-            k=k,
-            moltype="dna",
-        )
         self.dist_size = dist_size
-        self.min_size = min_size
-        self.max_size = max_size
-        self.stat = stat
-        self.max_set = max_set
+        self.dvgt = dvgt_select_max(
+            k=k,
+            min_size=min_size,
+            max_size=max_size,
+            stat=stat,
+        )
 
     def main(self, aln: c3_types.AlignedSeqsType) -> dict:
         mean_dist = calc_mean(aln)
-        records = [self._s2k(s) for s in aln.degap().seqs]
-        divergent = max_divergent(
-            records,
-            min_size=self.min_size,
-            max_size=self.max_size,
-            stat=self.stat,
-            max_set=self.max_set,
+        divergent = self.dvgt(
+            aln.degap(),
         )
-        num = divergent.size
+        num = divergent.num_seqs
         combinations = get_combinations(aln.names, num, self.dist_size)
 
-        stats = {"observed": [True], "mean(dist)": [mean_dist(divergent.record_names)]}
+        stats = {"observed": [True], "mean(dist)": [mean_dist(divergent.names)]}
         for names in combinations:
             stats["observed"].append(False)
             stats["mean(dist)"].append(mean_dist(names))
@@ -90,7 +78,7 @@ class assess_distances:
         gt = sum(v >= obs for v in dists[1:])
         return {
             "stats": stats,
-            "divergent": list(divergent.record_names),
+            "divergent": len(divergent.names),
             "dist_size": len(combinations),
             "num_gt": gt,
             "source": aln.info.source,
@@ -100,9 +88,9 @@ class assess_distances:
 def run(
     aln_dir: Path,
     stat,
-    max_set,
     k: int = 4,
     min_size: int = 7,
+    max_size: int = 10,
     dist_size: int = 1000,
     limit=None,
 ):
@@ -112,21 +100,22 @@ def run(
             dist_size=dist_size,
             k=k,
             min_size=min_size,
-            max_size=10,
+            max_size=max_size,
             stat=stat,
-            max_set=max_set,
         )
 
         app = loader + make_distn
         dstore = io.open_data_store(aln_dir, suffix="fa", limit=limit)
 
         results = []
-        series = PAR.as_completed(app, dstore, max_workers=6)
+
+        # series =  map(app, dstore)
+        series = PAR.as_completed(app, dstore, max_workers=10)
         for result in series:
             if not result:
                 continue
             result["pval"] = result["num_gt"] / result["dist_size"]
-            result["num_divergent"] = len(result.pop("divergent"))
+            result["num_divergent"] = result.pop("divergent")
             result.pop("stats")
             results.append(result)
 
@@ -141,20 +130,22 @@ _click_command_opts = dict(
 
 @click.command(**_click_command_opts)
 @click.argument("seqdir", type=Path)
-def main(seqdir):
+@click.option("-x", "--max_k", type=int, default=11, help="test run")
+@click.option("-T", "--test_run", is_flag=True, help="test run")
+def main(seqdir, test_run, max_k):
     settings = list(
         product(
-            range(2, 11),
+            range(2, max_k),
+            (5, 10),
             ("stdev", "cov"),
-            (True, False),
         ),
     )
 
-    order = "k", "stat", "max_set"
+    order = "k", "min_size", "stat"
     rows = []
     for config in track(settings, description="Working on setting..."):
         setting = dict(zip(order, config, strict=False))
-        result = run(seqdir, min_size=5, dist_size=1000, **setting)
+        result = run(seqdir, dist_size=1000, test_run=test_run, **setting)
         sizes = [r["num_divergent"] for r in result]
         rows.append(
             list(config)
@@ -167,7 +158,8 @@ def main(seqdir):
         data=rows,
     )
     print(table)
-    table.write("jsd_v_dist.tsv")
+    if not test_run:
+        table.write("jsd_v_dist.tsv")
 
 
 if __name__ == "__main__":
