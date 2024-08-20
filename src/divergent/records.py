@@ -253,6 +253,13 @@ class SummedRecords:
         return [self.lowest] + self.records
 
 
+def _get_stat_attribute(stat: str) -> str:
+    if stat not in ("stdev", "cov"):
+        raise ValueError(f"unknown value of stat {stat!r}")
+
+    return {"stdev": "std_delta_jsd", "cov": "cov_delta_jsd"}[stat]
+
+
 def max_divergent(
     records: list[KmerSeq],
     min_size: int = 2,
@@ -272,8 +279,8 @@ def max_divergent(
     max_size
         defines upper limit of SummedRecords size
     stat
-        either std, cov, which represent the statistics
-        std(delta_jsd), cov(delta_jsd)
+        either stdev or cov, which represent the statistics
+        std(delta_jsd) and cov(delta_jsd) respectively
     max_set
         postprocess to identify subset that maximises stat
 
@@ -281,13 +288,10 @@ def max_divergent(
     -----
     This is sensitive to the order of records.
     """
-    if stat not in ("stdev", "cov"):
-        raise ValueError(f"unknown value of stat {stat!r}")
-
-    stat = {"stdev": "std_delta_jsd", "cov": "cov_delta_jsd"}[stat]
-
     max_size = max_size or len(records)
     sr = SummedRecords.from_records(records[:min_size])
+
+    attr = _get_stat_attribute(stat)
 
     if len(records) <= min_size:
         return sr
@@ -303,7 +307,7 @@ def max_divergent(
             continue
 
         nsr = sr + r
-        sr = nsr if getattr(nsr, stat) > getattr(sr, stat) else sr.replaced_lowest(r)
+        sr = nsr if getattr(nsr, attr) > getattr(sr, attr) else sr.replaced_lowest(r)
         if sr.size > max_size:
             sr = SummedRecords.from_records(sr.records)
 
@@ -346,6 +350,8 @@ def dvgt_final_max(
 
     if sr.size == min_size:
         return sr
+
+    stat = _get_stat_attribute(stat)
 
     results = {getattr(sr, stat): sr}
     orig_size = sr.size
