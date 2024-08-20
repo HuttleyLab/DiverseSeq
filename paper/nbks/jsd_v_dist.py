@@ -7,7 +7,6 @@ from cogent3 import make_table
 from cogent3.app import io
 from cogent3.app import typing as c3_types
 from cogent3.app.composable import define_app
-from cogent3.util import parallel as PAR
 from numpy import array, isnan
 from numpy.random import choice
 from rich.progress import track
@@ -18,6 +17,8 @@ from divergent.records import dvgt_select_max
 
 
 def get_combinations(all_vals, choose, number):
+    """generates random combinations of indices that will be used to
+    obtain sets of names"""
     indices = set()
     interval = range(len(all_vals))
     max_size = binom(len(all_vals), choose)
@@ -44,7 +45,10 @@ class min_dist:
 
 
 @define_app
-class assess_distances:
+class compare_sets:
+    """compares the minimum genetic distance from a sets of sequences identified
+    by dvgt_select_max against randomly drawn sets of the same size"""
+
     def __init__(
         self,
         *,
@@ -63,15 +67,15 @@ class assess_distances:
         )
 
     def main(self, aln: c3_types.AlignedSeqsType) -> dict:
-        mean_dist = min_dist(aln.distance_matrix(calc="paralinear", drop_invalid=False))
+        calc_min = min_dist(aln.distance_matrix(calc="paralinear", drop_invalid=False))
         divergent = self.dvgt(aln.degap())
         num = divergent.num_seqs
         combinations = get_combinations(aln.names, num, self.dist_size)
 
-        stats = {"observed": [True], "mean(dist)": [mean_dist(divergent.names)]}
+        stats = {"observed": [True], "mean(dist)": [calc_min(divergent.names)]}
         for names in combinations:
             stats["observed"].append(False)
-            stats["mean(dist)"].append(mean_dist(names))
+            stats["mean(dist)"].append(calc_min(names))
 
         dists = stats["mean(dist)"]
         obs = dists[0]
@@ -96,11 +100,13 @@ def run(
     min_size: int = 7,
     max_size: int = 10,
     dist_size: int = 1000,
-    limit=None,
+    limit: int | None = None,
+    serial: bool = False,
 ):
+    """runs a specific combination of parameters"""
     with dvgt_utils.keep_running():
         loader = io.load_aligned(moltype="dna")
-        make_distn = assess_distances(
+        make_distn = compare_sets(
             dist_size=dist_size,
             k=k,
             min_size=min_size,
@@ -111,13 +117,12 @@ def run(
         app = loader + make_distn
         dstore = io.open_data_store(aln_dir, suffix="fa", limit=limit)
 
+        kw = {} if serial else dict(parallel=True, par_kw=dict(max_workers=10))
         results = []
-
-        # series =  map(app, dstore)
-        series = PAR.as_completed(app, dstore, max_workers=10)
-        for result in series:
+        for result in app.as_completed(dstore, parallel=not serial):
             if not result:
                 continue
+            result = result.obj  # what get's returned is a source proxy object
             result["pval"] = result["num_gt"] / result["dist_size"]
             result["num_divergent"] = result.pop("divergent")
             result.pop("stats")
@@ -136,7 +141,8 @@ _click_command_opts = dict(
 @click.argument("seqdir", type=Path)
 @click.option("-x", "--max_k", type=int, default=11, help="test run")
 @click.option("-T", "--test_run", is_flag=True, help="test run")
-def main(seqdir, test_run, max_k):
+@click.option("-S", "--serial", is_flag=True, help="run on 1 CPU")
+def main(seqdir, test_run, max_k, serial):
     settings = list(
         product(
             range(2, max_k),  # k values
@@ -150,7 +156,7 @@ def main(seqdir, test_run, max_k):
     rows = []
     for config in track(settings, description="Working on setting..."):
         setting = dict(zip(order, config, strict=False))
-        result = run(seqdir, dist_size=1000, **setting)
+        result = run(seqdir, dist_size=1000, serial=serial, **setting)
         sizes = [r["num_divergent"] for r in result]
         rows.append(
             list(config)
