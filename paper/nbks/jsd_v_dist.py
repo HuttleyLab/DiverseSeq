@@ -30,12 +30,14 @@ def get_combinations(all_vals, choose, number):
     return [[all_vals[i] for i in combo] for combo in indices]
 
 
-class calc_mean:
-    def __init__(self, aln):
-        self.dists = aln.distance_matrix(calc="paralinear", drop_invalid=False)
-        self.num = len(aln.names)
+class min_dist:
+    """returns minimum pairwise genetic distance from a set of names"""
 
-    def __call__(self, names):
+    def __init__(self, dists):
+        self.dists = dists
+        self.num = len(dists.names)
+
+    def __call__(self, names: list[str]) -> float:
         dists = self.dists.take_dists(names)
         values = array([v for v in dists.to_dict().values() if not isnan(v)])
         return values.min()
@@ -46,10 +48,10 @@ class assess_distances:
     def __init__(
         self,
         *,
-        k,
-        min_size,
-        max_size,
-        stat,
+        k: int,
+        min_size: int,
+        max_size: int,
+        stat: str,
         dist_size: int = 1000,
     ) -> None:
         self.dist_size = dist_size
@@ -61,10 +63,8 @@ class assess_distances:
         )
 
     def main(self, aln: c3_types.AlignedSeqsType) -> dict:
-        mean_dist = calc_mean(aln)
-        divergent = self.dvgt(
-            aln.degap(),
-        )
+        mean_dist = min_dist(aln.distance_matrix(calc="paralinear", drop_invalid=False))
+        divergent = self.dvgt(aln.degap())
         num = divergent.num_seqs
         combinations = get_combinations(aln.names, num, self.dist_size)
 
@@ -75,6 +75,10 @@ class assess_distances:
 
         dists = stats["mean(dist)"]
         obs = dists[0]
+        # we estimate the probability the minimum genetic distance from
+        # the num sequences identified by dvgt_select_max equals that of a random
+        # draw of num sequences by counting the number of times the min distance from
+        # the latter is greater than or equal to the diverged set.
         gt = sum(v >= obs for v in dists[1:])
         return {
             "stats": stats,
@@ -135,17 +139,18 @@ _click_command_opts = dict(
 def main(seqdir, test_run, max_k):
     settings = list(
         product(
-            range(2, max_k),
-            (5, 10),
-            ("stdev", "cov"),
+            range(2, max_k),  # k values
+            (5, 10),  # min_size values
+            (10,),  # max_size value
+            ("stdev", "cov"),  # stat values
         ),
     )
 
-    order = "k", "min_size", "stat"
+    order = "k", "min_size", "max_size", "stat"
     rows = []
     for config in track(settings, description="Working on setting..."):
         setting = dict(zip(order, config, strict=False))
-        result = run(seqdir, dist_size=1000, test_run=test_run, **setting)
+        result = run(seqdir, dist_size=1000, **setting)
         sizes = [r["num_divergent"] for r in result]
         rows.append(
             list(config)
