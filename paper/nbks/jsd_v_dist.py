@@ -1,6 +1,5 @@
 from itertools import product
 from pathlib import Path
-from statistics import mean, stdev
 
 import click
 from cogent3 import make_table
@@ -86,7 +85,7 @@ class compare_sets:
         gt = sum(v >= obs for v in dists[1:])
         return {
             "stats": stats,
-            "divergent": len(divergent.names),  # size oif the divergent set
+            "divergent": len(divergent.names),  # size of the divergent set
             "dist_size": len(combinations),
             "num_gt": gt,
             "source": aln.info.source,
@@ -139,11 +138,18 @@ _click_command_opts = dict(
 @click.command(**_click_command_opts)
 @click.argument("data_path", type=Path)
 @click.option(
-    "-o",
-    "--outpath",
+    "-os",
+    "--outpath_stats",
     type=Path,
-    default=Path("jsd_v_dist.tsv"),
-    help="writes output to this file",
+    default=Path("jsd_v_dist-stats.tsv"),
+    help="writes stat output to this file",
+)
+@click.option(
+    "-oz",
+    "--outpath_sizes",
+    type=Path,
+    default=Path("jsd_v_dist-sizes.tsv"),
+    help="writes size data output to this file",
 )
 @click.option(
     "-x",
@@ -155,7 +161,7 @@ _click_command_opts = dict(
 @click.option("-r", "--repeats", type=int, default=3, help="repeats per condition")
 @click.option("-D", "--dry_run", is_flag=True, help="don't write output")
 @click.option("-S", "--serial", is_flag=True, help="run on 1 CPU")
-def main(data_path, outpath, dry_run, max_k, serial, repeats):
+def main(data_path, outpath_stats, outpath_sizes, dry_run, max_k, serial, repeats):
     """measures performance of divergent using a directory containg fasta
     formatted alignment files of DNA sequences"""
     settings = (
@@ -171,24 +177,30 @@ def main(data_path, outpath, dry_run, max_k, serial, repeats):
     )
 
     order = "k", "min_size", "max_size", "stat"
-    rows = []
+    stat_results = []
+    size_results = []
     for config in track(settings, description="Working on setting..."):
         setting = dict(zip(order, config, strict=False))
         result = run(data_path, dist_size=1000, serial=serial, **setting)
-        sizes = [r["num_divergent"] for r in result]
-        rows.append(
-            list(config)
-            + [mean(sizes), stdev(sizes)]
-            + [100 * sum(r["pval"] < 0.05 for r in result) / len(result)],
+        size_results.extend([list(config) + [r["num_divergent"]] for r in result])
+
+        stat_results.append(
+            list(config) + [100 * sum(r["pval"] < 0.05 for r in result) / len(result)],
         )
 
-    table = make_table(
-        header=list(order) + ["mean(size)", "stdev(size)", "(p-value<0.05)%"],
-        data=rows,
+    stat_table = make_table(
+        header=list(order) + ["(p-value<0.05)%"],
+        data=stat_results,
     )
-    print(table)
+    print(stat_table)
+    size_table = make_table(
+        header=list(order) + ["size"],
+        data=size_results,
+    )
+    print(size_table[:10])
     if not dry_run:
-        table.write(outpath)
+        stat_table.write(outpath_stats)
+        size_table.write(outpath_sizes)
 
 
 if __name__ == "__main__":
