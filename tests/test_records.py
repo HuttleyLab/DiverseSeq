@@ -8,7 +8,7 @@ from divergent.record import KmerSeq, kmer_counts
 from divergent.util import str2arr
 
 
-@pytest.fixture()
+@pytest.fixture
 def seqcoll():
     data = {"a": "AAAA", "b": "AAAA", "c": "TTTT", "d": "ACGT"}
     return make_unaligned_seqs(data, moltype="dna")

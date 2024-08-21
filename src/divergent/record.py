@@ -31,8 +31,7 @@ def _(name: str) -> type:
 
     if name[-1].isdigit():
         return getattr(numpy, name)
-    else:
-        return {"int": int, "float": float}[name]
+    return {"int": int, "float": float}[name]
 
 
 @_gettype.register

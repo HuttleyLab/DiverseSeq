@@ -41,7 +41,7 @@ seq4eq = make_seq("ACGT", name="null", moltype="dna")
 seq4one = make_seq("AAAA", name="null", moltype="dna")
 
 
-@pytest.fixture()
+@pytest.fixture
 def seqarray():
     return SeqArray(
         seqid="seq1",
