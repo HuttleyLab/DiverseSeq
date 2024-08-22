@@ -447,29 +447,29 @@ class dvgt_max:
         verbose
             extra info display
         """
-        self.seq_store = seq_store
-        self.k = k
-        self.limit = limit
-        self.max_size = max_size
-        self.min_size = min_size
-        self.stat = stat
-        self.verbose = verbose
+        self._seq_store = seq_store
+        self._k = k
+        self._limit = limit
+        self._max_size = max_size
+        self._min_size = min_size
+        self._stat = stat
+        self._verbose = verbose
 
     def main(self, seq_names: list[str]) -> SummedRecords:
         records = records_from_seq_store(
-            seq_store=self.seq_store,
+            seq_store=self._seq_store,
             seq_names=seq_names,
-            limit=self.limit,
-            k=self.k,
+            limit=self._limit,
+            k=self._k,
         )
         # TODO: add ability to set random number seed
         numpy.random.shuffle(records)
         return max_divergent(
             records=records,
-            min_size=self.min_size,
-            max_size=self.max_size,
-            stat=self.stat,
-            verbose=self.verbose > 0,
+            min_size=self._min_size,
+            max_size=self._max_size,
+            stat=self._stat,
+            verbose=self._verbose > 0,
             max_set=False,
         )
 
@@ -551,22 +551,22 @@ class dvgt_nmost:
         verbose
             extra info display
         """
-        self.seq_store = seq_store
-        self.k = k
-        self.limit = limit
-        self.max_size = n
-        self.verbose = verbose
+        self._seq_store = seq_store
+        self._k = k
+        self._limit = limit
+        self._max_size = n
+        self._verbose = verbose
 
     def main(self, seq_names: list[str]) -> SummedRecords:
         records = records_from_seq_store(
-            seq_store=self.seq_store,
+            seq_store=self._seq_store,
             seq_names=seq_names,
-            limit=self.limit,
-            k=self.k,
+            limit=self._limit,
+            k=self._k,
         )
         # TODO: add ability to set random number seed
         numpy.random.shuffle(records)
-        return most_divergent(records, size=self.max_size, verbose=self.verbose > 0)
+        return most_divergent(records, size=self._max_size, verbose=self._verbose > 0)
 
 
 @define_app
@@ -652,15 +652,13 @@ class dvgt_select_max:
 
         Notes
         -----
-        Sequence order of input is randomised.
-        """
         self._s2k = seq_to_seqarray(moltype=moltype) + seqarray_to_kmerseq(
             k=k,
             moltype=moltype,
         )
-        self.min_size = min_size
-        self.max_size = max_size
-        self.stat = stat
+        self._min_size = min_size
+        self._max_size = max_size
+        self._stat = stat
         self._rng = numpy.random.default_rng(seed)
 
     def main(self, seqs: c3_types.UnalignedSeqsType) -> c3_types.UnalignedSeqsType:
@@ -672,11 +670,10 @@ class dvgt_select_max:
                 return None
         result = max_divergent(
             records=records,
-            min_size=self.min_size,
-            max_size=self.max_size,
-            stat=self.stat,
+            min_size=self._min_size,
+            max_size=self._max_size,
+            stat=self._stat,
         )
-        return seqs.take_seqs(result.record_names)
 
 
 @define_app
@@ -695,6 +692,8 @@ class dvgt_select_nmost:
         ----------
         n
             the number of divergent sequences
+        moltype
+            molecular type of the sequences
         k
             k-mer size
         seed
@@ -708,8 +707,8 @@ class dvgt_select_nmost:
             k=k,
             moltype=moltype,
         )
-        self.n = n
-        self.moltype = moltype
+        self._n = n
+        self._moltype = moltype
         self._rng = numpy.random.default_rng(seed)
 
     def main(self, seqs: c3_types.UnalignedSeqsType) -> c3_types.UnalignedSeqsType:
@@ -717,6 +716,6 @@ class dvgt_select_nmost:
         self._rng.shuffle(records)
         result = most_divergent(
             records=records,
-            size=self.n,
+            size=self._n,
         )
         return seqs.take_seqs(result.record_names)
