@@ -143,9 +143,14 @@ def test_all_records(seqcoll):
     assert isinstance(got[0], KmerSeq)
 
 
-def test_merge_summed_records(DATA_DIR):
+@pytest.fixture(scope="session")
+def brca1_coll(DATA_DIR):
+    return load_unaligned_seqs(DATA_DIR / "brca1.fasta", moltype="dna").degap()
+
+
+def test_merge_summed_records(DATA_DIR, brca1_coll):
     path = DATA_DIR / "brca1.dvgtseqs"
-    names = load_unaligned_seqs(DATA_DIR / "brca1.fasta").names
+    names = brca1_coll.names
     app = dvgt_records.dvgt_nmost(seq_store=path, n=5, k=1)
     sr1 = app(names[:10])
     sr2 = app(names[10:20])
@@ -158,22 +163,20 @@ def test_merge_summed_records(DATA_DIR):
     assert set(final_selected) != set(rnames2)
 
 
-def test_dvgt_select_max(DATA_DIR):
-    seqs = load_unaligned_seqs(DATA_DIR / "brca1.fasta", moltype="dna").degap()
+def test_dvgt_select_max(brca1_coll):
     app = dvgt_records.dvgt_select_max(k=1, min_size=2, max_size=5)
-    got = app(seqs)
+    got = app(brca1_coll)
     assert 2 <= got.num_seqs <= 5
     app = dvgt_records.dvgt_select_max(k=1, min_size=2, max_size=5, seed=123)
-    got = app(seqs)
+    got = app(brca1_coll)
     assert 2 <= got.num_seqs <= 5
 
 
-def test_dvgt_select_nmost(DATA_DIR):
-    seqs = load_unaligned_seqs(DATA_DIR / "brca1.fasta", moltype="dna").degap()
+def test_dvgt_select_nmost(brca1_coll):
     app = dvgt_records.dvgt_select_nmost(k=1, n=5)
-    got = app(seqs)
+    got = app(brca1_coll)
     assert got.num_seqs == 5
     # try setting a seed
     app = dvgt_records.dvgt_select_nmost(k=1, n=5, seed=123)
-    got = app(seqs)
+    got = app(brca1_coll)
     assert got.num_seqs == 5
