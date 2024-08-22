@@ -172,6 +172,14 @@ def test_dvgt_select_max(brca1_coll):
     assert 2 <= got.num_seqs <= 5
 
 
+@pytest.mark.parametrize("include", ("Human", ["Human"], ["Human", "Mouse"]))
+def test_dvgt_select_max_include(brca1_coll, include):
+    app = dvgt_records.dvgt_select_max(k=1, min_size=2, max_size=5, include=include)
+    got = app(brca1_coll)
+    include = {include} if isinstance(include, str) else set(include)
+    assert include <= set(got.names)
+
+
 def test_dvgt_select_nmost(brca1_coll):
     app = dvgt_records.dvgt_select_nmost(k=1, n=5)
     got = app(brca1_coll)
@@ -180,3 +188,11 @@ def test_dvgt_select_nmost(brca1_coll):
     app = dvgt_records.dvgt_select_nmost(k=1, n=5, seed=123)
     got = app(brca1_coll)
     assert got.num_seqs == 5
+
+
+@pytest.mark.parametrize("include", ("Human", ["Human"], ["Human", "Mouse"]))
+def test_dvgt_select_nmost_keep(brca1_coll, include):
+    app = dvgt_records.dvgt_select_nmost(k=1, n=5, include=include)
+    got = app(brca1_coll)
+    include = {include} if isinstance(include, str) else set(include)
+    assert include <= set(got.names)

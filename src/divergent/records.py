@@ -631,6 +631,7 @@ class dvgt_select_max:
         max_size: int = 10,
         stat: str = "stdev",
         moltype: str = "dna",
+        include: list[str] | str | None = None,
         k: int = 4,
         seed: int | None = None,
     ) -> None:
@@ -645,6 +646,8 @@ class dvgt_select_max:
             statistic for maximising the set, either mean_delta_jsd, mean_jsd, total_jsd
         moltype
             molecular type of the sequences
+        include
+            sequence names to include
         k
             k-mer size
         seed
@@ -652,6 +655,10 @@ class dvgt_select_max:
 
         Notes
         -----
+        Sequence order of input is randomised. If include is not None, the
+        named sequences are added to the collection before selecting the
+        divergent set.
+        """
         self._s2k = seq_to_seqarray(moltype=moltype) + seqarray_to_kmerseq(
             k=k,
             moltype=moltype,
@@ -660,6 +667,7 @@ class dvgt_select_max:
         self._max_size = max_size
         self._stat = stat
         self._rng = numpy.random.default_rng(seed)
+        self._include = [include] if isinstance(include, str) else include
 
     def main(self, seqs: c3_types.UnalignedSeqsType) -> c3_types.UnalignedSeqsType:
         records = [self._s2k(seq) for seq in seqs.seqs]
@@ -674,6 +682,8 @@ class dvgt_select_max:
             max_size=self._max_size,
             stat=self._stat,
         )
+        selected = set(result.record_names) | set(self._include or [])
+        return seqs.take_seqs(selected)
 
 
 @define_app
@@ -684,6 +694,7 @@ class dvgt_select_nmost:
         self,
         n: int = 3,
         moltype: str = "dna",
+        include: list[str] | str | None = None,
         k: int = 4,
         seed: int | None = None,
     ) -> None:
@@ -696,6 +707,8 @@ class dvgt_select_nmost:
             molecular type of the sequences
         k
             k-mer size
+        include
+            sequence names to include
         seed
             random number seed
 
@@ -710,6 +723,7 @@ class dvgt_select_nmost:
         self._n = n
         self._moltype = moltype
         self._rng = numpy.random.default_rng(seed)
+        self._include = [include] if isinstance(include, str) else include
 
     def main(self, seqs: c3_types.UnalignedSeqsType) -> c3_types.UnalignedSeqsType:
         records = [self._s2k(seq) for seq in seqs.seqs]
@@ -718,4 +732,5 @@ class dvgt_select_nmost:
             records=records,
             size=self._n,
         )
-        return seqs.take_seqs(result.record_names)
+        selected = set(result.record_names) | set(self._include or [])
+        return seqs.take_seqs(selected)
