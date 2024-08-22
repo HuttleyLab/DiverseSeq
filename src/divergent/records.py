@@ -29,7 +29,6 @@ from attrs import define, field
 from cogent3 import make_table
 from cogent3.app import typing as c3_types
 from cogent3.app.composable import NotCompleted, define_app
-from cogent3.app.data_store import DataStoreABC
 from numpy import isclose as np_isclose
 from rich.progress import track
 
@@ -419,7 +418,7 @@ class dvgt_max:
     def __init__(
         self,
         *,
-        seq_store: DataStoreABC,
+        seq_store: str | pathlib.Path,
         k: int = 3,
         min_size: int = 7,
         max_size: int = None,
@@ -448,29 +447,29 @@ class dvgt_max:
         verbose
             extra info display
         """
-        self.seq_store = seq_store
-        self.k = k
-        self.limit = limit
-        self.max_size = max_size
-        self.min_size = min_size
-        self.stat = stat
-        self.verbose = verbose
+        self._seq_store = seq_store
+        self._k = k
+        self._limit = limit
+        self._max_size = max_size
+        self._min_size = min_size
+        self._stat = stat
+        self._verbose = verbose
 
     def main(self, seq_names: list[str]) -> SummedRecords:
         records = records_from_seq_store(
-            seq_store=self.seq_store,
+            seq_store=self._seq_store,
             seq_names=seq_names,
-            limit=self.limit,
-            k=self.k,
+            limit=self._limit,
+            k=self._k,
         )
         # TODO: add ability to set random number seed
         numpy.random.shuffle(records)
         return max_divergent(
             records=records,
-            min_size=self.min_size,
-            max_size=self.max_size,
-            stat=self.stat,
-            verbose=self.verbose > 0,
+            min_size=self._min_size,
+            max_size=self._max_size,
+            stat=self._stat,
+            verbose=self._verbose > 0,
             max_set=False,
         )
 
@@ -531,7 +530,7 @@ class dvgt_nmost:
     def __init__(
         self,
         *,
-        seq_store: DataStoreABC,
+        seq_store: str | pathlib.Path,
         k: int = 3,
         limit: int = None,
         n: int,
@@ -552,22 +551,22 @@ class dvgt_nmost:
         verbose
             extra info display
         """
-        self.seq_store = seq_store
-        self.k = k
-        self.limit = limit
-        self.max_size = n
-        self.verbose = verbose
+        self._seq_store = seq_store
+        self._k = k
+        self._limit = limit
+        self._max_size = n
+        self._verbose = verbose
 
     def main(self, seq_names: list[str]) -> SummedRecords:
         records = records_from_seq_store(
-            seq_store=self.seq_store,
+            seq_store=self._seq_store,
             seq_names=seq_names,
-            limit=self.limit,
-            k=self.k,
+            limit=self._limit,
+            k=self._k,
         )
         # TODO: add ability to set random number seed
         numpy.random.shuffle(records)
-        return most_divergent(records, size=self.max_size, verbose=self.verbose > 0)
+        return most_divergent(records, size=self._max_size, verbose=self._verbose > 0)
 
 
 @define_app
@@ -632,6 +631,7 @@ class dvgt_select_max:
         max_size: int = 10,
         stat: str = "stdev",
         moltype: str = "dna",
+        include: list[str] | str | None = None,
         k: int = 4,
         seed: int | None = None,
     ) -> None:
@@ -646,6 +646,8 @@ class dvgt_select_max:
             statistic for maximising the set, either mean_delta_jsd, mean_jsd, total_jsd
         moltype
             molecular type of the sequences
+        include
+            sequence names to include
         k
             k-mer size
         seed
@@ -653,16 +655,19 @@ class dvgt_select_max:
 
         Notes
         -----
-        Sequence order of input is randomised.
+        Sequence order of input is randomised. If include is not None, the
+        named sequences are added to the collection before selecting the
+        divergent set.
         """
         self._s2k = seq_to_seqarray(moltype=moltype) + seqarray_to_kmerseq(
             k=k,
             moltype=moltype,
         )
-        self.min_size = min_size
-        self.max_size = max_size
-        self.stat = stat
+        self._min_size = min_size
+        self._max_size = max_size
+        self._stat = stat
         self._rng = numpy.random.default_rng(seed)
+        self._include = [include] if isinstance(include, str) else include
 
     def main(self, seqs: c3_types.UnalignedSeqsType) -> c3_types.UnalignedSeqsType:
         records = [self._s2k(seq) for seq in seqs.seqs]
@@ -673,11 +678,12 @@ class dvgt_select_max:
                 return None
         result = max_divergent(
             records=records,
-            min_size=self.min_size,
-            max_size=self.max_size,
-            stat=self.stat,
+            min_size=self._min_size,
+            max_size=self._max_size,
+            stat=self._stat,
         )
-        return seqs.take_seqs(result.record_names)
+        selected = set(result.record_names) | set(self._include or [])
+        return seqs.take_seqs(selected)
 
 
 @define_app
@@ -688,6 +694,7 @@ class dvgt_select_nmost:
         self,
         n: int = 3,
         moltype: str = "dna",
+        include: list[str] | str | None = None,
         k: int = 4,
         seed: int | None = None,
     ) -> None:
@@ -696,8 +703,12 @@ class dvgt_select_nmost:
         ----------
         n
             the number of divergent sequences
+        moltype
+            molecular type of the sequences
         k
             k-mer size
+        include
+            sequence names to include
         seed
             random number seed
 
@@ -709,15 +720,17 @@ class dvgt_select_nmost:
             k=k,
             moltype=moltype,
         )
-        self.n = n
-        self.moltype = moltype
+        self._n = n
+        self._moltype = moltype
         self._rng = numpy.random.default_rng(seed)
+        self._include = [include] if isinstance(include, str) else include
 
     def main(self, seqs: c3_types.UnalignedSeqsType) -> c3_types.UnalignedSeqsType:
         records = [self._s2k(seq) for seq in seqs.seqs]
         self._rng.shuffle(records)
         result = most_divergent(
             records=records,
-            size=self.n,
+            size=self._n,
         )
-        return seqs.take_seqs(result.record_names)
+        selected = set(result.record_names) | set(self._include or [])
+        return seqs.take_seqs(selected)

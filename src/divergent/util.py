@@ -1,6 +1,7 @@
 import contextlib
 import functools
 import math
+import pathlib
 import re
 
 import numpy
@@ -133,3 +134,14 @@ class summary_stats:
     @functools.cached_property
     def cov(self):
         return self.std / self.mean
+
+
+def _comma_sep_or_file(*args):
+    include = args[-1]
+    if include is None:
+        return None
+    if pathlib.Path(include).is_file():
+        path = pathlib.Path(include)
+        names = path.read_text().splitlines()
+        return [name.strip() for name in names]
+    return [n.strip() for n in include.split(",") if n.strip()]
