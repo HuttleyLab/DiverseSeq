@@ -178,8 +178,7 @@ class HDF5DataStore(DataStoreABC):
         if f"md5/{unique_id}" in f:
             dset = f[f"md5/{unique_id}"]
             return dset[()].decode("utf-8")
-        else:
-            return None
+        return None
 
     @property
     def completed(self) -> list[DataMember]:
