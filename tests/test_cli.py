@@ -18,13 +18,13 @@ DATADIR = pathlib.Path(__file__).parent / "data"
 
 
 @pytest.fixture(scope="function")
-def tmp_dir(tmpdir_factory):
-    return tmpdir_factory.mktemp("dvgt")
+def tmp_dir(tmp_path_factory):
+    return tmp_path_factory.mktemp("dvgt")
 
 
 @pytest.fixture(scope="function")
-def tmp_path(tmpdir_factory):
-    return tmpdir_factory.mktemp("seqdata")
+def tmp_path(tmp_path_factory):
+    return tmp_path_factory.mktemp("seqdata")
 
 
 @pytest.fixture(scope="session")
@@ -55,7 +55,7 @@ def seq_dir(tmp_path, seq_path):
     return tmp_path
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="session")
 def processed_seq_path():
     return DATADIR / "brca1.dvgtseqs"
 
