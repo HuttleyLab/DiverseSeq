@@ -29,7 +29,6 @@ from attrs import define, field
 from cogent3 import make_table
 from cogent3.app import typing as c3_types
 from cogent3.app.composable import NotCompleted, define_app
-from cogent3.app.data_store import DataStoreABC
 from numpy import isclose as np_isclose
 from rich.progress import track
 
@@ -419,7 +418,7 @@ class dvgt_max:
     def __init__(
         self,
         *,
-        seq_store: DataStoreABC,
+        seq_store: str | pathlib.Path,
         k: int = 3,
         min_size: int = 7,
         max_size: int = None,
@@ -531,7 +530,7 @@ class dvgt_nmost:
     def __init__(
         self,
         *,
-        seq_store: DataStoreABC,
+        seq_store: str | pathlib.Path,
         k: int = 3,
         limit: int = None,
         n: int,
