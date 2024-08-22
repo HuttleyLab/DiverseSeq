@@ -72,14 +72,7 @@ _overwrite = click.option(
     help="Overwrite existing file if it exists",
 )
 _suffix = click.option("-sf", "--suffix", default="fa", help="sequence file suffix")
-_num_procs = click.option("-np", "--numprocs", default=1, help="number of processes")
-_parallel = click.option(
-    "-p",
-    "--parallel",
-    is_flag=True,
-    default=False,
-    help="run in parallel",
-)
+_numprocs = click.option("-np", "--numprocs", default=1, help="number of processes")
 _limit = click.option("-L", "--limit", type=int, help="number of sequences to process")
 _seqfile = click.option(
     "-s",
@@ -107,7 +100,7 @@ _k = click.option("-k", type=int, default=3, help="k-mer size")
     type=Path,
     help="location to write processed seqs",
 )
-@_parallel
+@_numprocs
 @_overwrite
 @click.option(
     "-m",
@@ -117,7 +110,7 @@ _k = click.option("-k", type=int, default=3, help="k-mer size")
     help="Molecular type of sequences, defaults to DNA",
 )
 @_limit
-def prep(seqdir, suffix, outpath, parallel, force_overwrite, moltype, limit):
+def prep(seqdir, suffix, outpath, numprocs, force_overwrite, moltype, limit):
     """Writes processed sequences to an outpath ending with .dvgtseqs file."""
     dvgtseqs_path = outpath.with_suffix(".dvgtseqs")
     if dvgtseqs_path.exists() and not force_overwrite:
@@ -164,7 +157,8 @@ def prep(seqdir, suffix, outpath, parallel, force_overwrite, moltype, limit):
         result = prep_pipeline.apply_to(
             in_dstore,
             show_progress=True,
-            parallel=parallel,
+            parallel=numprocs > 1,
+            par_kw=dict(max_workers=numprocs),
         )
 
     out_dstore.close()
@@ -199,7 +193,7 @@ def prep(seqdir, suffix, outpath, parallel, force_overwrite, moltype, limit):
     default="stdev",
     help="statistic to maximise",
 )
-@_num_procs
+@_numprocs
 @_limit
 @click.option(
     "-T",
@@ -276,7 +270,7 @@ def max(
     required=True,
 )
 @_k
-@_num_procs
+@_numprocs
 @_limit
 @_verbose
 def nmost(
