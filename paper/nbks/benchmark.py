@@ -9,17 +9,9 @@ from cogent3.util import parallel as PAR
 from numpy.random import shuffle
 from rich.progress import track
 
+from divergent import util as dvgt_util
 from divergent.record import seq_to_record
 from divergent.records import max_divergent
-from divergent.util import faster_load_fasta
-
-try:
-    from wakepy import set_keepawake, unset_keepawake
-except (ImportError, NotImplementedError):
-    # may not be installed, or on linux where this library doesn't work
-    def _do_nothing_func(*args, **kwargs): ...
-
-    set_keepawake, unset_keepawake = _do_nothing_func, _do_nothing_func
 
 
 def _load_all_seqs(seqdir, limit):
@@ -85,26 +77,23 @@ def main():
 @click.option("-L", "--limit", type=int)
 @click.option("-P", "--parallel", is_flag=True)
 def run(seqdir, outpath, limit, parallel):
-    set_keepawake(keep_screen_awake=False)
-
-    settings = list(product(range(3, 8, 2), range(50, 201, 50), range(5)))
-    if limit:
-        settings = settings[:5]
-    seqs = _load_all_seqs(seqdir, limit)
-    app = timed_run(seqs)
-    series = (
-        PAR.as_completed(app, settings, max_workers=6)
-        if parallel
-        else map(app, settings)
-    )
-    rows = list(track(series, total=len(settings)))
-    table = make_table(
-        header=["k", "num_seqs", "rep", "time(s2r)", "time(maxd)"],
-        data=rows,
-    )
-    table.write(outpath)
-
-    unset_keepawake()
+    with dvgt_util.keep_running():
+        settings = list(product(range(3, 8, 2), range(50, 201, 50), range(5)))
+        if limit:
+            settings = settings[:5]
+        seqs = _load_all_seqs(seqdir, limit)
+        app = timed_run(seqs)
+        series = (
+            PAR.as_completed(app, settings, max_workers=6)
+            if parallel
+            else map(app, settings)
+        )
+        rows = list(track(series, total=len(settings)))
+        table = make_table(
+            header=["k", "num_seqs", "rep", "time(s2r)", "time(maxd)"],
+            data=rows,
+        )
+        table.write(outpath)
 
 
 @main.command(**_click_command_opts)
