@@ -75,9 +75,30 @@ Add a figure describing the core algorithm as a flow chart.
 
 # Algorithm
 
-the statistic
+**Algorithm 1** The divergent `max` algorithm.\label{algorithm:max}
 
-choice of k
+```python
+records: list[KmerSeq]  # a list of sequence converted into k-mer counts
+min_size: int  # the minimum size of the divergent set
+max_size: int  # the maximum size of the divergent set
+shuffle(records)  # randomise the order of the records
+
+# SummedRecords sorts records by their delta-JSD. The record
+# with the lowest delta-JSD is excluded from the N-1 set.
+sr = SummedRecords.from_records(records[:min_size])
+for r in records:
+    if sr.increases_jsd(r):
+      # Adding r to the N-1 set increased JSD over sr.jsd
+      nsr = sr + r  # create a new set with the current set and r
+      sr = nsr if nsr.std > sr.std else sr.replaced_lowest(r)
+      # if the new set has a higher standard deviation, keep the new set
+      # otherwise retain the same set size, but replace the lowest record.
+      if sr.size > max_size:
+        # we stay within the user specified limits
+        sr = sr.dropped_lowest()
+```
+
+We transform integer sequences into k-mer counts by transforming a series of consecutive bases into a single unsigned 64-bit integer. 
 
 # `dvgt` command line application
 
@@ -101,30 +122,29 @@ For homologous DNA sequences, increasing the amount of elapsed time since they s
 
 We used 106 alignments of protein coding DNA sequences from the following 31 mammals: Alpaca, Armadillo, Bushbaby, Cat, Chimp, Cow, Dog, Dolphin, Elephant, Gorilla, Hedgehog, Horse, Human, Hyrax, Macaque, Marmoset, Megabat, Microbat, Mouse, Orangutan, Pig, Pika, Platypus, Rabbit, Rat, Shrew, Sloth, Squirrel, Tarsier, Tenrec and Wallaby. The sequences and their
 
-
-As shown in \autoref{fig:jsd-v-dist-stat}, the sensitivity
+As shown in \autoref{fig:jsd-v-dist-stats}, the sensitivity
 
 The choice of statistic has an impact on the number of selected sequences.
 
+## compute time
 
+As shown in \autoref{fig:compute-time}, the compute time was linear with respect to the number of sequences on random samples of the microbial genomes.
 
-## compute time and memory
+can run in parallel on a single machine
 
-- on greengenes
-- on 1k microbial genomes
+### The cogent3 apps enable simplified usage
 
-### The cogent3 apps enable simplfied usage
-
-We provide `dvgt_select_max` and `dvgt_select_nmost` apps which are accessible through the Cogent3 plugin system. 
+We provide `dvgt_select_max` and `dvgt_select_nmost` as Cogent3 plugins. 
 
 # Figures
 
-![The performance of `dvgt max` in recovering representative sequences is a function of $k$ and the chosen statistic. Performance is represented by *Significant%*, the percentage of cases in which the sequences selected by `divergent` rejected the null hypothesis at the nominal $\le 0.05$ level. A LOWESS estimated trendline is displayed for each statistic.](figs/jsd_v_dist-stats.png){#fig:jsd-v-dist-stats}
+![The statistical performance of `dvgt max` in recovering representative sequences is a function of $k$ and the chosen statistic. Performance is represented by *Significant%*, the percentage of cases in which the sequences selected by `divergent` rejected the null hypothesis at the nominal $\le 0.05$ level. A LOWESS estimated trendline is displayed for each statistic.](figs/jsd_v_dist-stats.png){#fig:jsd-v-dist-stats}
 
 ![Both $k$ and the statistic impact on the number of sequences selected by divergent `max`.](figs/jsd_v_dist-sizes.png){#fig:jsd-v-dist-sizes}
 
 ![The selected edges are dispersed on a phylogenetic tree. The cogent3 plugin demonstration code was used to produce this figure.](figs/selected_edges.png){#fig:selected-edges}
 
+![`dvgt max` exhibits linear time performance with respect to the number of microbial genome sequences. Three replicates were performed for each condition. For each repeat, sequences were randomly sampled without replacement from the microbial data set.](figs/compute_time.png){#fig:compute-time}
 
 # Tables
 

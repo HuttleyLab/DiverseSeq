@@ -69,8 +69,9 @@ def run_max(seqfile, outpath, k):
 @click.option("-s", "--suffix", type=str, default="gb")
 def run(seqdir, suffix, outpath):
     seqdir = seqdir.absolute()
-    kmer_sizes = list(range(2, 9))
-    num_seqs = list(range(50, 201, 50))
+    reps = [1, 2, 3]
+    kmer_sizes = [2, 3, 4, 5, 6, 7, 8]
+    num_seqs = [50, 100, 150, 200]
     results = []
     with dvgt_util.keep_running():
         with rich_progress.Progress(
@@ -80,8 +81,8 @@ def run(seqdir, suffix, outpath):
             rich_progress.TimeRemainingColumn(),
             rich_progress.TimeElapsedColumn(),
         ) as progress:
-            repeats = progress.add_task("Doing reps", total=3)
-            for _ in range(3):
+            repeats = progress.add_task("Doing reps", total=len(reps))
+            for _ in reps:
                 seqnum = progress.add_task("Doing num seqs", total=len(num_seqs))
                 for num in num_seqs:
                     with TempWorkingDir() as temp_dir:
