@@ -44,7 +44,7 @@ Many bioinformatics analyses are costly in terms of compute time. Tools that fac
 
 as the scale of data sets becomes larger, the value of identifying analysis parameters on a representative subset of the data increases
 
-Current tools [@balaban.2019.plosone] require existence of a multiple sequence alignment or a phylogenetic tree or a pairwise distance matrix. Algorithms for all these approaches require homologous sequences as input. Each of those components is in turn computationally expensive.
+Current tools [@balaban.2019.plosone] require existence of a multiple sequence alignment or a phylogenetic tree or a pairwise distance matrix. These are effectively updates of earlier approaches [@widmann.2006.molcellproteomics]. The algorithms for these approaches require either distance matrices or homologous sequences as input. Each of those components is in turn computationally expensive.
 
 Divergent is more flexible than published approaches. It is alignment free and does not require sequences to be related. As we show, in the case of homologous sequences, the set selected by divergent is comparable to what would be expected under published approaches. Moreover, the algorithm is linear in time.
 
@@ -53,23 +53,23 @@ if we imagine a 1D line, the idea is to sample points that are approximately eve
 
 # Definitions
 
-$k$-mer is a subsequence of length $k$.
+A $k$-mer is a subsequence of length $k$ and a $k$-mer probability vector has elements corresponding to the frequency of each $k$-mer in a sequence. The Shannon entropy of a probability vector is calculated as $H=-\sum_i p_i \log_2 p_i$ where $p_i$ is the probability of the $i$-th $k$-mer. A DNA sequence with equifrequent nucleotides has the maximum possible $H=2$ while a sequence with a single nucleotide has $H=0$. Thus, this quantity represents a measure of "uncertainty" in the vector and is commonly used in sequence analysis, for example to define information content of DNA sequences as displayed in sequence logos [@schneider.1990.nucleicacidsres]. Shannon entropy is an important component of other statistical measures that quantify uncertainty, including Jensen-Shannon divergence (JSD) which we employ in this work [@lin.1991.ieeetrans.inf.theory]. 
 
-Define $f_i$ as the $k$-mer frequency vector for sequence $i$, and the set of $N$ such vectors as $\mathbb{F}$. The Jensen-Shannon Divergence for $\mathbb{F}$ is
-
-\begin{equation*}
-JSD=H \left( \frac{1}{N}\sum_i^N f_i \right) - \overline{H(f)}
-\end{equation*}
-
-where $\overline{H(f)}$ is the mean of the frequency vectors Shannon entropies.
-
-For sequence $i$, it's contribution to the total JSD of $\mathbb{F}$ is
+For a collection of DNA sequences $\mathbb{S}$ with size $N$, define $f_i$ as the $k$-mer frequency vector for sequence $s_i, s_i \in \mathbb{S}$. The JSD for the resulting set of vectors, $\mathbb{F}$, is
 
 \begin{equation*}
-JSD_{\delta}(i)=JSD(\mathbb{F})-JSD(\mathbb{F} - \{i\})
+JSD(\mathbb{F})=H \left( \frac{1}{N}\sum_i^N f_i \right) - \overline{H(\mathbb{F})}
 \end{equation*}
 
-with this expression it becomes clearer that to measure entropy of the collection we only need to keep track of the totals of each $k$-mer. Thus, the algorithm can be implemented with a single pass through the data with a small constant due to the need to update the chosen sequences
+where the first term corresponds to the Shannon entropy of the mean of the $N$ probability vectors and the second term $\overline{H(\mathbb{F})}$ is the mean of their corresponding Shannon entropies.
+
+For vector $f_i$, its contribution to the total JSD of $\mathbb{F}$ is
+
+\begin{equation}
+\delta_{JSD}(i)=JSD(\mathbb{F})-JSD(\mathbb{F} - \{i\})
+\end{equation}\ref{eqn:delta-jsd}
+
+with this expression it becomes clearer that to efficiently update the entropy measure of a collection we only need to keep track of the totals of each $k$-mer across the sequences in the collection, and the total Shannon entropy. Thus, the algorithm can be implemented with a single pass through the data.
 
 Add a figure describing the core algorithm as a flow chart.
 
@@ -97,15 +97,34 @@ counterparts to the above
 
 For homologous DNA sequences, increasing the amount of elapsed time since they shared a common ancestor increases their genetic distance. We also expect that the JSD between two sequences will increase proportional to the amount of time since they last shared a common ancestor. These lead to the expectation that there should be a relationship between genetic distance and JSD. This in turn leads us to formulate the following hypothesis for a divergent set with $N$ sequences. If JSD is uninformative, then the set of sequences chosen by `divergent` will be no better than a randomly selected set of size $N$. Under the alternate hypothesis, we expect the minimum genetic distance between the sequences chosen by `divergent` will be larger than that between a randomly selected set of $N$ sequences.
 
+### Data set used for evaluating statistical performance
+
+We used 106 alignments of protein coding DNA sequences from the following 31 mammals: Alpaca, Armadillo, Bushbaby, Cat, Chimp, Cow, Dog, Dolphin, Elephant, Gorilla, Hedgehog, Horse, Human, Hyrax, Macaque, Marmoset, Megabat, Microbat, Mouse, Orangutan, Pig, Pika, Platypus, Rabbit, Rat, Shrew, Sloth, Squirrel, Tarsier, Tenrec and Wallaby. The sequences and their
+
+
+As shown in \autoref{fig:jsd-v-dist-stat}, the sensitivity
+
+The choice of statistic has an impact on the number of selected sequences.
+
+
 
 ## compute time and memory
 
 - on greengenes
 - on 1k microbial genomes
 
+### The cogent3 apps enable simplfied usage
+
+We provide `dvgt_select_max` and `dvgt_select_nmost` apps which are accessible through the Cogent3 plugin system. 
+
 # Figures
 
-blah
+![The performance of `dvgt max` in recovering representative sequences is a function of $k$ and the chosen statistic. Performance is represented by *Significant%*, the percentage of cases in which the sequences selected by `divergent` rejected the null hypothesis at the nominal $\le 0.05$ level. A LOWESS estimated trendline is displayed for each statistic.](figs/jsd_v_dist-stats.png){#fig:jsd-v-dist-stats}
+
+![Both $k$ and the statistic impact on the number of sequences selected by divergent `max`.](figs/jsd_v_dist-sizes.png){#fig:jsd-v-dist-sizes}
+
+![The selected edges are dispersed on a phylogenetic tree. The cogent3 plugin demonstration code was used to produce this figure.](figs/selected_edges.png){#fig:selected-edges}
+
 
 # Tables
 
