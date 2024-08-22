@@ -138,7 +138,9 @@ def prep(seqdir, suffix, outpath, numprocs, force_overwrite, moltype, limit):
             convert2dstore = dvgt_io.dvgt_file_to_dir(dest=tmp_dir, limit=limit)
             in_dstore = convert2dstore(seqdir)
         else:
-            in_dstore = c3_data_store.DataStoreDirectory(source=seqdir, suffix=suffix)
+            in_dstore = c3_data_store.DataStoreDirectory(
+                source=seqdir, suffix=suffix, limit=limit
+            )
             if not len(in_dstore):
                 click.secho(
                     f"{seqdir} contains no files matching '*.{suffix}'",
