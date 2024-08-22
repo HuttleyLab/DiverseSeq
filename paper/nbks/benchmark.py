@@ -80,7 +80,7 @@ def run(seqdir, suffix, outpath):
             rich_progress.TimeRemainingColumn(),
             rich_progress.TimeElapsedColumn(),
         ) as progress:
-            repeats = progress.add_task("Doing reps", total=1)
+            repeats = progress.add_task("Doing reps", total=3)
             for _ in range(3):
                 seqnum = progress.add_task("Doing num seqs", total=len(num_seqs))
                 for num in num_seqs:
