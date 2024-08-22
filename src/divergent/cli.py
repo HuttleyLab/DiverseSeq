@@ -38,6 +38,12 @@ class OrderedGroup(click.Group):
         return self.commands
 
 
+_click_command_opts = dict(
+    no_args_is_help=True,
+    context_settings={"show_default": True},
+)
+
+
 @click.group(cls=OrderedGroup)
 @click.version_option(__version__)  # add version option
 def main():
@@ -58,19 +64,18 @@ _outpath = click.option(
     type=Path,
     help="the input string will be cast to Path instance",
 )
-
-
-_click_command_opts = dict(
-    no_args_is_help=True,
-    context_settings={"show_default": True},
-)
-
 _overwrite = click.option(
     "-F",
     "--force_overwrite",
     is_flag=True,
     default=False,
     help="Overwrite existing file if it exists",
+)
+_include = click.option(
+    "-i",
+    "--include",
+    callback=dvgt_util._comma_sep_or_file,
+    help="seqnames to include in divergent set",
 )
 _suffix = click.option("-sf", "--suffix", default="fa", help="sequence file suffix")
 _numprocs = click.option("-np", "--numprocs", default=1, help="number of processes")
@@ -199,6 +204,7 @@ def prep(seqdir, suffix, outpath, numprocs, force_overwrite, moltype, limit):
     default="stdev",
     help="statistic to maximise",
 )
+@_include
 @_numprocs
 @_limit
 @click.option(
@@ -214,6 +220,7 @@ def max(
     min_size,
     max_size,
     stat,
+    include,
     k,
     numprocs,
     limit,
@@ -221,7 +228,6 @@ def max(
     verbose,
 ):
     """Identify the seqs that maximise average delta JSD"""
-
     if max_size is not None and min_size > max_size:
         click.secho(f"{min_size=} cannot be greater than {max_size=}", fg="red")
         sys.exit(1)
@@ -234,6 +240,13 @@ def max(
         sys.exit(1)
 
     seqids = dvgt_data_store.get_seqids_from_store(seqfile)
+    if include and not set(include) <= set(seqids):
+        click.secho(
+            f"provided {include=} not in the sequence data",
+            fg="red",
+        )
+        sys.exit(1)
+
     limit = 2 if test_run else limit
     if limit is not None:
         seqids = seqids[:limit]
@@ -260,6 +273,18 @@ def max(
         finalise=finalise,
     )
 
+    # user requested inclusions are added to the selected divergent set
+    if include:
+        include_records = dvgt_records.records_from_seq_store(
+            seq_store=seqfile,
+            seq_names=include,
+            k=k,
+            limit=None,
+        )
+        result = dvgt_records.SummedRecords.from_records(
+            result.all_records() + include_records,
+        )
+
     outpath.parent.mkdir(parents=True, exist_ok=True)
     table = result.to_table()
     table.write(outpath)
@@ -276,6 +301,7 @@ def max(
     required=True,
 )
 @_k
+@_include
 @_numprocs
 @_limit
 @_verbose
@@ -284,6 +310,7 @@ def nmost(
     outpath,
     number,
     k,
+    include,
     numprocs,
     limit,
     verbose,
@@ -298,6 +325,14 @@ def nmost(
         sys.exit(1)
 
     seqids = dvgt_data_store.get_seqids_from_store(seqfile)
+
+    if include and not set(include) <= set(seqids):
+        click.secho(
+            f"provided {include=} not in the sequence data",
+            fg="red",
+        )
+        sys.exit(1)
+
     if limit is not None:
         seqids = seqids[:limit]
 
@@ -315,6 +350,17 @@ def nmost(
         verbose=verbose,
         finalise=dvgt_records.dvgt_final_nmost(),
     )
+    # user requested inclusions are added to the selected divergent set
+    if include:
+        include_records = dvgt_records.records_from_seq_store(
+            seq_store=seqfile,
+            seq_names=include,
+            k=k,
+            limit=None,
+        )
+        result = dvgt_records.SummedRecords.from_records(
+            result.all_records() + include_records,
+        )
 
     outpath.parent.mkdir(parents=True, exist_ok=True)
     table = result.to_table()

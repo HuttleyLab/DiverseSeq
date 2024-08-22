@@ -52,3 +52,18 @@ def test_summary_stats():
     assert_allclose(stats.mean, data.mean())
     assert_allclose(stats.std, data.std(ddof=1))
     assert_allclose(stats.cov, data.std(ddof=1) / data.mean())
+
+
+@pytest.fixture(params=(False, True))
+def includes(request, tmp_path):
+    names = ["a", "b", "c"]
+    if request.param:
+        inc = tmp_path / "includes.txt"
+        inc.write_text("\n".join(names), encoding="utf-8")
+        return inc
+    return ",".join(names)
+
+
+def test_parse_include_arg(includes):
+    got = dvgt_util._comma_sep_or_file(includes)
+    assert got == ["a", "b", "c"]

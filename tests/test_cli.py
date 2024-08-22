@@ -103,6 +103,17 @@ def test_max_size(runner, tmp_dir, processed_seq_path, max_size):
     _checked_output(outpath, eval_rows=lambda x: x <= max_size)
 
 
+def test_max_include(runner, tmp_dir, processed_seq_path):
+    outpath = tmp_dir / "test_include.tsv"
+    args = (
+        f"-s {processed_seq_path} -o {outpath} -z 3 -zp 5 -L 10 -k 1 -i Human".split()
+    )
+    r = runner.invoke(dvgt_max, args, catch_exceptions=False)
+    assert r.exit_code == 0, r.output
+    got = load_table(outpath)
+    assert "Human" in got.columns["names"]
+
+
 @pytest.mark.parametrize("size", (5, 7))
 def test_min_eq_max(runner, tmp_dir, processed_seq_path, size):
     outpath = tmp_dir / "test_min_eq_max.tsv"
@@ -143,6 +154,15 @@ def test_nmost(runner, tmp_dir, processed_seq_path):
     r = runner.invoke(dvgt_nmost, args, catch_exceptions=False)
     assert r.exit_code == 0, r.output
     _checked_output(outpath, eval_rows=lambda x: x == 5)
+
+
+def test_nmost_include(runner, tmp_dir, processed_seq_path):
+    outpath = tmp_dir / "test_include.tsv"
+    args = f"-s {processed_seq_path} -o {outpath} -k 1 -n 5 -L 10 -i Human".split()
+    r = runner.invoke(dvgt_nmost, args, catch_exceptions=False)
+    assert r.exit_code == 0, r.output
+    got = load_table(outpath)
+    assert "Human" in got.columns["names"]
 
 
 @pytest.mark.skipif(sys.platform.startswith("win"), reason="Test skipped on Windows")
