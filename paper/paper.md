@@ -67,9 +67,9 @@ For vector $f_i$, its contribution to the total JSD of $\mathbb{F}$ is
 
 \begin{equation}
 \delta_{JSD}(i)=JSD(\mathbb{F})-JSD(\mathbb{F} - \{i\})
-\end{equation}\ref{eqn:delta-jsd}
+\end{equation}\label{eqn:delta-jsd}
 
-with this expression it becomes clearer that to efficiently update the entropy measure of a collection we only need to keep track of the totals of each $k$-mer across the sequences in the collection, and the total Shannon entropy. Thus, the algorithm can be implemented with a single pass through the data.
+From \autoref{eqn:delta-jsd} it becomes clearer that to efficiently update the entropy measure of a collection we only need to keep track of the totals of each $k$-mer across the sequences in the collection, and the total Shannon entropy. Thus, the algorithm can be implemented with a single pass through the data.
 
 Add a figure describing the core algorithm as a flow chart.
 
@@ -118,11 +118,18 @@ counterparts to the above
 
 For homologous DNA sequences, increasing the amount of elapsed time since they shared a common ancestor increases their genetic distance. We also expect that the JSD between two sequences will increase proportional to the amount of time since they last shared a common ancestor. These lead to the expectation that there should be a relationship between genetic distance and JSD. This in turn leads us to formulate the following hypothesis for a divergent set with $N$ sequences. If JSD is uninformative, then the set of sequences chosen by `divergent` will be no better than a randomly selected set of size $N$. Under the alternate hypothesis, we expect the minimum genetic distance between the sequences chosen by `divergent` will be larger than that between a randomly selected set of $N$ sequences.
 
+
+If DNA sequences are homologous, then `divergent` should select sets of sequences for which their minimum genetic distance is near the upper tail of the distribution of this measure from a sampling of combinations of the same (or different size).
+
+The column labelled "P-value<0.1" identifies how many of `num` genes for which the divergent set species gave a p-value ≤0.1 (this value was arbitrarily chosen). The distribution for each gene was obtained be taking of the mean of 1000 randomly chosen (without replacement) combinations of species.
+
+The relationship between the statistic chosen, k and whether a post-process pruning was done all had an effect. For this data set, the combination `mean_delta_jsd`, `max_set=False` and `k=4` produced the largest relationship with genetic distance.
+
 ### Data set used for evaluating statistical performance
 
-We used 106 alignments of protein coding DNA sequences from the following 31 mammals: Alpaca, Armadillo, Bushbaby, Cat, Chimp, Cow, Dog, Dolphin, Elephant, Gorilla, Hedgehog, Horse, Human, Hyrax, Macaque, Marmoset, Megabat, Microbat, Mouse, Orangutan, Pig, Pika, Platypus, Rabbit, Rat, Shrew, Sloth, Squirrel, Tarsier, Tenrec and Wallaby. The sequences and their
+We used 106 alignments of protein coding DNA sequences from the following 31 mammals: Alpaca, Armadillo, Bushbaby, Cat, Chimp, Cow, Dog, Dolphin, Elephant, Gorilla, Hedgehog, Horse, Human, Hyrax, Macaque, Marmoset, Megabat, Microbat, Mouse, Orangutan, Pig, Pika, Platypus, Rabbit, Rat, Shrew, Sloth, Squirrel, Tarsier, Tenrec and Wallaby. The sequences were obtained from Ensembl.org [@harrison.2024.nucleicacidsresearch] and aligned using cogent3's codon aligner.
 
-As shown in \autoref{fig:jsd-v-dist-stats}, the sensitivity
+As shown in \autoref{fig:jsd-v-dist}, the sensitivity
 
 The choice of statistic has an impact on the number of selected sequences.
 
@@ -138,9 +145,7 @@ We provide `dvgt_select_max` and `dvgt_select_nmost` as Cogent3 plugins.
 
 # Figures
 
-![The statistical performance of `dvgt max` in recovering representative sequences is a function of $k$ and the chosen statistic. Performance is represented by *Significant%*, the percentage of cases in which the sequences selected by `divergent` rejected the null hypothesis at the nominal $\le 0.05$ level. A LOWESS estimated trendline is displayed for each statistic.](figs/jsd_v_dist-stats.png){#fig:jsd-v-dist-stats}
-
-![Both $k$ and the statistic impact on the number of sequences selected by divergent `max`.](figs/jsd_v_dist-sizes.png){#fig:jsd-v-dist-sizes}
+![The statistical performance of `dvgt max` in recovering representative sequences is a function of $k$ and the chosen statistic. Trendlines were estimated using LOWESS. (a) Performance is represented by *Significant%*, the percentage of cases in which the sequences selected by `divergent` rejected the null hypothesis at the nominal $\le 0.05$ level. (b) Both $k$ and the statistic impact on the number of sequences selected by divergent `max`.](figs/jsd_v_dist.png){#fig:jsd-v-dist}
 
 ![The selected edges are dispersed on a phylogenetic tree. The cogent3 plugin demonstration code was used to produce this figure.](figs/selected_edges.png){#fig:selected-edges}
 
