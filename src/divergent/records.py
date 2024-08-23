@@ -25,12 +25,12 @@ from math import fsum
 import click
 import h5py
 import numpy
+import rich.progress as rich_progress
 from attrs import define, field
 from cogent3 import make_table
 from cogent3.app import typing as c3_types
 from cogent3.app.composable import NotCompleted, define_app
 from numpy import isclose as np_isclose
-from rich.progress import track
 
 from divergent import util as dvgt_util
 from divergent.record import (
@@ -296,7 +296,7 @@ def max_divergent(
     if len(records) <= min_size:
         return sr
 
-    series = track(records, transient=True) if verbose else records
+    series = rich_progress.track(records, transient=True) if verbose else records
     for r in series:
         if r in sr:
             # already a member of the divergent set
@@ -395,7 +395,7 @@ def most_divergent(
     if len(records) <= size:
         return sr
 
-    series = track(records) if show_progress else records
+    series = rich_progress.track(records) if show_progress else records
     for r in series:
         if r in sr:
             continue
@@ -591,20 +591,37 @@ def apply_app(
     verbose: bool,
     finalise: typing.Callable[[list[SummedRecords]], SummedRecords],
 ) -> SummedRecords:
+    """applies the app to seqids, polishing the selected set with finalise"""
+    app_name = app.__class__.__name__
     with dvgt_util.keep_running():
-        if numprocs == 1 or len(seqids) < numprocs:
-            result = app(seqids)
+        if numprocs > 1 and len(seqids) > numprocs:
+            seqids = list(dvgt_util.chunked(seqids, numprocs, verbose=verbose))
         else:
-            seqids = dvgt_util.chunked(seqids, numprocs, verbose=verbose)
-            result = list(
-                app.as_completed(
-                    seqids,
-                    parallel=True,
-                    par_kw=dict(max_workers=numprocs),
-                    show_progress=True,
-                ),
+            seqids = [seqids]
+
+        with rich_progress.Progress(
+            rich_progress.TextColumn("[progress.description]{task.description}"),
+            rich_progress.BarColumn(),
+            rich_progress.TaskProgressColumn(),
+            rich_progress.TimeRemainingColumn(),
+            rich_progress.TimeElapsedColumn(),
+        ) as progress:
+            select = progress.add_task(
+                f"Selection with {app_name!r}",
+                total=len(seqids),
             )
-            result = [r.obj for r in result]
+            result = []
+            for r in app.as_completed(
+                seqids,
+                parallel=numprocs > 1,
+                par_kw=dict(max_workers=numprocs),
+                show_progress=True,
+            ):
+                if not r:
+                    print(r)
+                result.append(r.obj)
+                progress.update(select, advance=1, refresh=True)
+
             result = finalise(result)
 
         if isinstance(result, NotCompleted):

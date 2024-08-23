@@ -6,6 +6,7 @@ from collections.abc import Mapping
 from pathlib import Path
 
 import click
+import rich.progress as rich_progress
 from cogent3.app import data_store as c3_data_store
 from scitrack import CachingLogger
 
@@ -159,22 +160,35 @@ def prep(seqdir, suffix, outpath, numprocs, force_overwrite, moltype, limit):
 
         out_dstore = dvgt_data_store.HDF5DataStore(source=dvgtseqs_path, mode="w")
 
-        prep_pipeline = dvgt_io.dvgt_load_seqs(
+        loader = dvgt_io.dvgt_load_seqs(
             moltype=moltype,
             seq_format=seq_format,
-        ) + dvgt_io.dvgt_write_seqs(
+        )
+        writer = dvgt_io.dvgt_write_seqs(
             data_store=out_dstore,
         )
-        result = prep_pipeline.apply_to(
-            in_dstore,
-            show_progress=True,
-            parallel=numprocs > 1,
-            par_kw=dict(max_workers=numprocs),
-        )
+        with rich_progress.Progress(
+            rich_progress.TextColumn("[progress.description]{task.description}"),
+            rich_progress.BarColumn(),
+            rich_progress.TaskProgressColumn(),
+            rich_progress.TimeRemainingColumn(),
+            rich_progress.TimeElapsedColumn(),
+        ) as progress:
+            convert = progress.add_task("Processing sequences", total=len(in_dstore))
+            for r in loader.as_completed(
+                in_dstore,
+                show_progress=False,
+                parallel=numprocs > 1,
+                par_kw=dict(max_workers=numprocs),
+            ):
+                if not r:
+                    print(r)
+                writer(r, identifier=r.source.unique_id)
+                progress.update(convert, advance=1, refresh=True)
 
     out_dstore.close()
     click.secho(
-        f"Successfully created {result}",
+        f"Successfully created {out_dstore.source!s}",
         fg="green",
     )
 
