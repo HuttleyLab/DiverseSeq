@@ -67,8 +67,8 @@ class arr2str:
 
 
 # we allow for file suffixes to include compression extensions
-_fasta_format = re.compile("(fasta|mfa|faa|fna|fa)([.][a-zA-Z]+)?$")
-_genbank_format = re.compile("(genbank|gbk|gb|gbff)([.][a-zA-Z]+)?$")
+_fasta_format = re.compile("(fasta|mfa|faa|fna|fa)([.][a-zA-Z0-9]+)?$")
+_genbank_format = re.compile("(genbank|gbk|gb|gbff)([.][a-zA-Z0-9]+)?$")
 
 
 def get_seq_file_format(suffix: str) -> str:

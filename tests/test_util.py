@@ -24,7 +24,10 @@ def test_arr2str(seq):
     assert got == seq
 
 
-@pytest.mark.parametrize("suffix", ("fa", "fasta", "genbank", "gbk", "gbk.gz"))
+@pytest.mark.parametrize(
+    "suffix",
+    ("fa", "fasta", "genbank", "gbk", "gbk.gz", "fna.bz2"),
+)
 def test_get_seq_format(suffix):
     assert dvgt_util.get_seq_file_format(suffix) in ("fasta", "genbank")
 
