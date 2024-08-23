@@ -82,12 +82,10 @@ class dvgt_load_seqs:
     def main(self, data_member: DataMember) -> SeqArray:
         seq_path = Path(data_member.data_store.source) / data_member.unique_id
         parser = get_format_parser(seq_path, self.seq_format)
-        for _, seq, *_ in parser:
-            break
-
+        seqs = [s for _, s, *_ in parser]
         return SeqArray(
             seqid=data_member.unique_id,
-            data=self.str2arr(seq.decode("utf8")),
+            data=self.str2arr(b"N".join(seqs).decode("utf8")),
             moltype=self.moltype,
             source=data_member.data_store.source,
         )
