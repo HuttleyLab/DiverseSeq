@@ -183,7 +183,7 @@ def prep(seqdir, suffix, outpath, numprocs, force_overwrite, moltype, limit):
             ):
                 if not r:
                     print(r)
-                writer(r, identifier=r.source.unique_id)
+                writer(r)
                 progress.update(convert, advance=1, refresh=True)
 
     out_dstore.close()

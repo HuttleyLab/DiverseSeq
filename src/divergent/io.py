@@ -3,14 +3,19 @@ from pathlib import Path
 
 from attrs import define
 from cogent3.app import typing as c3_types
-from cogent3.app.composable import LOADER, NON_COMPOSABLE, WRITER, define_app
+from cogent3.app.composable import (
+    LOADER,
+    NON_COMPOSABLE,
+    WRITER,
+    define_app,
+    source_proxy,
+)
 from cogent3.app.data_store import (
     OVERWRITE,
     DataMember,
     DataStoreABC,
     DataStoreDirectory,
     Mode,
-    get_unique_id,
 )
 from cogent3.core import new_alphabet
 from cogent3.format import fasta as format_fasta
@@ -91,6 +96,10 @@ class dvgt_load_seqs:
         )
 
 
+def get_unique_id(data: SeqArray) -> str:
+    return data.seqid
+
+
 @define_app(app_type=WRITER)
 class dvgt_write_seqs:
     """Write seqs as numpy arrays to a HDF5DataStore"""
@@ -108,7 +117,8 @@ class dvgt_write_seqs:
         data: SeqArray,
         identifier: str | None = None,
     ) -> c3_types.IdentifierType:
-        unique_id = identifier or self.id_from_source(data.unique_id)
+        data = data.obj if isinstance(data, source_proxy) else data
+        unique_id = identifier or self.id_from_source(data)
         return self.data_store.write(
             unique_id=unique_id,
             data=data.data,
