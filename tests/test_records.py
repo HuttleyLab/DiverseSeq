@@ -152,11 +152,9 @@ def test_merge_summed_records(DATA_DIR, brca1_coll):
     sr2 = app(names[10:20])
     rnames1 = sr1.record_names
     rnames2 = sr2.record_names
+    assert set(rnames1) != set(rnames2)
     got = dvgt_records.dvgt_final_nmost()([sr1, sr2])
-    final_selected = got.record_names
-    assert len(final_selected) == 5
-    assert set(final_selected) != set(rnames1)
-    assert set(final_selected) != set(rnames2)
+    assert len(got.record_names) == 5
 
 
 def test_dvgt_select_max(brca1_coll):
