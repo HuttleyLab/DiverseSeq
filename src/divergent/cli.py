@@ -86,7 +86,7 @@ _seqfile = click.option(
     type=Path,
     help="path to .dvtgseqs file",
 )
-_k = click.option("-k", type=int, default=3, help="k-mer size")
+_k = click.option("-k", type=int, default=6, help="k-mer size")
 
 
 @main.command(**_click_command_opts)
