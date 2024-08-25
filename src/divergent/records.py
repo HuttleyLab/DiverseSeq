@@ -636,7 +636,7 @@ class dvgt_select_max:
         stat: str = "stdev",
         moltype: str = "dna",
         include: list[str] | str | None = None,
-        k: int = 4,
+        k: int = 6,
         seed: int | None = None,
     ) -> None:
         """
@@ -651,7 +651,7 @@ class dvgt_select_max:
         moltype
             molecular type of the sequences
         include
-            sequence names to include
+            sequence names to include in the final result
         k
             k-mer size
         seed
@@ -660,9 +660,8 @@ class dvgt_select_max:
         Notes
         -----
         If called with an alignment, the ungapped sequences are used.
-        Sequence order of input is randomised. If include is not None, the
-        named sequences are added to the collection before selecting the
-        divergent set.
+        The order of the sequences is randomised. If include is not None, the
+        named sequences are added to the final result.
         """
         self._s2k = seq_to_seqarray(moltype=moltype) + seqarray_to_kmerseq(
             k=k,
@@ -700,7 +699,7 @@ class dvgt_select_nmost:
         n: int = 3,
         moltype: str = "dna",
         include: list[str] | str | None = None,
-        k: int = 4,
+        k: int = 6,
         seed: int | None = None,
     ) -> None:
         """
@@ -713,14 +712,15 @@ class dvgt_select_nmost:
         k
             k-mer size
         include
-            sequence names to include
+            sequence names to include in the final result
         seed
             random number seed
 
         Notes
         -----
         If called with an alignment, the ungapped sequences are used.
-        Sequence order of input is randomised.
+        The order of the sequences is randomised. If include is not None, the
+        named sequences are added to the final result.
         """
         self._s2k = seq_to_seqarray(moltype=moltype) + seqarray_to_kmerseq(
             k=k,
