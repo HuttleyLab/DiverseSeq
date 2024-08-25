@@ -26,7 +26,7 @@ def _get_kfreqs_per_seq(seqs, k=1):
 
 def _make_records(kcounts, seqcoll):
     return [
-        KmerSeq(kcounts=kcounts[s.name], name=s.name, length=len(s))
+        KmerSeq(kcounts=kcounts[s.name], name=s.name)
         for s in seqcoll.seqs
         if s.name in kcounts
     ]
@@ -36,8 +36,7 @@ def _make_records(kcounts, seqcoll):
 def test_total_jsd(seqcoll, k):
     kcounts = _get_kfreqs_per_seq(seqcoll, k=k)
     records = [
-        KmerSeq(kcounts=kcounts[s.name], name=f"{s.name}-{k}", length=len(s))
-        for s in seqcoll.seqs
+        KmerSeq(kcounts=kcounts[s.name], name=f"{s.name}-{k}") for s in seqcoll.seqs
     ]
     sr = dvgt_records.SummedRecords.from_records(records)
     freqs = {n: v.astype(float) / v.sum() for n, v in kcounts.items()}
@@ -88,10 +87,7 @@ def test_increases_jsd(seqcoll, exclude, expect):
 def test_mean_delta_jsd(seqcoll):
     k = 1
     kcounts = _get_kfreqs_per_seq(seqcoll, k=k)
-    records = [
-        KmerSeq(kcounts=kcounts[s.name], name=s.name, length=len(s))
-        for s in seqcoll.seqs
-    ]
+    records = [KmerSeq(kcounts=kcounts[s.name], name=s.name) for s in seqcoll.seqs]
     sr_with_a = dvgt_records.SummedRecords.from_records(records)
     sr_without_a = dvgt_records.SummedRecords.from_records(
         [r for r in records if r.name != "a"],

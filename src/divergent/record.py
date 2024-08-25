@@ -390,7 +390,6 @@ class KmerSeq:
 
     kcounts: vector = field(eq=False, converter=_make_kcounts)
     name: str = field(validator=validators.instance_of(str), eq=True)
-    length: int = field(validator=[validators.instance_of(int), _gt_zero], eq=True)
     delta_jsd: float = field(
         init=False,
         validator=validators.instance_of(float),
@@ -465,7 +464,6 @@ class seqarray_to_kmerseq:
         return KmerSeq(
             kcounts=vector(**kwargs),
             name=kwargs["name"],
-            length=len(seq.data),
         )
 
 
