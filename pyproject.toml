@@ -34,6 +34,11 @@ classifiers = [
 # the following are inferred from the source code
 dynamic = ["version", "description"]
 
+[project.urls]
+Documentation = "https://github.com/HuttleyLab/Divergent"
+"Bug Tracker" = "https://github.com/HuttleyLab/Divergent/issues"
+"Source Code" = "https://github.com/HuttleyLab/Divergent/"
+
 [project.sdist]
 include = ["doc/", "requirements.txt", "src/*", "pyproject.toml"]
 exclude = ["doc/*.html"]
