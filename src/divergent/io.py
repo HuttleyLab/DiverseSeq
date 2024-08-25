@@ -90,7 +90,7 @@ class dvgt_load_seqs:
         seqs = [s for _, s, *_ in parser]
         return SeqArray(
             seqid=data_member.unique_id,
-            data=self.str2arr(b"N".join(seqs).decode("utf8")),
+            data=self.str2arr(b"-".join(seqs).decode("utf8")),
             moltype=self.moltype,
             source=data_member.data_store.source,
         )
