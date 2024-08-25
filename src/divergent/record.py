@@ -64,9 +64,11 @@ def _(data: dict, size: int | None = None, dtype: type = int) -> ndarray:
     return result
 
 
+# convert this to a dataclass
+# write a wrapper for the data store member so it has a __array__ method
 @define(slots=True)
 class vector:
-    data: ndarray
+    data: ndarray  # this should be an array-like object, has a __array__ method
     vector_length: int
     default: NumType | None = field(init=False)
     dtype: type = float
@@ -406,6 +408,7 @@ class KmerSeq:
 
     @property
     def kfreqs(self):
+        # TODO this should trigger loading of the data
         kcounts = self.kcounts.data
         kcounts = kcounts.astype(float)
         kfreqs = kcounts / kcounts.sum()
