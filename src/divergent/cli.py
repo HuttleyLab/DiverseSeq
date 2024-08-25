@@ -57,8 +57,6 @@ _verbose = click.option(
     count=True,
     help="is an integer indicating number of cl occurrences",
 )
-
-
 _outpath = click.option(
     "-o",
     "--outpath",
@@ -121,10 +119,10 @@ def prep(seqdir, suffix, outpath, numprocs, force_overwrite, moltype, limit):
     """Writes processed sequences to an outpath ending with .dvgtseqs file."""
     dvgtseqs_path = outpath.with_suffix(".dvgtseqs")
     if dvgtseqs_path.exists() and not force_overwrite:
-        click.secho(
+        dvgt_util.print_colour(
             "A file with the same name already exists. Existing data members will be skipped. "
             "Use the -F flag if you want to overwrite the existing file.",
-            fg="blue",
+            "blue",
         )
     elif dvgtseqs_path.exists() and force_overwrite:
         dvgtseqs_path.unlink()
@@ -134,9 +132,9 @@ def prep(seqdir, suffix, outpath, numprocs, force_overwrite, moltype, limit):
 
     seq_format = dvgt_util.get_seq_file_format(suffix)
     if seq_format is None:
-        click.secho(
+        dvgt_util.print_colour(
             f"Unrecognised sequence file suffix '{suffix}'",
-            fg="red",
+            "red",
         )
         sys.exit(1)
 
@@ -147,9 +145,9 @@ def prep(seqdir, suffix, outpath, numprocs, force_overwrite, moltype, limit):
         else:
             in_dstore = c3_data_store.DataStoreDirectory(source=seqdir, suffix=suffix)
             if not len(in_dstore):
-                click.secho(
+                dvgt_util.print_colour(
                     f"{seqdir} contains no files matching '*.{suffix}'",
-                    fg="red",
+                    "red",
                 )
                 sys.exit(1)
 
@@ -187,9 +185,9 @@ def prep(seqdir, suffix, outpath, numprocs, force_overwrite, moltype, limit):
                 progress.update(convert, advance=1, refresh=True)
 
     out_dstore.close()
-    click.secho(
+    dvgt_util.print_colour(
         f"Successfully created {out_dstore.source!s}",
-        fg="green",
+        "green",
     )
 
 
@@ -243,21 +241,21 @@ def max(
 ):
     """Identify the seqs that maximise average delta JSD"""
     if max_size is not None and min_size > max_size:
-        click.secho(f"{min_size=} cannot be greater than {max_size=}", fg="red")
+        dvgt_util.print_colour(f"{min_size=} cannot be greater than {max_size=}", "red")
         sys.exit(1)
 
     if seqfile.suffix != ".dvgtseqs":
-        click.secho(
+        dvgt_util.print_colour(
             "Sequence data needs to be preprocessed, use 'dvgt prep'",
-            fg="red",
+            "red",
         )
         sys.exit(1)
 
     seqids = dvgt_data_store.get_seqids_from_store(seqfile)
     if include and not set(include) <= set(seqids):
-        click.secho(
+        dvgt_util.print_colour(
             f"provided {include=} not in the sequence data",
-            fg="red",
+            "red",
         )
         sys.exit(1)
 
@@ -302,6 +300,10 @@ def max(
     outpath.parent.mkdir(parents=True, exist_ok=True)
     table = result.to_table()
     table.write(outpath)
+    dvgt_util.print_colour(
+        f"{table.shape[0]} divergent sequences IDs written to {outpath!s}",
+        "green",
+    )
 
 
 @main.command(**_click_command_opts)
@@ -332,18 +334,18 @@ def nmost(
     """Identify n seqs that maximise average delta JSD"""
 
     if seqfile.suffix != ".dvgtseqs":
-        click.secho(
+        dvgt_util.print_colour(
             "Sequence data needs to be preprocessed, use 'dvgt prep'",
-            fg="red",
+            "red",
         )
         sys.exit(1)
 
     seqids = dvgt_data_store.get_seqids_from_store(seqfile)
 
     if include and not set(include) <= set(seqids):
-        click.secho(
+        dvgt_util.print_colour(
             f"provided {include=} not in the sequence data",
-            fg="red",
+            "red",
         )
         sys.exit(1)
 
@@ -379,6 +381,10 @@ def nmost(
     outpath.parent.mkdir(parents=True, exist_ok=True)
     table = result.to_table()
     table.write(outpath)
+    dvgt_util.print_colour(
+        f"{table.shape[0]} divergent sequences IDs written to {outpath!s}",
+        "green",
+    )
 
 
 if __name__ == "__main__":

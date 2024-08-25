@@ -1,3 +1,5 @@
+import sys
+
 import numpy
 import pytest
 from cogent3 import get_moltype
@@ -70,3 +72,13 @@ def includes(request, tmp_path):
 def test_parse_include_arg(includes):
     got = dvgt_util._comma_sep_or_file(includes)
     assert got == ["a", "b", "c"]
+
+
+@pytest.mark.skipif(
+    sys.platform.startswith("win"),
+    reason="Not sure if this test will work on Windows",
+)
+def test_print_colour(capsys):
+    dvgt_util.print_colour("hello", "red")
+    got = capsys.readouterr().out
+    assert got == "\x1b[31mhello\x1b[0m\n"

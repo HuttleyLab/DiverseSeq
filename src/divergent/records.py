@@ -22,15 +22,14 @@ import sys
 import typing
 from math import fsum
 
-import click
 import h5py
 import numpy
-import rich.progress as rich_progress
 from attrs import define, field
 from cogent3 import make_table
 from cogent3.app import typing as c3_types
 from cogent3.app.composable import NotCompleted, define_app
 from numpy import isclose as np_isclose
+from rich import progress as rich_progress
 
 from divergent import util as dvgt_util
 from divergent.record import (
@@ -600,14 +599,14 @@ def apply_app(
             seqids = [seqids]
 
         with rich_progress.Progress(
-            rich_progress.TextColumn("[progress.description]{task.description}"),
+            rich_progress.TextColumn("{task.description}"),
             rich_progress.BarColumn(),
             rich_progress.TaskProgressColumn(),
             rich_progress.TimeRemainingColumn(),
             rich_progress.TimeElapsedColumn(),
         ) as progress:
             select = progress.add_task(
-                f"Selection with {app_name!r}",
+                description=f"[blue]Selection with {app_name!r}",
                 total=len(seqids),
             )
             result = []
@@ -618,17 +617,16 @@ def apply_app(
                 show_progress=True,
             ):
                 if not r:
-                    print(r)
+                    dvgt_util.print_colour(r, style="red")
                 result.append(r.obj)
                 progress.update(select, advance=1, refresh=True)
 
-            result = finalise(result)
+        dvgt_util.print_colour(f"Merging results from {len(seqids)} runs...", "blue")
+
+        result = finalise(result)
 
         if isinstance(result, NotCompleted):
-            click.secho(
-                message=f"{result.type}: {result.message}",
-                fg="red",
-            )
+            dvgt_util.print_colour(f"{result.type}: {result.message}", "red")
             sys.exit(1)
 
     return result

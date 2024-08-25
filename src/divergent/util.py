@@ -7,6 +7,7 @@ import re
 import numpy
 from cogent3 import get_moltype
 from cogent3.app import composable
+from rich import text as rich_text
 
 try:
     from wakepy.keep import running as keep_running
@@ -145,3 +146,19 @@ def _comma_sep_or_file(*args):
         names = path.read_text().splitlines()
         return [name.strip() for name in names]
     return [n.strip() for n in include.split(",") if n.strip()]
+
+
+class _printer:
+    from rich.console import Console
+
+    def __init__(self) -> None:
+        self._console = self.Console()
+
+    def __call__(self, txt: str, colour: str):
+        """print text in colour"""
+        msg = rich_text.Text(txt)
+        msg.stylize(colour)
+        self._console.print(msg)
+
+
+print_colour = _printer()
