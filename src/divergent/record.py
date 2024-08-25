@@ -443,18 +443,22 @@ class KmerSeq:
 
     @property
     def size(self):
-        return len(self.kfreqs)
+        return self.kcounts.vector_length
 
-    @property
+    @functools.cached_property
     def entropy(self):
         return self.kfreqs.entropy
 
-    @property
+    @functools.cached_property
     def kfreqs(self):
         kcounts = array(self.kcounts)
         kcounts = kcounts.astype(float)
         kfreqs = kcounts / kcounts.sum()
-        return vector(data=kfreqs, vector_length=len(kfreqs), dtype=float)
+        return vector(
+            data=kfreqs,
+            vector_length=len(kfreqs),
+            dtype=float,
+        )
 
 
 @composable.define_app
