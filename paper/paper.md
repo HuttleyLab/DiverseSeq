@@ -126,7 +126,7 @@ For homologous DNA sequences, increasing the amount of elapsed time since they s
 
 If DNA sequences are homologous, then `divergent` should select sets of sequences for which their minimum genetic distance is near the upper tail of the distribution of this measure from a sampling of combinations of the same (or different size).
 
-The column labelled "P-value<0.1" identifies how many of `num` genes for which the divergent set species gave a p-value ≤0.1 (this value was arbitrarily chosen). The distribution for each gene was obtained be taking of the mean of 1000 randomly chosen (without replacement) combinations of species.
+The column labelled "P-value<0.05" identifies how many of `num` genes for which the divergent set species gave a p-value $\le 0.5$ (this value was arbitrarily chosen). The distribution for each gene was obtained by taking of the mean of 1000 randomly chosen (without replacement) combinations of species.
 
 The relationship between the statistic chosen, k and whether a post-process pruning was done all had an effect. For this data set, the combination `mean_delta_jsd`, `max_set=False` and `k=4` produced the largest relationship with genetic distance.
 
