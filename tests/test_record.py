@@ -54,7 +54,7 @@ def seqarray():
 
 @pytest.mark.parametrize("seq,entropy", ((seq4eq, 2.0), (seq4one, 0.0)))
 def test_seqrecord_entropy(seq, entropy):
-    arr = str2arr()(str(seq))
+    arr = str2arr()(str(seq))  # pylint: disable=not-callable
     kcounts = kmer_counts(arr, 4, 1)
     sr = KmerSeq(kcounts=kcounts, name=seq.name)
     assert sr.entropy == entropy
@@ -74,7 +74,7 @@ def test_seqrecord_invalid_kcounts(kcounts):
 
 
 def test_seqrecord_compare():
-    arr = str2arr()(str(seq5))
+    arr = str2arr()(str(seq5))  # pylint: disable=not-callable
     kcounts = kmer_counts(arr, 4, 2)
     kwargs = dict(kcounts=kcounts)
     sr1 = KmerSeq(name="n1", **kwargs)
@@ -350,7 +350,7 @@ def test_kmer_freqs(seq, k):
         expect[states.index(kmer)] = v
 
     seq2array = str2arr()
-    arr = seq2array(str(seq))
+    arr = seq2array(str(seq))  # pylint: disable=not-callable
     got = kmer_counts(arr, 4, k)
     assert (got == expect).all()
 
@@ -363,8 +363,8 @@ def test_composable():
         return True
 
     sr = KmerSeq(kcounts=numpy.array([1, 2, 3, 4], dtype=int), name="a")
-    app = matched_sr()
-    got = app([sr])
+    app = matched_sr()  # pylint: disable=no-value-for-parameter
+    got = app([sr])  # pylint: disable=not-callable
     assert got
 
 
@@ -387,7 +387,7 @@ def test__gettype(dtype):
 @pytest.mark.parametrize("k", (1, 2, 3))
 def test_seqarray_to_record(seqarray, k):
     s2r = seqarray_to_kmerseq(k=k, moltype="dna")
-    rec = s2r(seqarray)
+    rec = s2r(seqarray)  # pylint: disable=not-callable
 
     assert rec.name == "seq1"
     rec.kfreqs.sum() == len(seqarray) - k + 1
@@ -407,7 +407,7 @@ def test_lazy_kmers(dstore, seqarray):
 
     lazy = lazy_kmers(member=member, k=2, moltype="dna")
     s2k = seqarray_to_kmerseq(k=2, moltype="dna")
-    expect = s2k(seqarray)
+    expect = s2k(seqarray)  # pylint: disable=not-callable
     assert_allclose(numpy.array(lazy), expect.kcounts)
 
 
@@ -421,8 +421,8 @@ def test_member_to_vector(dstore, seqarray):
 def test_member_to_kmerseq(dstore, seqarray):
     member = dstore.write(unique_id="seq1", data=seqarray.data)
     new_app = member_to_kmerseq(k=2, moltype="dna")
-    got = new_app(member)
+    got = new_app(member)  # pylint: disable=not-callable
     assert isinstance(got, KmerSeq)
     old_app = seqarray_to_kmerseq(k=2, moltype="dna")
-    expect = old_app(seqarray)
+    expect = old_app(seqarray)  # pylint: disable=not-callable
     assert_allclose(got.kcounts, expect.kcounts)

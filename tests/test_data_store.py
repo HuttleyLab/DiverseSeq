@@ -29,7 +29,7 @@ def brca1_5(brca1_seqs):
 @pytest.fixture(scope="function")
 def brca1_dstore(tmp_path):
     dstore_maker = dvgt_io.dvgt_file_to_dir(tmp_path / "brca1_dstore")
-    return dstore_maker(DATADIR / "brca1.fasta")
+    return dstore_maker(DATADIR / "brca1.fasta")  # pylint: disable=not-callable
 
 
 @pytest.fixture(scope="function")
@@ -37,7 +37,7 @@ def brca1_5_dstore(tmp_path, brca1_5):
     fasta_path = tmp_path / "brca1_5.fasta"
     brca1_5.write(fasta_path)
     dstore_maker = dvgt_io.dvgt_file_to_dir(tmp_path / "brca1_5_dstore")
-    return dstore_maker(fasta_path)
+    return dstore_maker(fasta_path)  # pylint: disable=not-callable
 
 
 @pytest.fixture(scope="function")
@@ -65,7 +65,7 @@ def test_prep_pipeline(brca1_5, brca1_5_dstore, hdf5_dstore_path, parallel):
     # check the sequence data matches
     seq_data = result.read("Cat")
     str_to_array = str2arr(moltype="dna")
-    orig_seq_data = str_to_array(str(brca1_5.get_seq("Cat")))
+    orig_seq_data = str_to_array(str(brca1_5.get_seq("Cat")))  # pylint: disable=not-callable
     assert_array_equal(seq_data, orig_seq_data)
 
 

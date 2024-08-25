@@ -141,7 +141,7 @@ def prep(seqdir, suffix, outpath, numprocs, force_overwrite, moltype, limit):
     with dvgt_util.keep_running(), tempfile.TemporaryDirectory() as tmp_dir:
         if seqdir.is_file():
             convert2dstore = dvgt_io.dvgt_file_to_dir(dest=tmp_dir)
-            in_dstore = convert2dstore(seqdir)
+            in_dstore = convert2dstore(seqdir)  # pylint: disable=not-callable
         else:
             in_dstore = c3_data_store.DataStoreDirectory(source=seqdir, suffix=suffix)
             if not len(in_dstore):
@@ -181,7 +181,7 @@ def prep(seqdir, suffix, outpath, numprocs, force_overwrite, moltype, limit):
             ):
                 if not r:
                     print(r)
-                writer(r)
+                writer(r)  # pylint: disable=not-callable
                 progress.update(convert, advance=1, refresh=True)
 
     out_dstore.close()
@@ -272,11 +272,12 @@ def max(
         limit=limit,
         verbose=verbose,
     )
+    # turn off pylint check, since the function is made into a class
     finalise = dvgt_records.dvgt_final_max(
         stat=stat,
         min_size=min_size,
         verbose=verbose,
-    )
+    )  # pylint: disable=no-value-for-parameter
     result = dvgt_records.apply_app(
         app=app,
         seqids=seqids,
@@ -364,7 +365,7 @@ def nmost(
         seqids=seqids,
         numprocs=numprocs,
         verbose=verbose,
-        finalise=dvgt_records.dvgt_final_nmost(),
+        finalise=dvgt_records.dvgt_final_nmost(),  # pylint: disable=no-value-for-parameter
     )
     # user requested inclusions are added to the selected divergent set
     if include:

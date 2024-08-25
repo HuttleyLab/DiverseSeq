@@ -13,9 +13,9 @@ def test_str2arr():
     s = "ACGTT"
     expect = dna.alphabet.to_indices(s)
     app = dvgt_util.str2arr()
-    g = app(s)
+    g = app(s)  # pylint: disable=not-callable
     assert (g == expect).all()
-    g = app("ACGNT")
+    g = app("ACGNT")  # pylint: disable=not-callable
     assert g[-2] > 3  # index for non-canonical character > num_states
 
 

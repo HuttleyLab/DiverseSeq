@@ -18,7 +18,7 @@ def _get_kfreqs_per_seq(seqs, k=1):
     app = str2arr()
     result = {}
     for seq in seqs.seqs:
-        arr = app(str(seq))
+        arr = app(str(seq))  # pylint: disable=not-callable
         freqs = kmer_counts(arr, 4, k)
         result[seq.name] = freqs
     return result
@@ -148,8 +148,8 @@ def test_merge_summed_records(DATA_DIR, brca1_coll):
     path = DATA_DIR / "brca1.dvgtseqs"
     names = brca1_coll.names
     app = dvgt_records.dvgt_nmost(seq_store=path, n=5, k=1)
-    sr1 = app(names[:10])
-    sr2 = app(names[10:20])
+    sr1 = app(names[:10])  # pylint: disable=not-callable
+    sr2 = app(names[10:20])  # pylint: disable=not-callable
     rnames1 = sr1.record_names
     rnames2 = sr2.record_names
     assert set(rnames1) != set(rnames2)
@@ -159,34 +159,34 @@ def test_merge_summed_records(DATA_DIR, brca1_coll):
 
 def test_dvgt_select_max(brca1_coll):
     app = dvgt_records.dvgt_select_max(k=1, min_size=2, max_size=5)
-    got = app(brca1_coll)
+    got = app(brca1_coll)  # pylint: disable=not-callable
     assert 2 <= got.num_seqs <= 5
     app = dvgt_records.dvgt_select_max(k=1, min_size=2, max_size=5, seed=123)
-    got = app(brca1_coll)
+    got = app(brca1_coll)  # pylint: disable=not-callable
     assert 2 <= got.num_seqs <= 5
 
 
 @pytest.mark.parametrize("include", ("Human", ["Human"], ["Human", "Mouse"]))
 def test_dvgt_select_max_include(brca1_coll, include):
     app = dvgt_records.dvgt_select_max(k=1, min_size=2, max_size=5, include=include)
-    got = app(brca1_coll)
+    got = app(brca1_coll)  # pylint: disable=not-callable
     include = {include} if isinstance(include, str) else set(include)
     assert include <= set(got.names)
 
 
 def test_dvgt_select_nmost(brca1_coll):
     app = dvgt_records.dvgt_select_nmost(k=1, n=5)
-    got = app(brca1_coll)
+    got = app(brca1_coll)  # pylint: disable=not-callable
     assert got.num_seqs == 5
     # try setting a seed
     app = dvgt_records.dvgt_select_nmost(k=1, n=5, seed=123)
-    got = app(brca1_coll)
+    got = app(brca1_coll)  # pylint: disable=not-callable
     assert got.num_seqs == 5
 
 
 @pytest.mark.parametrize("include", ("Human", ["Human"], ["Human", "Mouse"]))
 def test_dvgt_select_nmost_keep(brca1_coll, include):
     app = dvgt_records.dvgt_select_nmost(k=1, n=5, include=include)
-    got = app(brca1_coll)
+    got = app(brca1_coll)  # pylint: disable=not-callable
     include = {include} if isinstance(include, str) else set(include)
     assert include <= set(got.names)
