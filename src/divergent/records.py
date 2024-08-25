@@ -670,6 +670,7 @@ class dvgt_select_max:
 
         Notes
         -----
+        If called with an alignment, the ungapped sequences are used.
         Sequence order of input is randomised. If include is not None, the
         named sequences are added to the collection before selecting the
         divergent set.
@@ -729,6 +730,7 @@ class dvgt_select_nmost:
 
         Notes
         -----
+        If called with an alignment, the ungapped sequences are used.
         Sequence order of input is randomised.
         """
         self._s2k = seq_to_seqarray(moltype=moltype) + seqarray_to_kmerseq(
