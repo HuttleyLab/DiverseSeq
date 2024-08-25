@@ -55,28 +55,27 @@ def seqarray():
 def test_seqrecord_entropy(seq, entropy):
     arr = str2arr()(str(seq))
     kcounts = kmer_counts(arr, 4, 1)
-    sr = KmerSeq(kcounts=kcounts, name=seq.name, length=len(seq))
+    sr = KmerSeq(kcounts=kcounts, name=seq.name)
     assert sr.entropy == entropy
 
 
-@pytest.mark.parametrize("name,length", ((1, 20), ("1", 20.0)))
-def test_seqrecord_invalid_types(name, length):
+@pytest.mark.parametrize("name", (1, 1.0))
+def test_seqrecord_invalid_types(name):
     kcounts = array([1, 2, 3])
     with pytest.raises(TypeError):
-        KmerSeq(kcounts=kcounts, name=name, length=length)
+        KmerSeq(kcounts=kcounts, name=name)
 
 
 @pytest.mark.parametrize("kcounts", ((0, 1, 2), [0, 1, 2]))
 def test_seqrecord_invalid_kcounts(kcounts):
     with pytest.raises(TypeError):
-        KmerSeq(kcounts=kcounts, name="n1", length=1)
+        KmerSeq(kcounts=kcounts, name="n1")
 
 
 def test_seqrecord_compare():
     arr = str2arr()(str(seq5))
     kcounts = kmer_counts(arr, 4, 2)
-    length = 10
-    kwargs = dict(kcounts=kcounts, length=length)
+    kwargs = dict(kcounts=kcounts)
     sr1 = KmerSeq(name="n1", **kwargs)
     sr1.delta_jsd = 1.0
     sr2 = KmerSeq(name="n2", **kwargs)
@@ -393,7 +392,7 @@ def test_composable():
     def matched_sr(records: list[KmerSeq]) -> bool:
         return True
 
-    sr = KmerSeq(kcounts=numpy.array([1, 2, 3, 4], dtype=int), name="a", length=10)
+    sr = KmerSeq(kcounts=numpy.array([1, 2, 3, 4], dtype=int), name="a")
     app = matched_sr()
     got = app([sr])
     assert got

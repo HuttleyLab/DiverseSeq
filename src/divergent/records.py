@@ -684,8 +684,8 @@ class dvgt_select_max:
         self._rng = numpy.random.default_rng(seed)
         self._include = [include] if isinstance(include, str) else include
 
-    def main(self, seqs: c3_types.UnalignedSeqsType) -> c3_types.UnalignedSeqsType:
-        records = [self._s2k(seq) for seq in seqs.seqs]
+    def main(self, seqs: c3_types.SeqsCollectionType) -> c3_types.SeqsCollectionType:
+        records = [self._s2k(seqs.get_seq(name)) for name in seqs.names]
         self._rng.shuffle(records)
         for record in records:
             if not record:
@@ -740,8 +740,8 @@ class dvgt_select_nmost:
         self._rng = numpy.random.default_rng(seed)
         self._include = [include] if isinstance(include, str) else include
 
-    def main(self, seqs: c3_types.UnalignedSeqsType) -> c3_types.UnalignedSeqsType:
-        records = [self._s2k(seq) for seq in seqs.seqs]
+    def main(self, seqs: c3_types.SeqsCollectionType) -> c3_types.SeqsCollectionType:
+        records = [self._s2k(seqs.get_seq(name)) for name in seqs.names]
         self._rng.shuffle(records)
         result = most_divergent(
             records=records,

@@ -68,7 +68,7 @@ def _(data: dict, size: int | None = None, dtype: type = int) -> ndarray:
 # write a wrapper for the data store member so it has a __array__ method
 @define(slots=True)
 class vector:
-    data: ndarray  # this should be an array-like object, has a __array__ method
+    data: ndarray
     vector_length: int
     default: NumType | None = field(init=False)
     dtype: type = float
@@ -85,7 +85,6 @@ class vector:
         name: str = None,
     ):
         """
-
         Parameters
         ----------
         vector_length
@@ -104,11 +103,11 @@ class vector:
         self.source = source
         self.name = name
 
-    def __setitem__(self, key: int, value: NumType):
-        self.data[key] = value
+    def __setitem__(self, index: int, value: NumType):
+        self.data[index] = value
 
-    def __getitem__(self, key: int) -> NumType:
-        return self.data[key]
+    def __getitem__(self, index: int) -> NumType:
+        return self.data[index]
 
     def __len__(self) -> int:
         return len(self.data)
@@ -174,6 +173,9 @@ class vector:
         kfreqs = non_zero if self.dtype == float else non_zero / non_zero.sum()
         # taking absolute value due to precision issues
         return fabs(-(kfreqs * log2(kfreqs)).sum())
+
+    def __array__(self):
+        return self.data
 
 
 @numba.jit(nopython=True)
@@ -390,7 +392,6 @@ class KmerSeq:
 
     kcounts: vector = field(eq=False, converter=_make_kcounts)
     name: str = field(validator=validators.instance_of(str), eq=True)
-    length: int = field(validator=[validators.instance_of(int), _gt_zero], eq=True)
     delta_jsd: float = field(
         init=False,
         validator=validators.instance_of(float),
@@ -408,8 +409,7 @@ class KmerSeq:
 
     @property
     def kfreqs(self):
-        # TODO this should trigger loading of the data
-        kcounts = self.kcounts.data
+        kcounts = array(self.kcounts)
         kcounts = kcounts.astype(float)
         kfreqs = kcounts / kcounts.sum()
         return vector(data=kfreqs, vector_length=len(kfreqs), dtype=float)
@@ -465,7 +465,6 @@ class seqarray_to_kmerseq:
         return KmerSeq(
             kcounts=vector(**kwargs),
             name=kwargs["name"],
-            length=len(seq.data),
         )
 
 
