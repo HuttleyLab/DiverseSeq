@@ -311,7 +311,7 @@ def max_divergent(
             sr = SummedRecords.from_records(sr.records)
 
     if max_set:
-        app = dvgt_final_max(stat=stat, min_size=min_size, verbose=verbose)
+        app = dvgt_final_max(stat=stat, min_size=min_size, verbose=verbose)  # pylint: disable=no-value-for-parameter
         sr = app([sr])
     elif verbose:
         num_neg = sum(r.delta_jsd < 0 for r in [sr.lowest] + sr.records)
@@ -502,7 +502,7 @@ def records_from_seq_store(
     """
     dstore = dvgt_data_store.HDF5DataStore(seq_store, mode="r")
     make_record = member_to_kmerseq(k=k, moltype=moltype)
-    records = [make_record(m) for m in dstore.completed if m.unique_id in seq_names]
+    records = [make_record(m) for m in dstore.completed if m.unique_id in seq_names]  # pylint: disable=not-callable
     records = records[:limit] if limit else records
     for record in records:
         if not record:
