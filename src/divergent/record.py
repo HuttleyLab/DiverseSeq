@@ -297,52 +297,6 @@ def indices_to_bytes(
 
 
 @numba.jit(nopython=True)
-def kmer_indices(
-    seq: ndarray,
-    result: ndarray,
-    num_states: int,
-    k: int,
-) -> ndarray:  # pragma: no cover
-    """return 1D indices for valid k-mers
-
-    Parameters
-    ----------
-    seq
-        numpy array of uint, assumed that canonical characters have
-        sequential indexes which are all < num_states
-    result
-        array to be written into
-    num_states
-        defines range of possible ints at a position
-    k
-        k-mer size
-
-    Returns
-    -------
-    result
-    """
-    coeffs = coord_conversion_coeffs(num_states, k)
-    skip_until = 0
-    for i in range(k):
-        if seq[i] >= num_states:
-            skip_until = i + 1
-
-    result_idx = 0
-    for i in range(len(result)):
-        if seq[i + k - 1] >= num_states:
-            skip_until = i + k
-
-        if i < skip_until:
-            continue
-
-        index = (seq[i : i + k] * coeffs).sum()
-        result[result_idx] = index
-        result_idx += 1
-
-    return result[:result_idx]
-
-
-@numba.jit(nopython=True)
 def kmer_counts(
     seq: ndarray,
     num_states: int,

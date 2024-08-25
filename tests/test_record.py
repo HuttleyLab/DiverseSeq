@@ -25,7 +25,6 @@ from divergent.record import (
     index_to_coord,
     indices_to_seqs,
     kmer_counts,
-    kmer_indices,
     lazy_kmers,
     member_to_kmerseq,
     seqarray_to_kmerseq,
@@ -325,37 +324,6 @@ def test_coord2index_fail():
 
 _seqs = ("ACGGCGGTGCA", "ACGGNGGTGCA", "ANGGCGGTGNA")
 _ks = (1, 2, 3)
-
-
-@pytest.mark.parametrize("seq,k", tuple(product(_seqs, _ks)))
-def test_seq2kmers(seq, k):
-    dtype = uint64
-
-    seq2array = str2arr()
-    indices = seq2array(seq)
-
-    result = zeros(len(seq) - k + 1, dtype=dtype)
-    num_states = 4
-    got = kmer_indices(indices, result, num_states, k)
-
-    expect = [
-        ravel_multi_index(indices[i : i + k], dims=(num_states,) * k)
-        for i in range(len(seq) - k + 1)
-        if indices[i : i + k].max() < num_states
-    ]
-    assert (got == expect).all()
-
-
-def test_seq2kmers_all_ambig():
-    k = 2
-    dtype = uint64
-    indices = zeros(6, dtype=dtype)
-    indices[:] = 4
-    result = zeros(len(indices) - k + 1, dtype=dtype)
-    got = kmer_indices(indices, result, 4, k)
-
-    expect = []
-    assert (got == expect).all()
 
 
 def test_indices_to_seqs():
