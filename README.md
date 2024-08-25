@@ -2,9 +2,9 @@
 [![Coverage Status](https://coveralls.io/repos/github/HuttleyLab/Divergent/badge.svg?branch=main)](https://coveralls.io/github/HuttleyLab/Divergent?branch=main)
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/ef3010ea162f47a2a5a44e0f3f6ed1f0)](https://app.codacy.com/gh/HuttleyLab/Divergent/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 
-# Divergent
+# Divergent identifies the most divergent biological sequences from a collection
 
-## Identifying the sequences that maximise Jensen-Shannon
+`divergent` provides tools for selecting a representative subset of sequences from a larger collection. It is an alignment-free method which scales linearly with the number of sequences.  It identifies the subset of divergent sequences that maximize the information theoretic measure Jensen-Shannon divergence. Divergent provides a command-line interface and plugins to the Cogent3 app system allowing users to embed code in their own scripts. The command-line tools can be run in parallel.
 
 ## The available commands
 
