@@ -39,8 +39,8 @@ Documentation = "https://github.com/HuttleyLab/Divergent"
 "Bug Tracker" = "https://github.com/HuttleyLab/Divergent/issues"
 "Source Code" = "https://github.com/HuttleyLab/Divergent/"
 
-[project.sdist]
-include = ["src/*", "pyproject.toml"]
+[tool.flit.sdist]
+include = ["tests/*"]
 
 [project.scripts]
 dvgt = "divergent.cli:main"
