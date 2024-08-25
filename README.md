@@ -1,3 +1,7 @@
+[![CI](https://github.com/HuttleyLab/Divergent/actions/workflows/ci.yml/badge.svg)](https://github.com/HuttleyLab/Divergent/actions/workflows/ci.yml)
+[![Coverage Status](https://coveralls.io/repos/github/HuttleyLab/Divergent/badge.svg?branch=main)](https://coveralls.io/github/HuttleyLab/Divergent?branch=main)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/ef3010ea162f47a2a5a44e0f3f6ed1f0)](https://app.codacy.com/gh/HuttleyLab/Divergent/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
+
 # Divergent
 
 ## Identifying the sequences that maximise Jensen-Shannon
