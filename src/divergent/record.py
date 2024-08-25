@@ -1,8 +1,8 @@
 """defines basic data type for storing an individual sequence record"""
 
+import dataclasses
+import functools
 from collections.abc import Iterator
-from dataclasses import dataclass
-from functools import singledispatch
 from math import fabs, isclose
 from typing import Union
 
@@ -10,8 +10,19 @@ import numba
 from attrs import asdict, define, field, validators
 from cogent3 import get_moltype
 from cogent3.app import composable
+from cogent3.app import data_store as c3_data_store
 from cogent3.app import typing as c3_types
-from numpy import array, errstate, log2, nan_to_num, ndarray, uint8, uint64, zeros
+from numpy import (
+    array,
+    errstate,
+    log2,
+    min_scalar_type,
+    nan_to_num,
+    ndarray,
+    uint8,
+    uint64,
+    zeros,
+)
 from numpy import divmod as np_divmod
 
 from divergent import util as dv_utils
@@ -20,9 +31,12 @@ NumType = Union[float, int]
 PosDictType = dict[int, NumType]
 
 
-@singledispatch
+@functools.singledispatch
 def _gettype(name) -> type:
-    raise NotImplementedError
+    try:
+        return name.type
+    except AttributeError:
+        raise TypeError(f"type {type(name)} not supported")
 
 
 @_gettype.register
@@ -39,23 +53,44 @@ def _(name: type) -> type:
     return name
 
 
-@singledispatch
-def _make_data(data, size: int | None = None, dtype: type = int) -> ndarray:
+@dataclasses.dataclass(slots=True)
+class lazy_kmers:
+    member: c3_data_store.DataMember
+    k: int
+    dtype: type = uint64
+    num_states: int = dataclasses.field(init=False)
+    moltype: dataclasses.InitVar[str] = dataclasses.field(default="dna")
+
+    def __post_init__(self, moltype: str):
+        self.num_states = len(_get_canonical_states(moltype))
+
+    def __array__(self):
+        data = self.member.read()
+        return kmer_counts(data, self.num_states, self.k, dtype=self.dtype)
+
+
+@functools.singledispatch
+def _make_data(data, size: int | None = None, dtype: type = None) -> ndarray:
     raise NotImplementedError
 
 
 @_make_data.register
-def _(data: ndarray, size: int | None = None, dtype: type = int) -> ndarray:
+def _(data: ndarray, size: int | None = None, dtype: type = None) -> ndarray:
     return data
 
 
 @_make_data.register
-def _(data: None, size: int | None = None, dtype: type = int) -> ndarray:
+def _(data: lazy_kmers, size: int | None = None, dtype: type = None) -> ndarray:
+    return data
+
+
+@_make_data.register
+def _(data: None, size: int | None = None, dtype: type = None) -> ndarray:
     return zeros(size, dtype=dtype)
 
 
 @_make_data.register
-def _(data: dict, size: int | None = None, dtype: type = int) -> ndarray:
+def _(data: dict, size: int | None = None, dtype: type = None) -> ndarray:
     result = zeros(size, dtype=dtype)
     for i, n in data.items():
         if isclose(n, 0):
@@ -175,6 +210,8 @@ class vector:
         return fabs(-(kfreqs * log2(kfreqs)).sum())
 
     def __array__(self):
+        if not isinstance(self.data, ndarray):
+            self.data = array(self.data)
         return self.data
 
 
@@ -306,7 +343,12 @@ def kmer_indices(
 
 
 @numba.jit(nopython=True)
-def kmer_counts(seq: ndarray, num_states: int, k: int) -> ndarray:  # pragma: no cover
+def kmer_counts(
+    seq: ndarray,
+    num_states: int,
+    k: int,
+    dtype=uint64,
+) -> ndarray:  # pragma: no cover
     """return freqs of valid k-mers using 1D indices
 
     Parameters
@@ -326,7 +368,7 @@ def kmer_counts(seq: ndarray, num_states: int, k: int) -> ndarray:  # pragma: no
     result
     """
     coeffs = coord_conversion_coeffs(num_states, k)
-    kfreqs = zeros(num_states**k, dtype=uint64)
+    kfreqs = zeros(num_states**k, dtype=dtype)
     skip_until = 0
     for i in range(k):
         if seq[i] >= num_states:
@@ -351,7 +393,7 @@ def _gt_zero(instance, attribute, value):
         raise ValueError(f"must be > 0, not {value}")
 
 
-@singledispatch
+@functools.singledispatch
 def _make_kcounts(data) -> vector:
     raise TypeError(f"type {type(data)} not supported")
 
@@ -371,7 +413,7 @@ def _(data: vector):
     return data
 
 
-@dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True)
 class SeqArray:
     """A SeqArray stores an array of indices that map to the canonical characters
     of the moltype of the original sequence. Use divergent.util.arr2str() to
@@ -451,6 +493,7 @@ class seqarray_to_kmerseq:
         self.moltype = moltype
         self.k = k
         self.canonical = _get_canonical_states(moltype)
+        self.dtype = min_scalar_type(len(self.canonical) ** self.k)
 
     def main(self, seq: SeqArray) -> KmerSeq:
         kwargs = dict(
@@ -459,7 +502,7 @@ class seqarray_to_kmerseq:
             source=seq.source,
             name=seq.seqid,
         )
-        counts = kmer_counts(seq.data, len(self.canonical), self.k)
+        counts = kmer_counts(seq.data, len(self.canonical), self.k, dtype=self.dtype)
         kwargs["data"] = counts
 
         return KmerSeq(
@@ -468,6 +511,46 @@ class seqarray_to_kmerseq:
         )
 
 
+@composable.define_app
+class member_to_kmerseq:
+    """creates a KmerSeq from a HDF5 datastore member"""
+
+    def __init__(self, k: int, moltype: str):
+        """
+        Parameters
+        ----------
+        k
+            size of k-mers
+        moltype
+            cogent3 molecular type
+        """
+        self.moltype = moltype
+        self.k = k
+        self.num_states = len(_get_canonical_states(moltype))
+        self.dtype = min_scalar_type(self.num_states**k)
+
+    def main(self, member: c3_data_store.DataMember) -> KmerSeq:
+        vec = lazy_kmers(
+            member=member,
+            k=self.k,
+            moltype=self.moltype,
+            dtype=self.dtype,
+        )
+        kwargs = dict(
+            vector_length=vec.num_states,
+            dtype=self.dtype,
+            source=member.data_store.source,
+            name=member.unique_id,
+            data=vec,
+        )
+
+        return KmerSeq(
+            kcounts=vector(**kwargs),
+            name=kwargs["name"],
+        )
+
+
+@functools.cache
 def _get_canonical_states(moltype: str) -> bytes:
     moltype = get_moltype(moltype)
     canonical = list(moltype.alphabet)

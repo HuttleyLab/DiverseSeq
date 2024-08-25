@@ -22,7 +22,6 @@ import sys
 import typing
 from math import fsum
 
-import h5py
 import numpy
 from attrs import define, field
 from cogent3 import make_table
@@ -31,10 +30,11 @@ from cogent3.app.composable import NotCompleted, define_app
 from numpy import isclose as np_isclose
 from rich import progress as rich_progress
 
+from divergent import data_store as dvgt_data_store
 from divergent import util as dvgt_util
 from divergent.record import (
     KmerSeq,
-    SeqArray,
+    member_to_kmerseq,
     seq_to_seqarray,
     seqarray_to_kmerseq,
     vector,
@@ -478,6 +478,7 @@ def records_from_seq_store(
     seq_store: str | pathlib.Path,
     seq_names: list[str],
     k: int,
+    moltype: str = "dna",
     limit: int | None,
 ) -> list[KmerSeq]:
     """converts sequences in seq_store into SeqRecord instances
@@ -488,6 +489,8 @@ def records_from_seq_store(
         path to divergent sequence store
     seq_names
         list of names that are members of the seq_store
+    moltype
+        the expected molecular type
     limit
         limit number of sequence records to process
     k
@@ -497,28 +500,14 @@ def records_from_seq_store(
     -------
         sequences are converted into vector of k-mer counts
     """
-    with h5py.File(seq_store, mode="r") as f:
-        limit = limit or len(f.keys())
-        seqs = []
-        for name in itertools.islice(seq_names, limit):
-            dset = f[name]
-            # skip groups corresponding to md5 and not_completed
-            if isinstance(dset, h5py.Group):
-                continue
-            orig_moltype = dset.attrs["moltype"]
-            source = dset.attrs["source"]
-            out = numpy.empty(len(dset), dtype=numpy.uint8)
-            dset.read_direct(out)
-            seqs.append(
-                SeqArray(seqid=name, data=out, moltype=orig_moltype, source=source),
-            )
-    make_records = seqarray_to_kmerseq(k=k, moltype=orig_moltype)
-    records = []
-    for result in map(make_records, seqs):
-        if not result:
-            print(result)
+    dstore = dvgt_data_store.HDF5DataStore(seq_store, mode="r")
+    make_record = member_to_kmerseq(k=k, moltype=moltype)
+    records = [make_record(m) for m in dstore.completed if m.unique_id in seq_names]
+    records = records[:limit] if limit else records
+    for record in records:
+        if not record:
+            print(record)
             sys.exit(1)
-        records.append(result)
     return records
 
 

@@ -26,6 +26,8 @@ from divergent.record import (
     indices_to_seqs,
     kmer_counts,
     kmer_indices,
+    lazy_kmers,
+    member_to_kmerseq,
     seqarray_to_kmerseq,
     vector,
 )
@@ -421,3 +423,38 @@ def test_seqarray_to_record(seqarray, k):
 
     assert rec.name == "seq1"
     rec.kfreqs.sum() == len(seqarray) - k + 1
+
+
+@pytest.fixture(scope="function")
+def dstore():
+    from divergent.data_store import HDF5DataStore
+
+    store = HDF5DataStore("test.h5", in_memory=True)
+    yield store
+    store.close()
+
+
+def test_lazy_kmers(dstore, seqarray):
+    member = dstore.write(unique_id="seq1", data=seqarray.data)
+
+    lazy = lazy_kmers(member=member, k=2, moltype="dna")
+    s2k = seqarray_to_kmerseq(k=2, moltype="dna")
+    expect = s2k(seqarray)
+    assert_allclose(numpy.array(lazy), expect.kcounts)
+
+
+def test_member_to_vector(dstore, seqarray):
+    member = dstore.write(unique_id="seq1", data=seqarray.data)
+    lazy = lazy_kmers(member=member, k=2, moltype="dna")
+    vec = vector(data=lazy, vector_length=lazy.num_states)
+    assert_allclose(numpy.array(vec), numpy.array(lazy))
+
+
+def test_member_to_kmerseq(dstore, seqarray):
+    member = dstore.write(unique_id="seq1", data=seqarray.data)
+    new_app = member_to_kmerseq(k=2, moltype="dna")
+    got = new_app(member)
+    assert isinstance(got, KmerSeq)
+    old_app = seqarray_to_kmerseq(k=2, moltype="dna")
+    expect = old_app(seqarray)
+    assert_allclose(got.kcounts, expect.kcounts)
