@@ -10,11 +10,11 @@ import rich.progress as rich_progress
 from cogent3.app import data_store as c3_data_store
 from scitrack import CachingLogger
 
-from divergent import __version__
-from divergent import data_store as dvgt_data_store
-from divergent import io as dvgt_io
-from divergent import records as dvgt_records
-from divergent import util as dvgt_util
+from diverse_seq import __version__
+from diverse_seq import data_store as dvs_data_store
+from diverse_seq import io as dvs_io
+from diverse_seq import records as dvs_records
+from diverse_seq import util as dvs_util
 
 LOGGER = CachingLogger()
 
@@ -73,7 +73,7 @@ _overwrite = click.option(
 _include = click.option(
     "-i",
     "--include",
-    callback=dvgt_util._comma_sep_or_file,
+    callback=dvs_util._comma_sep_or_file,
     help="seqnames to include in divergent set",
 )
 _suffix = click.option("-sf", "--suffix", default="fa", help="sequence file suffix")
@@ -116,36 +116,36 @@ _k = click.option("-k", type=int, default=6, help="k-mer size")
 )
 @_limit
 def prep(seqdir, suffix, outpath, numprocs, force_overwrite, moltype, limit):
-    """Writes processed sequences to an outpath ending with .dvgtseqs file."""
-    dvgtseqs_path = outpath.with_suffix(".dvgtseqs")
-    if dvgtseqs_path.exists() and not force_overwrite:
-        dvgt_util.print_colour(
+    """Writes processed sequences to an outpath ending with .dvseqs file."""
+    dvseqs_path = outpath.with_suffix(".dvseqs")
+    if dvseqs_path.exists() and not force_overwrite:
+        dvs_util.print_colour(
             "A file with the same name already exists. Existing data members will be skipped. "
             "Use the -F flag if you want to overwrite the existing file.",
             "blue",
         )
-    elif dvgtseqs_path.exists() and force_overwrite:
-        dvgtseqs_path.unlink()
+    elif dvseqs_path.exists() and force_overwrite:
+        dvseqs_path.unlink()
 
     if suffix.startswith("."):
         suffix = suffix[1:]
 
-    seq_format = dvgt_util.get_seq_file_format(suffix)
+    seq_format = dvs_util.get_seq_file_format(suffix)
     if seq_format is None:
-        dvgt_util.print_colour(
+        dvs_util.print_colour(
             f"Unrecognised sequence file suffix '{suffix}'",
             "red",
         )
         sys.exit(1)
 
-    with dvgt_util.keep_running(), tempfile.TemporaryDirectory() as tmp_dir:
+    with dvs_util.keep_running(), tempfile.TemporaryDirectory() as tmp_dir:
         if seqdir.is_file():
-            convert2dstore = dvgt_io.dvgt_file_to_dir(dest=tmp_dir)
+            convert2dstore = dvs_io.dvs_file_to_dir(dest=tmp_dir)
             in_dstore = convert2dstore(seqdir)  # pylint: disable=not-callable
         else:
             in_dstore = c3_data_store.DataStoreDirectory(source=seqdir, suffix=suffix)
             if not len(in_dstore):
-                dvgt_util.print_colour(
+                dvs_util.print_colour(
                     f"{seqdir} contains no files matching '*.{suffix}'",
                     "red",
                 )
@@ -156,13 +156,13 @@ def prep(seqdir, suffix, outpath, numprocs, force_overwrite, moltype, limit):
             random.shuffle(members)
             in_dstore = members[:limit]
 
-        out_dstore = dvgt_data_store.HDF5DataStore(source=dvgtseqs_path, mode="w")
+        out_dstore = dvs_data_store.HDF5DataStore(source=dvseqs_path, mode="w")
 
-        loader = dvgt_io.dvgt_load_seqs(
+        loader = dvs_io.dvs_load_seqs(
             moltype=moltype,
             seq_format=seq_format,
         )
-        writer = dvgt_io.dvgt_write_seqs(
+        writer = dvs_io.dvs_write_seqs(
             data_store=out_dstore,
         )
         with rich_progress.Progress(
@@ -185,7 +185,7 @@ def prep(seqdir, suffix, outpath, numprocs, force_overwrite, moltype, limit):
                 progress.update(convert, advance=1, refresh=True)
 
     out_dstore.close()
-    dvgt_util.print_colour(
+    dvs_util.print_colour(
         f"Successfully created {out_dstore.source!s}",
         "green",
     )
@@ -241,19 +241,19 @@ def max(
 ):
     """Identify the seqs that maximise average delta JSD"""
     if max_size is not None and min_size > max_size:
-        dvgt_util.print_colour(f"{min_size=} cannot be greater than {max_size=}", "red")
+        dvs_util.print_colour(f"{min_size=} cannot be greater than {max_size=}", "red")
         sys.exit(1)
 
-    if seqfile.suffix != ".dvgtseqs":
-        dvgt_util.print_colour(
+    if seqfile.suffix != ".dvseqs":
+        dvs_util.print_colour(
             "Sequence data needs to be preprocessed, use 'dvgt prep'",
             "red",
         )
         sys.exit(1)
 
-    seqids = dvgt_data_store.get_seqids_from_store(seqfile)
+    seqids = dvs_data_store.get_seqids_from_store(seqfile)
     if include and not set(include) <= set(seqids):
-        dvgt_util.print_colour(
+        dvs_util.print_colour(
             f"provided {include=} not in the sequence data",
             "red",
         )
@@ -263,7 +263,7 @@ def max(
     if limit is not None:
         seqids = seqids[:limit]
 
-    app = dvgt_records.dvgt_max(
+    app = dvs_records.dvs_max(
         seq_store=seqfile,
         k=k,
         min_size=min_size,
@@ -273,12 +273,12 @@ def max(
         verbose=verbose,
     )
     # turn off pylint check, since the function is made into a class
-    finalise = dvgt_records.dvgt_final_max(
+    finalise = dvs_records.dvs_final_max(
         stat=stat,
         min_size=min_size,
         verbose=verbose,
     )  # pylint: disable=no-value-for-parameter
-    result = dvgt_records.apply_app(
+    result = dvs_records.apply_app(
         app=app,
         seqids=seqids,
         numprocs=numprocs,
@@ -288,20 +288,20 @@ def max(
 
     # user requested inclusions are added to the selected divergent set
     if include:
-        include_records = dvgt_records.records_from_seq_store(
+        include_records = dvs_records.records_from_seq_store(
             seq_store=seqfile,
             seq_names=include,
             k=k,
             limit=None,
         )
-        result = dvgt_records.SummedRecords.from_records(
+        result = dvs_records.SummedRecords.from_records(
             result.all_records() + include_records,
         )
 
     outpath.parent.mkdir(parents=True, exist_ok=True)
     table = result.to_table()
     table.write(outpath)
-    dvgt_util.print_colour(
+    dvs_util.print_colour(
         f"{table.shape[0]} divergent sequences IDs written to {outpath!s}",
         "green",
     )
@@ -334,17 +334,17 @@ def nmost(
 ):
     """Identify n seqs that maximise average delta JSD"""
 
-    if seqfile.suffix != ".dvgtseqs":
-        dvgt_util.print_colour(
+    if seqfile.suffix != ".dvseqs":
+        dvs_util.print_colour(
             "Sequence data needs to be preprocessed, use 'dvgt prep'",
             "red",
         )
         sys.exit(1)
 
-    seqids = dvgt_data_store.get_seqids_from_store(seqfile)
+    seqids = dvs_data_store.get_seqids_from_store(seqfile)
 
     if include and not set(include) <= set(seqids):
-        dvgt_util.print_colour(
+        dvs_util.print_colour(
             f"provided {include=} not in the sequence data",
             "red",
         )
@@ -353,36 +353,36 @@ def nmost(
     if limit is not None:
         seqids = seqids[:limit]
 
-    app = dvgt_records.dvgt_nmost(
+    app = dvs_records.dvs_nmost(
         seq_store=seqfile,
         n=number,
         k=k,
         limit=limit,
         verbose=verbose,
     )
-    result = dvgt_records.apply_app(
+    result = dvs_records.apply_app(
         app=app,
         seqids=seqids,
         numprocs=numprocs,
         verbose=verbose,
-        finalise=dvgt_records.dvgt_final_nmost(),  # pylint: disable=no-value-for-parameter
+        finalise=dvs_records.dvs_final_nmost(),  # pylint: disable=no-value-for-parameter
     )
     # user requested inclusions are added to the selected divergent set
     if include:
-        include_records = dvgt_records.records_from_seq_store(
+        include_records = dvs_records.records_from_seq_store(
             seq_store=seqfile,
             seq_names=include,
             k=k,
             limit=None,
         )
-        result = dvgt_records.SummedRecords.from_records(
+        result = dvs_records.SummedRecords.from_records(
             result.all_records() + include_records,
         )
 
     outpath.parent.mkdir(parents=True, exist_ok=True)
     table = result.to_table()
     table.write(outpath)
-    dvgt_util.print_colour(
+    dvs_util.print_colour(
         f"{table.shape[0]} divergent sequences IDs written to {outpath!s}",
         "green",
     )

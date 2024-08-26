@@ -10,17 +10,17 @@
 
 <!-- [[[cog
 import cog
-from divergent.cli import main
+from diverse_seq.cli import main
 from click.testing import CliRunner
 runner = CliRunner()
 result = runner.invoke(main, ["--help"])
-help = result.output.replace("Usage: main", "Usage: dvgt")
+help = result.output.replace("Usage: main", "Usage: dvs")
 cog.out(
     "```\n{}\n```".format(help)
 )
 ]]] -->
 ```
-Usage: dvgt [OPTIONS] COMMAND [ARGS]...
+Usage: dvs [OPTIONS] COMMAND [ARGS]...
 
   dvgt -- alignment free detection of most divergent sequences using JSD
 
@@ -29,14 +29,14 @@ Options:
   --help     Show this message and exit.
 
 Commands:
-  prep   Writes processed sequences to an outpath ending with .dvgtseqs file.
+  prep   Writes processed sequences to an outpath ending with .dvseqs file.
   max    Identify the seqs that maximise average delta JSD
   nmost  Identify n seqs that maximise average delta JSD
 
 ```
 <!-- [[[end]]] -->
 
-### `dvgt prep`: Preparing the sequence data
+### `dvs prep`: Preparing the sequence data
 
 Convert sequence data into a more efficient format for the diversity assessment. This must be done before running either the `nmost` or `max` commands.
 
@@ -44,19 +44,19 @@ Convert sequence data into a more efficient format for the diversity assessment.
 
 <!-- [[[cog
 import cog
-from divergent.cli import main
+from diverse_seq.cli import main
 from click.testing import CliRunner
 runner = CliRunner()
 result = runner.invoke(main, ["prep", "--help"])
-help = result.output.replace("Usage: main", "Usage: dvgt")
+help = result.output.replace("Usage: main", "Usage: dvs")
 cog.out(
     "```\n{}\n```".format(help)
 )
 ]]] -->
 ```
-Usage: dvgt prep [OPTIONS]
+Usage: dvs prep [OPTIONS]
 
-  Writes processed sequences to an outpath ending with .dvgtseqs file.
+  Writes processed sequences to an outpath ending with .dvseqs file.
 
 Options:
   -s, --seqdir PATH        directory containing sequence files  [required]
@@ -72,7 +72,7 @@ Options:
 ```
 <!-- [[[end]]] -->
 
-### `dvgt nmost`: Select the n-most divergent sequences
+### `dvs nmost`: Select the n-most divergent sequences
 
 We recommend using `nmost` for large datasets.
 
@@ -83,17 +83,17 @@ We recommend using `nmost` for large datasets.
 
 <!-- [[[cog
 import cog
-from divergent.cli import main
+from diverse_seq.cli import main
 from click.testing import CliRunner
 runner = CliRunner()
 result = runner.invoke(main, ["nmost", "--help"])
-help = result.output.replace("Usage: main", "Usage: dvgt")
+help = result.output.replace("Usage: main", "Usage: dvs")
 cog.out(
     "```\n{}\n```".format(help)
 )
 ]]] -->
 ```
-Usage: dvgt nmost [OPTIONS]
+Usage: dvs nmost [OPTIONS]
 
   Identify n seqs that maximise average delta JSD
 
@@ -114,7 +114,7 @@ Options:
 
 #### As a cogent3 plugin:
 
-The `dvgt_select_nmost` is also available as a [cogent3 app](https://cogent3.org/doc/app/index.html). The result of using `cogent3.app_help("dvgt_select_nmost")` is shown below.
+The `dvs_select_nmost` is also available as a [cogent3 app](https://cogent3.org/doc/app/index.html). The result of using `cogent3.app_help("dvs_select_nmost")` is shown below.
 
 <!-- [[[cog
 import cog
@@ -127,7 +127,7 @@ from cogent3 import app_help
 buffer = io.StringIO()
 
 with contextlib.redirect_stdout(buffer):
-  app_help("dvgt_select_nmost")
+  app_help("dvs_select_nmost")
 cog.out(
     "```\n{}\n```".format(buffer.getvalue())
 )
@@ -139,8 +139,8 @@ selects the n-most divergent seqs from a sequence collection
 
 Options for making the app
 --------------------------
-dvgt_select_nmost_app = get_app(
-    'dvgt_select_nmost',
+dvs_select_nmost_app = get_app(
+    'dvs_select_nmost',
     n=3,
     moltype='dna',
     include=None,
@@ -169,16 +169,16 @@ named sequences are added to the final result.
 
 Input type
 ----------
-Alignment, SequenceCollection, ArrayAlignment
+SequenceCollection, Alignment, ArrayAlignment
 
 Output type
 -----------
-Alignment, SequenceCollection, ArrayAlignment
+SequenceCollection, Alignment, ArrayAlignment
 
 ```
 <!-- [[[end]]] -->
 
-### `dvgt max`: Maximise average delta JSD
+### `dvs max`: Maximise average delta JSD
 
 The result of the `max` command is typically a set that are modestly more divergent than that fron `nmost`.
 
@@ -189,17 +189,17 @@ The result of the `max` command is typically a set that are modestly more diverg
 
 <!-- [[[cog
 import cog
-from divergent.cli import main
+from diverse_seq.cli import main
 from click.testing import CliRunner
 runner = CliRunner()
 result = runner.invoke(main, ["max", "--help"])
-help = result.output.replace("Usage: main", "Usage: dvgt")
+help = result.output.replace("Usage: main", "Usage: dvs")
 cog.out(
     "```\n{}\n```".format(help)
 )
 ]]] -->
 ```
-Usage: dvgt max [OPTIONS]
+Usage: dvs max [OPTIONS]
 
   Identify the seqs that maximise average delta JSD
 
@@ -224,7 +224,7 @@ Options:
 
 #### As a cogent3 plugin:
 
-The `dvgt_select_nmost` is also available as a [cogent3 app](https://cogent3.org/doc/app/index.html). The result of using `cogent3.app_help("dvgt_select_nmost")` is shown below.
+The `dvs_select_nmost` is also available as a [cogent3 app](https://cogent3.org/doc/app/index.html). The result of using `cogent3.app_help("dvs_select_nmost")` is shown below.
 
 <!-- [[[cog
 import cog
@@ -237,7 +237,7 @@ from cogent3 import app_help
 buffer = io.StringIO()
 
 with contextlib.redirect_stdout(buffer):
-  app_help("dvgt_select_max")
+  app_help("dvs_select_max")
 cog.out(
     "```\n{}\n```".format(buffer.getvalue())
 )
@@ -249,8 +249,8 @@ selects the maximally divergent seqs from a sequence collection
 
 Options for making the app
 --------------------------
-dvgt_select_max_app = get_app(
-    'dvgt_select_max',
+dvs_select_max_app = get_app(
+    'dvs_select_max',
     min_size=3,
     max_size=10,
     stat='stdev',
@@ -285,11 +285,11 @@ named sequences are added to the final result.
 
 Input type
 ----------
-Alignment, SequenceCollection, ArrayAlignment
+SequenceCollection, Alignment, ArrayAlignment
 
 Output type
 -----------
-Alignment, SequenceCollection, ArrayAlignment
+SequenceCollection, Alignment, ArrayAlignment
 
 ```
 <!-- [[[end]]] -->

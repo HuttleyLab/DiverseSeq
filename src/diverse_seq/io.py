@@ -21,9 +21,9 @@ from cogent3.core import new_alphabet
 from cogent3.format import fasta as format_fasta
 from cogent3.parse import fasta, genbank
 
-from divergent import util as dv_utils
-from divergent.data_store import HDF5DataStore
-from divergent.record import SeqArray
+from diverse_seq import util as dvs_utils
+from diverse_seq.data_store import HDF5DataStore
+from diverse_seq.record import SeqArray
 
 converter_fasta = new_alphabet.convert_alphabet(
     string.ascii_lowercase.encode("utf8"),
@@ -65,7 +65,7 @@ def get_format_parser(seq_path, seq_format):
 
 
 @define_app(app_type=LOADER)
-class dvgt_load_seqs:
+class dvs_load_seqs:
     """Load and proprocess sequences from seq datastore"""
 
     def __init__(self, moltype: str = "dna", seq_format: str = "fasta"):
@@ -81,7 +81,7 @@ class dvgt_load_seqs:
         Assumes each fasta file contains a single sequence so only takes the first
         """
         self.moltype = moltype
-        self.str2arr = dv_utils.str2arr(moltype=self.moltype)
+        self.str2arr = dvs_utils.str2arr(moltype=self.moltype)
         self.seq_format = seq_format
 
     def main(self, data_member: DataMember) -> SeqArray:
@@ -101,7 +101,7 @@ def get_unique_id(data: SeqArray) -> str:
 
 
 @define_app(app_type=WRITER)
-class dvgt_write_seqs:
+class dvs_write_seqs:
     """Write seqs as numpy arrays to a HDF5DataStore"""
 
     def __init__(
@@ -128,7 +128,7 @@ class dvgt_write_seqs:
 
 
 @define_app(app_type=NON_COMPOSABLE)
-class dvgt_file_to_dir:
+class dvs_file_to_dir:
     """Convert a single sequence file into a directory data store"""
 
     def __init__(

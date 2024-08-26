@@ -25,7 +25,7 @@ from numpy import (
 )
 from numpy import divmod as np_divmod
 
-from divergent import util as dv_utils
+from diverse_seq import util as dvs_utils
 
 NumType = Union[float, int]
 PosDictType = dict[int, NumType]
@@ -370,7 +370,7 @@ def _(data: vector):
 @dataclasses.dataclass(frozen=True)
 class SeqArray:
     """A SeqArray stores an array of indices that map to the canonical characters
-    of the moltype of the original sequence. Use divergent.util.arr2str() to
+    of the moltype of the original sequence. Use rep_seq.util.arr2str() to
     recapitulate the original sequence."""
 
     seqid: str
@@ -424,7 +424,7 @@ class seq_to_seqarray:
         moltype: str = "dna",
     ):
         self.moltype = moltype
-        self.str2arr = dv_utils.str2arr(moltype=self.moltype)
+        self.str2arr = dvs_utils.str2arr(moltype=self.moltype)
 
     def main(self, seq: c3_types.SeqType) -> SeqArray:
         return SeqArray(

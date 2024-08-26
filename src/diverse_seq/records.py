@@ -30,9 +30,9 @@ from cogent3.app.composable import NotCompleted, define_app
 from numpy import isclose as np_isclose
 from rich import progress as rich_progress
 
-from divergent import data_store as dvgt_data_store
-from divergent import util as dvgt_util
-from divergent.record import (
+from diverse_seq import data_store as dvs_data_store
+from diverse_seq import util as dvs_util
+from diverse_seq.record import (
     KmerSeq,
     member_to_kmerseq,
     seq_to_seqarray,
@@ -126,7 +126,7 @@ class SummedRecords:
     size: int = field(init=False)
     record_names: set = field(init=False)
     lowest: KmerSeq = field(init=False)
-    _stats: dvgt_util.summary_stats = field(init=False)
+    _stats: dvs_util.summary_stats = field(init=False)
 
     def __init__(
         self,
@@ -143,7 +143,7 @@ class SummedRecords:
         # NOTE we exclude lowest record from freqs and entropy
         self.summed_kfreqs = summed_kfreqs - self.lowest.kfreqs
         self.summed_entropies = summed_entropies - self.lowest.entropy
-        self._stats = dvgt_util.summary_stats(
+        self._stats = dvs_util.summary_stats(
             numpy.array([r.delta_jsd for r in records]),
         )
 
@@ -311,7 +311,7 @@ def max_divergent(
             sr = SummedRecords.from_records(sr.records)
 
     if max_set:
-        app = dvgt_final_max(stat=stat, min_size=min_size, verbose=verbose)  # pylint: disable=no-value-for-parameter
+        app = dvs_final_max(stat=stat, min_size=min_size, verbose=verbose)  # pylint: disable=no-value-for-parameter
         sr = app([sr])
     elif verbose:
         num_neg = sum(r.delta_jsd < 0 for r in [sr.lowest] + sr.records)
@@ -320,7 +320,7 @@ def max_divergent(
 
 
 @define_app
-def dvgt_final_max(
+def dvs_final_max(
     summed: list[SummedRecords],
     *,
     stat: str,
@@ -411,7 +411,7 @@ def most_divergent(
 
 
 @define_app
-class dvgt_max:
+class dvs_max:
     """return the maximally divergent sequences"""
 
     def __init__(
@@ -500,7 +500,7 @@ def records_from_seq_store(
     -------
         sequences are converted into vector of k-mer counts
     """
-    dstore = dvgt_data_store.HDF5DataStore(seq_store, mode="r")
+    dstore = dvs_data_store.HDF5DataStore(seq_store, mode="r")
     make_record = member_to_kmerseq(k=k, moltype=moltype)
     records = [make_record(m) for m in dstore.completed if m.unique_id in seq_names]  # pylint: disable=not-callable
     records = records[:limit] if limit else records
@@ -512,7 +512,7 @@ def records_from_seq_store(
 
 
 @define_app
-class dvgt_nmost:
+class dvs_nmost:
     """return the N most divergent sequences"""
 
     def __init__(
@@ -558,7 +558,7 @@ class dvgt_nmost:
 
 
 @define_app
-def dvgt_final_nmost(summed: list[SummedRecords]) -> SummedRecords:
+def dvs_final_nmost(summed: list[SummedRecords]) -> SummedRecords:
     """selects the best n records from a list of SummedRecords
 
     Notes
@@ -573,7 +573,7 @@ def dvgt_final_nmost(summed: list[SummedRecords]) -> SummedRecords:
 
 def apply_app(
     *,
-    app: dvgt_max,
+    app: dvs_max,
     seqids: list[str],
     numprocs: int,
     verbose: bool,
@@ -581,9 +581,9 @@ def apply_app(
 ) -> SummedRecords:
     """applies the app to seqids, polishing the selected set with finalise"""
     app_name = app.__class__.__name__
-    with dvgt_util.keep_running():
+    with dvs_util.keep_running():
         if numprocs > 1 and len(seqids) > numprocs:
-            seqids = list(dvgt_util.chunked(seqids, numprocs, verbose=verbose))
+            seqids = list(dvs_util.chunked(seqids, numprocs, verbose=verbose))
         else:
             seqids = [seqids]
 
@@ -606,16 +606,16 @@ def apply_app(
                 show_progress=True,
             ):
                 if not r:
-                    dvgt_util.print_colour(r, style="red")
+                    dvs_util.print_colour(r, style="red")
                 result.append(r.obj)
                 progress.update(select, advance=1, refresh=True)
 
-        dvgt_util.print_colour(f"Merging results from {len(seqids)} runs...", "blue")
+        dvs_util.print_colour(f"Merging results from {len(seqids)} runs...", "blue")
 
         result = finalise(result)
 
         if isinstance(result, NotCompleted):
-            dvgt_util.print_colour(f"{result.type}: {result.message}", "red")
+            dvs_util.print_colour(f"{result.type}: {result.message}", "red")
             sys.exit(1)
 
     return result
@@ -626,7 +626,7 @@ def apply_app(
 
 
 @define_app
-class dvgt_select_max:
+class dvs_select_max:
     """selects the maximally divergent seqs from a sequence collection"""
 
     def __init__(
@@ -691,7 +691,7 @@ class dvgt_select_max:
 
 
 @define_app
-class dvgt_select_nmost:
+class dvs_select_nmost:
     """selects the n-most divergent seqs from a sequence collection"""
 
     def __init__(
