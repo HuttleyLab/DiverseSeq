@@ -16,7 +16,7 @@ from numpy import (
 )
 from numpy.testing import assert_allclose
 
-from divergent.record import (
+from diverse_seq.record import (
     KmerSeq,
     SeqArray,
     _gettype,
@@ -30,7 +30,7 @@ from divergent.record import (
     seqarray_to_kmerseq,
     vector,
 )
-from divergent.util import str2arr
+from diverse_seq.util import str2arr
 
 DATADIR = Path(__file__).parent / "data"
 
@@ -395,7 +395,7 @@ def test_seqarray_to_record(seqarray, k):
 
 @pytest.fixture(scope="function")
 def dstore():
-    from divergent.data_store import HDF5DataStore
+    from diverse_seq.data_store import HDF5DataStore
 
     store = HDF5DataStore("test.h5", in_memory=True)
     yield store

@@ -23,5 +23,5 @@ def testcov(session):
         "--cov-report",
         "html",
         "--cov",
-        "divergent",
+        "diverse_seq",
     )

@@ -1,42 +1,42 @@
-[![CI](https://github.com/HuttleyLab/Divergent/actions/workflows/ci.yml/badge.svg)](https://github.com/HuttleyLab/Divergent/actions/workflows/ci.yml)
-[![Coverage Status](https://coveralls.io/repos/github/HuttleyLab/Divergent/badge.svg?branch=main)](https://coveralls.io/github/HuttleyLab/Divergent?branch=main)
-[![Codacy Badge](https://app.codacy.com/project/badge/Grade/ef3010ea162f47a2a5a44e0f3f6ed1f0)](https://app.codacy.com/gh/HuttleyLab/Divergent/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
+[![CI](https://github.com/HuttleyLab/DiverseSeq/actions/workflows/ci.yml/badge.svg)](https://github.com/HuttleyLab/DiverseSeq/actions/workflows/ci.yml)
+[![Coverage Status](https://coveralls.io/repos/github/HuttleyLab/DiverseSeq/badge.svg?branch=main)](https://coveralls.io/github/HuttleyLab/DiverseSeq?branch=main)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/ef3010ea162f47a2a5a44e0f3f6ed1f0)](https://app.codacy.com/gh/HuttleyLab/DiverseSeq/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 
-# Divergent identifies the most divergent biological sequences from a collection
+# DiverseSeq identifies the most diverse biological sequences from a collection
 
-`divergent` provides tools for selecting a representative subset of sequences from a larger collection. It is an alignment-free method which scales linearly with the number of sequences.  It identifies the subset of divergent sequences that maximize the information theoretic measure Jensen-Shannon divergence. Divergent provides a command-line interface and plugins to the Cogent3 app system allowing users to embed code in their own scripts. The command-line tools can be run in parallel.
+`diverse_seq` provides tools for selecting a representative subset of sequences from a larger collection. It is an alignment-free method which scales linearly with the number of sequences.  It identifies the subset of sequences that maximize diversity as measured using Jensen-Shannon divergence. `DiverseSeq` provides a command-line tool (`dvs`) and plugins to the Cogent3 app system (prefixed by `dvs_`) allowing users to embed code in their own scripts. The command-line tools can be run in parallel.
 
 ## The available commands
 
 <!-- [[[cog
 import cog
-from divergent.cli import main
+from diverse_seq.cli import main
 from click.testing import CliRunner
 runner = CliRunner()
 result = runner.invoke(main, ["--help"])
-help = result.output.replace("Usage: main", "Usage: dvgt")
+help = result.output.replace("Usage: main", "Usage: dvs")
 cog.out(
     "```\n{}\n```".format(help)
 )
 ]]] -->
 ```
-Usage: dvgt [OPTIONS] COMMAND [ARGS]...
+Usage: dvs [OPTIONS] COMMAND [ARGS]...
 
-  dvgt -- alignment free detection of most divergent sequences using JSD
+  dvs -- alignment free detection of the most diverse sequences using JSD
 
 Options:
   --version  Show the version and exit.
   --help     Show this message and exit.
 
 Commands:
-  prep   Writes processed sequences to an outpath ending with .dvgtseqs file.
+  prep   Writes processed sequences to a <HDF5 file>.dvseqs.
   max    Identify the seqs that maximise average delta JSD
   nmost  Identify n seqs that maximise average delta JSD
 
 ```
 <!-- [[[end]]] -->
 
-### `dvgt prep`: Preparing the sequence data
+### `dvs prep`: Preparing the sequence data
 
 Convert sequence data into a more efficient format for the diversity assessment. This must be done before running either the `nmost` or `max` commands.
 
@@ -44,24 +44,24 @@ Convert sequence data into a more efficient format for the diversity assessment.
 
 <!-- [[[cog
 import cog
-from divergent.cli import main
+from diverse_seq.cli import main
 from click.testing import CliRunner
 runner = CliRunner()
 result = runner.invoke(main, ["prep", "--help"])
-help = result.output.replace("Usage: main", "Usage: dvgt")
+help = result.output.replace("Usage: main", "Usage: dvs")
 cog.out(
     "```\n{}\n```".format(help)
 )
 ]]] -->
 ```
-Usage: dvgt prep [OPTIONS]
+Usage: dvs prep [OPTIONS]
 
-  Writes processed sequences to an outpath ending with .dvgtseqs file.
+  Writes processed sequences to a <HDF5 file>.dvseqs.
 
 Options:
   -s, --seqdir PATH        directory containing sequence files  [required]
   -sf, --suffix TEXT       sequence file suffix  [default: fa]
-  -o, --outpath PATH       location to write processed seqs  [required]
+  -o, --outpath PATH       write processed seqs to this filename  [required]
   -np, --numprocs INTEGER  number of processes  [default: 1]
   -F, --force_overwrite    Overwrite existing file if it exists
   -m, --moltype [dna|rna]  Molecular type of sequences, defaults to DNA
@@ -72,7 +72,7 @@ Options:
 ```
 <!-- [[[end]]] -->
 
-### `dvgt nmost`: Select the n-most divergent sequences
+### `dvs nmost`: Select the n-most diverse sequences
 
 We recommend using `nmost` for large datasets.
 
@@ -83,17 +83,17 @@ We recommend using `nmost` for large datasets.
 
 <!-- [[[cog
 import cog
-from divergent.cli import main
+from diverse_seq.cli import main
 from click.testing import CliRunner
 runner = CliRunner()
 result = runner.invoke(main, ["nmost", "--help"])
-help = result.output.replace("Usage: main", "Usage: dvgt")
+help = result.output.replace("Usage: main", "Usage: dvs")
 cog.out(
     "```\n{}\n```".format(help)
 )
 ]]] -->
 ```
-Usage: dvgt nmost [OPTIONS]
+Usage: dvs nmost [OPTIONS]
 
   Identify n seqs that maximise average delta JSD
 
@@ -114,7 +114,7 @@ Options:
 
 #### As a cogent3 plugin:
 
-The `dvgt_select_nmost` is also available as a [cogent3 app](https://cogent3.org/doc/app/index.html). The result of using `cogent3.app_help("dvgt_select_nmost")` is shown below.
+The `dvs_select_nmost` is also available as a [cogent3 app](https://cogent3.org/doc/app/index.html). The result of using `cogent3.app_help("dvs_select_nmost")` is shown below.
 
 <!-- [[[cog
 import cog
@@ -127,7 +127,7 @@ from cogent3 import app_help
 buffer = io.StringIO()
 
 with contextlib.redirect_stdout(buffer):
-  app_help("dvgt_select_nmost")
+  app_help("dvs_select_nmost")
 cog.out(
     "```\n{}\n```".format(buffer.getvalue())
 )
@@ -135,12 +135,12 @@ cog.out(
 ```
 Overview
 --------
-selects the n-most divergent seqs from a sequence collection
+selects the n-most diverse seqs from a sequence collection
 
 Options for making the app
 --------------------------
-dvgt_select_nmost_app = get_app(
-    'dvgt_select_nmost',
+dvs_select_nmost_app = get_app(
+    'dvs_select_nmost',
     n=3,
     moltype='dna',
     include=None,
@@ -169,18 +169,18 @@ named sequences are added to the final result.
 
 Input type
 ----------
-Alignment, SequenceCollection, ArrayAlignment
+SequenceCollection, Alignment, ArrayAlignment
 
 Output type
 -----------
-Alignment, SequenceCollection, ArrayAlignment
+SequenceCollection, Alignment, ArrayAlignment
 
 ```
 <!-- [[[end]]] -->
 
-### `dvgt max`: Maximise average delta JSD
+### `dvs max`: Maximise average delta JSD
 
-The result of the `max` command is typically a set that are modestly more divergent than that fron `nmost`.
+The result of the `max` command is typically a set that are modestly more diverse than that fron `nmost`.
 
 > **Note**
 > A fuller explanation is coming soon!
@@ -189,17 +189,17 @@ The result of the `max` command is typically a set that are modestly more diverg
 
 <!-- [[[cog
 import cog
-from divergent.cli import main
+from diverse_seq.cli import main
 from click.testing import CliRunner
 runner = CliRunner()
 result = runner.invoke(main, ["max", "--help"])
-help = result.output.replace("Usage: main", "Usage: dvgt")
+help = result.output.replace("Usage: main", "Usage: dvs")
 cog.out(
     "```\n{}\n```".format(help)
 )
 ]]] -->
 ```
-Usage: dvgt max [OPTIONS]
+Usage: dvs max [OPTIONS]
 
   Identify the seqs that maximise average delta JSD
 
@@ -224,7 +224,7 @@ Options:
 
 #### As a cogent3 plugin:
 
-The `dvgt_select_nmost` is also available as a [cogent3 app](https://cogent3.org/doc/app/index.html). The result of using `cogent3.app_help("dvgt_select_nmost")` is shown below.
+The `dvs_select_nmost` is also available as a [cogent3 app](https://cogent3.org/doc/app/index.html). The result of using `cogent3.app_help("dvs_select_nmost")` is shown below.
 
 <!-- [[[cog
 import cog
@@ -237,7 +237,7 @@ from cogent3 import app_help
 buffer = io.StringIO()
 
 with contextlib.redirect_stdout(buffer):
-  app_help("dvgt_select_max")
+  app_help("dvs_select_max")
 cog.out(
     "```\n{}\n```".format(buffer.getvalue())
 )
@@ -245,12 +245,12 @@ cog.out(
 ```
 Overview
 --------
-selects the maximally divergent seqs from a sequence collection
+selects the maximally diverse seqs from a sequence collection
 
 Options for making the app
 --------------------------
-dvgt_select_max_app = get_app(
-    'dvgt_select_max',
+dvs_select_max_app = get_app(
+    'dvs_select_max',
     min_size=3,
     max_size=10,
     stat='stdev',
@@ -285,11 +285,11 @@ named sequences are added to the final result.
 
 Input type
 ----------
-Alignment, SequenceCollection, ArrayAlignment
+SequenceCollection, Alignment, ArrayAlignment
 
 Output type
 -----------
-Alignment, SequenceCollection, ArrayAlignment
+SequenceCollection, Alignment, ArrayAlignment
 
 ```
 <!-- [[[end]]] -->

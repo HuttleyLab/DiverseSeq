@@ -3,7 +3,7 @@ requires = ["flit_core >=3.2,<4"]
 build-backend = "flit_core.buildapi"
 
 [project]
-name = "divergent"
+name = "diverse_seq"
 authors = [
     { name = "Gavin Huttley", email = "Gavin.Huttley@anu.edu.au"},
 ]
@@ -35,15 +35,15 @@ classifiers = [
 dynamic = ["version", "description"]
 
 [project.urls]
-Documentation = "https://github.com/HuttleyLab/Divergent"
-"Bug Tracker" = "https://github.com/HuttleyLab/Divergent/issues"
-"Source Code" = "https://github.com/HuttleyLab/Divergent/"
+Documentation = "https://github.com/HuttleyLab/DiverseSeq"
+"Bug Tracker" = "https://github.com/HuttleyLab/DiverseSeq/issues"
+"Source Code" = "https://github.com/HuttleyLab/DiverseSeq/"
 
 [tool.flit.sdist]
 include = ["tests/*"]
 
 [project.scripts]
-dvgt = "divergent.cli:main"
+dvs = "diverse_seq.cli:main"
 
 [project.optional-dependencies]
 test = [
@@ -81,8 +81,8 @@ doc  = ["click",
         ]
 
 [project.entry-points."cogent3.app"]
-dvgt_select_nmost = "divergent.records:dvgt_select_nmost"
-dvgt_select_max = "divergent.records:dvgt_select_max"
+dvs_select_nmost = "diverse_seq.records:dvs_select_nmost"
+dvs_select_max = "diverse_seq.records:dvs_select_max"
 
 [tool.pytest.ini_options]
 addopts = ["--strict-config", "-ra"]
@@ -176,5 +176,5 @@ docstring-code-format = true
 docstring-code-line-length = "dynamic"
 
 [tool.ruff.lint.isort]
-# group divergent imports last
-known-first-party = ["divergent"]
+# group diverse_seq imports last
+known-first-party = ["diverse_seq"]

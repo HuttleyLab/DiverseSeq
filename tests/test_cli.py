@@ -6,10 +6,10 @@ import pytest
 from click.testing import CliRunner
 from cogent3 import load_table, load_unaligned_seqs
 
-from divergent.cli import max as dvgt_max
-from divergent.cli import nmost as dvgt_nmost
-from divergent.cli import prep as dvgt_prep
-from divergent.data_store import HDF5DataStore
+from diverse_seq.cli import max as dvs_max
+from diverse_seq.cli import nmost as dvs_nmost
+from diverse_seq.cli import prep as dvs_prep
+from diverse_seq.data_store import HDF5DataStore
 
 __author__ = "Gavin Huttley"
 __credits__ = ["Gavin Huttley"]
@@ -57,7 +57,7 @@ def seq_dir(tmp_path, seq_path):
 
 @pytest.fixture(scope="session")
 def processed_seq_path():
-    return DATADIR / "brca1.dvgtseqs"
+    return DATADIR / "brca1.dvseqs"
 
 
 def _checked_output(path, eval_rows=None, eval_header=None):
@@ -80,7 +80,7 @@ def _checked_h5_dstore(path, source=None):
 def test_defaults(runner, tmp_dir, processed_seq_path):
     outpath = tmp_dir / "test_defaults.tsv"
     args = f"-s {processed_seq_path} -o {outpath}".split()
-    r = runner.invoke(dvgt_max, args, catch_exceptions=False)
+    r = runner.invoke(dvs_max, args, catch_exceptions=False)
     assert r.exit_code == 0, r.output
     _checked_output(str(outpath))
 
@@ -89,7 +89,7 @@ def test_defaults(runner, tmp_dir, processed_seq_path):
 def test_min_size(runner, tmp_dir, processed_seq_path, min_size):
     outpath = tmp_dir / "test_min_size.tsv"
     args = f"-s {processed_seq_path} -o {outpath} -z {min_size}".split()
-    r = runner.invoke(dvgt_max, args, catch_exceptions=False)
+    r = runner.invoke(dvs_max, args, catch_exceptions=False)
     assert r.exit_code == 0, r.output
     _checked_output(outpath, eval_rows=lambda x: x >= min_size)
 
@@ -98,7 +98,7 @@ def test_min_size(runner, tmp_dir, processed_seq_path, min_size):
 def test_max_size(runner, tmp_dir, processed_seq_path, max_size):
     outpath = tmp_dir / "test_max_size.tsv"
     args = f"-s {processed_seq_path} -o {outpath} -z 3 -zp {max_size}".split()
-    r = runner.invoke(dvgt_max, args, catch_exceptions=False)
+    r = runner.invoke(dvs_max, args, catch_exceptions=False)
     assert r.exit_code == 0, r.output
     _checked_output(outpath, eval_rows=lambda x: x <= max_size)
 
@@ -108,7 +108,7 @@ def test_max_include(runner, tmp_dir, processed_seq_path):
     args = (
         f"-s {processed_seq_path} -o {outpath} -z 3 -zp 5 -L 10 -k 1 -i Human".split()
     )
-    r = runner.invoke(dvgt_max, args, catch_exceptions=False)
+    r = runner.invoke(dvs_max, args, catch_exceptions=False)
     assert r.exit_code == 0, r.output
     got = load_table(outpath)
     assert "Human" in got.columns["names"]
@@ -118,7 +118,7 @@ def test_max_include(runner, tmp_dir, processed_seq_path):
 def test_min_eq_max(runner, tmp_dir, processed_seq_path, size):
     outpath = tmp_dir / "test_min_eq_max.tsv"
     args = f"-s {processed_seq_path} -o {outpath} -z {size} -zp {size}".split()
-    r = runner.invoke(dvgt_max, args, catch_exceptions=False)
+    r = runner.invoke(dvs_max, args, catch_exceptions=False)
     assert r.exit_code == 0, r.output
     _checked_output(outpath, eval_rows=lambda x: x == size)
 
@@ -126,7 +126,7 @@ def test_min_eq_max(runner, tmp_dir, processed_seq_path, size):
 def test_min_gt_max_fail(runner, tmp_dir, processed_seq_path):
     outpath = tmp_dir / "test_min_gt_max_fail.tsv"
     args = f"-s {processed_seq_path} -o {outpath} -zp 2".split()
-    r = runner.invoke(dvgt_max, args, catch_exceptions=False)
+    r = runner.invoke(dvs_max, args, catch_exceptions=False)
     assert r.exit_code != 0, r.output
 
 
@@ -134,7 +134,7 @@ def test_min_gt_max_fail(runner, tmp_dir, processed_seq_path):
 def test_stat(runner, tmp_dir, processed_seq_path, stat):
     outpath = tmp_dir / "test_defaults.tsv"
     args = f"-s {processed_seq_path} -o {outpath} -st {stat}".split()
-    r = runner.invoke(dvgt_max, args, catch_exceptions=False)
+    r = runner.invoke(dvs_max, args, catch_exceptions=False)
     assert r.exit_code == 0, r.output
     _checked_output(outpath)
 
@@ -143,7 +143,7 @@ def test_stat(runner, tmp_dir, processed_seq_path, stat):
 def test_k(runner, tmp_dir, processed_seq_path, k):
     outpath = tmp_dir / "test_defaults.tsv"
     args = f"-s {processed_seq_path} -o {outpath} -k {k}".split()
-    r = runner.invoke(dvgt_max, args, catch_exceptions=False)
+    r = runner.invoke(dvs_max, args, catch_exceptions=False)
     assert r.exit_code == 0, r.output
     _checked_output(outpath)
 
@@ -151,7 +151,7 @@ def test_k(runner, tmp_dir, processed_seq_path, k):
 def test_nmost(runner, tmp_dir, processed_seq_path):
     outpath = tmp_dir / "test_defaults.tsv"
     args = f"-s {processed_seq_path} -o {outpath} -k 1 -n 5".split()
-    r = runner.invoke(dvgt_nmost, args, catch_exceptions=False)
+    r = runner.invoke(dvs_nmost, args, catch_exceptions=False)
     assert r.exit_code == 0, r.output
     _checked_output(outpath, eval_rows=lambda x: x == 5)
 
@@ -159,7 +159,7 @@ def test_nmost(runner, tmp_dir, processed_seq_path):
 def test_nmost_include(runner, tmp_dir, processed_seq_path):
     outpath = tmp_dir / "test_include.tsv"
     args = f"-s {processed_seq_path} -o {outpath} -k 1 -n 5 -L 10 -i Human".split()
-    r = runner.invoke(dvgt_nmost, args, catch_exceptions=False)
+    r = runner.invoke(dvs_nmost, args, catch_exceptions=False)
     assert r.exit_code == 0, r.output
     got = load_table(outpath)
     assert "Human" in got.columns["names"]
@@ -167,9 +167,9 @@ def test_nmost_include(runner, tmp_dir, processed_seq_path):
 
 @pytest.mark.skipif(sys.platform.startswith("win"), reason="Test skipped on Windows")
 def test_prep_seq_file(runner, tmp_dir, seq_path):
-    outpath = tmp_dir / "test_prep_seq_file.dvgtseqs"
+    outpath = tmp_dir / "test_prep_seq_file.dvseqs"
     args = f"-s {seq_path} -o {outpath} -sf fasta".split()
-    r = runner.invoke(dvgt_prep, args, catch_exceptions=False)
+    r = runner.invoke(dvs_prep, args, catch_exceptions=False)
     assert r.exit_code == 0, r.output
     _checked_h5_dstore(str(outpath))
 
@@ -178,53 +178,53 @@ def test_prep_seq_file(runner, tmp_dir, seq_path):
 def test_prep_outpath_without_suffix(runner, tmp_dir, seq_path):
     outpath = tmp_dir / "test_prep_outpath_without_suffix"
     args = f"-s {seq_path} -o {outpath}".split()
-    r = runner.invoke(dvgt_prep, args, catch_exceptions=False)
+    r = runner.invoke(dvs_prep, args, catch_exceptions=False)
     assert r.exit_code == 0, r.output
-    _checked_h5_dstore(str(outpath) + ".dvgtseqs")
+    _checked_h5_dstore(str(outpath) + ".dvseqs")
 
 
 @pytest.mark.skipif(sys.platform.startswith("win"), reason="Test skipped on Windows")
 def test_prep_force_override(runner, tmp_dir, seq_path):
-    outpath = tmp_dir / "test_prep_force_override.dvgtseqs"
+    outpath = tmp_dir / "test_prep_force_override.dvseqs"
     args = f"-s {seq_path} -o {outpath}".split()
 
     # Run prep once, it should succeed
-    r = runner.invoke(dvgt_prep, args)
+    r = runner.invoke(dvs_prep, args)
     assert r.exit_code == 0, r.output
     _checked_h5_dstore(str(outpath))
 
     # with the force write flag, it should succeed
     args += ["-F"]
-    r = runner.invoke(dvgt_prep, args)
+    r = runner.invoke(dvs_prep, args)
     assert r.exit_code == 0, r.output
     _checked_h5_dstore(str(outpath))
 
 
 def test_prep_max_rna(runner, tmp_dir, rna_seq_path):
-    outpath = tmp_dir / "test_prep_max_rna.dvgtseqs"
+    outpath = tmp_dir / "test_prep_max_rna.dvseqs"
     args = f"-s {rna_seq_path} -o {outpath} -m rna".split()
-    r = runner.invoke(dvgt_prep, args)
+    r = runner.invoke(dvs_prep, args)
     assert r.exit_code == 0, r.output
     _checked_h5_dstore(str(outpath))
 
     max_outpath = tmp_dir / "test_prep_rna.tsv"
     max_args = f"-s {outpath} -o {max_outpath}".split()
-    r = runner.invoke(dvgt_max, max_args)
+    r = runner.invoke(dvs_max, max_args)
     assert r.exit_code == 0, r.output
     _checked_output(str(max_outpath))
 
 
 def test_prep_source_from_file(runner, tmp_dir, seq_path):
-    outpath = tmp_dir / "test_prep_source_from_file.dvgtseqs"
+    outpath = tmp_dir / "test_prep_source_from_file.dvseqs"
     args = f"-s {seq_path} -o {outpath} -sf fasta".split()
-    r = runner.invoke(dvgt_prep, args)
+    r = runner.invoke(dvs_prep, args)
     assert r.exit_code == 0
 
 
 def test_prep_source_from_directory(runner, tmp_dir, seq_dir):
-    outpath = tmp_dir / "test_prep_source_from_directory.dvgtseqs"
+    outpath = tmp_dir / "test_prep_source_from_directory.dvseqs"
     args = f"-s {seq_dir} -o {outpath} -sf fasta".split()
-    r = runner.invoke(dvgt_prep, args)
+    r = runner.invoke(dvs_prep, args)
     assert r.exit_code == 0, r.output
     with h5py.File(outpath, mode="r") as f:
         for name, dset in f.items():
