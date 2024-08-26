@@ -14,7 +14,7 @@ requires-python = ">=3.10,<3.13"
 dependencies = [
     "attrs",
     "click",
-    "cogent3 @ git+https://github.com/cogent3/cogent3.git@develop",
+    "cogent3",
     "hdf5plugin",
     "h5py",
     "numpy>=2.0",
