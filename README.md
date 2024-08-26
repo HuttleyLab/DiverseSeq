@@ -1,10 +1,10 @@
-[![CI](https://github.com/HuttleyLab/Divergent/actions/workflows/ci.yml/badge.svg)](https://github.com/HuttleyLab/Divergent/actions/workflows/ci.yml)
-[![Coverage Status](https://coveralls.io/repos/github/HuttleyLab/Divergent/badge.svg?branch=main)](https://coveralls.io/github/HuttleyLab/Divergent?branch=main)
-[![Codacy Badge](https://app.codacy.com/project/badge/Grade/ef3010ea162f47a2a5a44e0f3f6ed1f0)](https://app.codacy.com/gh/HuttleyLab/Divergent/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
+[![CI](https://github.com/HuttleyLab/DiverseSeq/actions/workflows/ci.yml/badge.svg)](https://github.com/HuttleyLab/DiverseSeq/actions/workflows/ci.yml)
+[![Coverage Status](https://coveralls.io/repos/github/HuttleyLab/DiverseSeq/badge.svg?branch=main)](https://coveralls.io/github/HuttleyLab/DiverseSeq?branch=main)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/ef3010ea162f47a2a5a44e0f3f6ed1f0)](https://app.codacy.com/gh/HuttleyLab/DiverseSeq/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 
-# Divergent identifies the most divergent biological sequences from a collection
+# DiverseSeq identifies the most diverse biological sequences from a collection
 
-`divergent` provides tools for selecting a representative subset of sequences from a larger collection. It is an alignment-free method which scales linearly with the number of sequences.  It identifies the subset of divergent sequences that maximize the information theoretic measure Jensen-Shannon divergence. Divergent provides a command-line interface and plugins to the Cogent3 app system allowing users to embed code in their own scripts. The command-line tools can be run in parallel.
+`diverse_seq` provides tools for selecting a representative subset of sequences from a larger collection. It is an alignment-free method which scales linearly with the number of sequences.  It identifies the subset of sequences that maximize diversity as measured using Jensen-Shannon divergence. `DiverseSeq` provides a command-line tool (`dvs`) and plugins to the Cogent3 app system (prefixed by `dvs_`) allowing users to embed code in their own scripts. The command-line tools can be run in parallel.
 
 ## The available commands
 
@@ -22,14 +22,14 @@ cog.out(
 ```
 Usage: dvs [OPTIONS] COMMAND [ARGS]...
 
-  dvgt -- alignment free detection of most divergent sequences using JSD
+  dvs -- alignment free detection of the most diverse sequences using JSD
 
 Options:
   --version  Show the version and exit.
   --help     Show this message and exit.
 
 Commands:
-  prep   Writes processed sequences to an outpath ending with .dvseqs file.
+  prep   Writes processed sequences to a <HDF5 file>.dvseqs.
   max    Identify the seqs that maximise average delta JSD
   nmost  Identify n seqs that maximise average delta JSD
 
@@ -56,12 +56,12 @@ cog.out(
 ```
 Usage: dvs prep [OPTIONS]
 
-  Writes processed sequences to an outpath ending with .dvseqs file.
+  Writes processed sequences to a <HDF5 file>.dvseqs.
 
 Options:
   -s, --seqdir PATH        directory containing sequence files  [required]
   -sf, --suffix TEXT       sequence file suffix  [default: fa]
-  -o, --outpath PATH       location to write processed seqs  [required]
+  -o, --outpath PATH       write processed seqs to this filename  [required]
   -np, --numprocs INTEGER  number of processes  [default: 1]
   -F, --force_overwrite    Overwrite existing file if it exists
   -m, --moltype [dna|rna]  Molecular type of sequences, defaults to DNA
@@ -72,7 +72,7 @@ Options:
 ```
 <!-- [[[end]]] -->
 
-### `dvs nmost`: Select the n-most divergent sequences
+### `dvs nmost`: Select the n-most diverse sequences
 
 We recommend using `nmost` for large datasets.
 
@@ -135,7 +135,7 @@ cog.out(
 ```
 Overview
 --------
-selects the n-most divergent seqs from a sequence collection
+selects the n-most diverse seqs from a sequence collection
 
 Options for making the app
 --------------------------
@@ -180,7 +180,7 @@ SequenceCollection, Alignment, ArrayAlignment
 
 ### `dvs max`: Maximise average delta JSD
 
-The result of the `max` command is typically a set that are modestly more divergent than that fron `nmost`.
+The result of the `max` command is typically a set that are modestly more diverse than that fron `nmost`.
 
 > **Note**
 > A fuller explanation is coming soon!
@@ -245,7 +245,7 @@ cog.out(
 ```
 Overview
 --------
-selects the maximally divergent seqs from a sequence collection
+selects the maximally diverse seqs from a sequence collection
 
 Options for making the app
 --------------------------

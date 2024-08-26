@@ -48,7 +48,7 @@ _click_command_opts = dict(
 @click.group(cls=OrderedGroup)
 @click.version_option(__version__)  # add version option
 def main():
-    """dvgt -- alignment free detection of most divergent sequences using JSD"""
+    """dvs -- alignment free detection of the most diverse sequences using JSD"""
 
 
 _verbose = click.option(
@@ -103,7 +103,7 @@ _k = click.option("-k", type=int, default=6, help="k-mer size")
     "--outpath",
     required=True,
     type=Path,
-    help="location to write processed seqs",
+    help="write processed seqs to this filename",
 )
 @_numprocs
 @_overwrite
@@ -116,7 +116,7 @@ _k = click.option("-k", type=int, default=6, help="k-mer size")
 )
 @_limit
 def prep(seqdir, suffix, outpath, numprocs, force_overwrite, moltype, limit):
-    """Writes processed sequences to an outpath ending with .dvseqs file."""
+    """Writes processed sequences to a <HDF5 file>.dvseqs."""
     dvseqs_path = outpath.with_suffix(".dvseqs")
     if dvseqs_path.exists() and not force_overwrite:
         dvs_util.print_colour(
@@ -246,7 +246,7 @@ def max(
 
     if seqfile.suffix != ".dvseqs":
         dvs_util.print_colour(
-            "Sequence data needs to be preprocessed, use 'dvgt prep'",
+            "Sequence data needs to be preprocessed, use 'dvs prep'",
             "red",
         )
         sys.exit(1)
@@ -336,7 +336,7 @@ def nmost(
 
     if seqfile.suffix != ".dvseqs":
         dvs_util.print_colour(
-            "Sequence data needs to be preprocessed, use 'dvgt prep'",
+            "Sequence data needs to be preprocessed, use 'dvs prep'",
             "red",
         )
         sys.exit(1)

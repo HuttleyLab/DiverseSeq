@@ -6,7 +6,7 @@ the following applications
 
 Find N
 -------
-identify the N'th most divergent sequences
+identify the n-most diverse sequences
 
 Most divergent
 --------------
@@ -627,7 +627,7 @@ def apply_app(
 
 @define_app
 class dvs_select_max:
-    """selects the maximally divergent seqs from a sequence collection"""
+    """selects the maximally diverse seqs from a sequence collection"""
 
     def __init__(
         self,
@@ -692,7 +692,7 @@ class dvs_select_max:
 
 @define_app
 class dvs_select_nmost:
-    """selects the n-most divergent seqs from a sequence collection"""
+    """selects the n-most diverse seqs from a sequence collection"""
 
     def __init__(
         self,
