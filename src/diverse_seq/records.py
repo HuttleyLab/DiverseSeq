@@ -606,7 +606,7 @@ def apply_app(
                 show_progress=True,
             ):
                 if not r:
-                    dvs_util.print_colour(r, style="red")
+                    dvs_util.print_colour(r, "red")
                 result.append(r.obj)
                 progress.update(select, advance=1, refresh=True)
 

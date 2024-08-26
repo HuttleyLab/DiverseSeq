@@ -20,6 +20,7 @@ dependencies = [
     "numpy>=2.0",
     "rich",
     "scitrack",
+    "scikit-learn",
     ]
 classifiers = [
         "Development Status :: 3 - Alpha",
