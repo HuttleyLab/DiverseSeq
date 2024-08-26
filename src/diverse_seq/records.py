@@ -577,6 +577,7 @@ def apply_app(
     seqids: list[str],
     numprocs: int,
     verbose: bool,
+    hide_progress: bool = False,
     finalise: typing.Callable[[list[SummedRecords]], SummedRecords],
 ) -> SummedRecords:
     """applies the app to seqids, polishing the selected set with finalise"""
@@ -593,6 +594,7 @@ def apply_app(
             rich_progress.TaskProgressColumn(),
             rich_progress.TimeRemainingColumn(),
             rich_progress.TimeElapsedColumn(),
+            disable=hide_progress,
         ) as progress:
             select = progress.add_task(
                 description=f"[blue]Selection with {app_name!r}",

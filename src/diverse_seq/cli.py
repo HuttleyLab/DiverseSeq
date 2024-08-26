@@ -51,6 +51,12 @@ def main():
     """dvs -- alignment free detection of the most diverse sequences using JSD"""
 
 
+_hide_progress = click.option(
+    "-hp",
+    "--hide_progress",
+    is_flag=True,
+    help="hide progress bars",
+)
 _verbose = click.option(
     "-v",
     "--verbose",
@@ -115,7 +121,17 @@ _k = click.option("-k", type=int, default=6, help="k-mer size")
     help="Molecular type of sequences, defaults to DNA",
 )
 @_limit
-def prep(seqdir, suffix, outpath, numprocs, force_overwrite, moltype, limit):
+@_hide_progress
+def prep(
+    seqdir,
+    suffix,
+    outpath,
+    numprocs,
+    force_overwrite,
+    moltype,
+    limit,
+    hide_progress,
+):
     """Writes processed sequences to a <HDF5 file>.dvseqs."""
     dvseqs_path = outpath.with_suffix(".dvseqs")
     if dvseqs_path.exists() and not force_overwrite:
@@ -165,12 +181,14 @@ def prep(seqdir, suffix, outpath, numprocs, force_overwrite, moltype, limit):
         writer = dvs_io.dvs_write_seqs(
             data_store=out_dstore,
         )
+
         with rich_progress.Progress(
             rich_progress.TextColumn("[progress.description]{task.description}"),
             rich_progress.BarColumn(),
             rich_progress.TaskProgressColumn(),
             rich_progress.TimeRemainingColumn(),
             rich_progress.TimeElapsedColumn(),
+            disable=hide_progress,
         ) as progress:
             convert = progress.add_task("Processing sequences", total=len(in_dstore))
             for r in loader.as_completed(
@@ -226,6 +244,7 @@ def prep(seqdir, suffix, outpath, numprocs, force_overwrite, moltype, limit):
     help="reduce number of paths and size of query seqs",
 )
 @_verbose
+@_hide_progress
 def max(
     seqfile,
     outpath,
@@ -238,6 +257,7 @@ def max(
     limit,
     test_run,
     verbose,
+    hide_progress,
 ):
     """Identify the seqs that maximise average delta JSD"""
     if max_size is not None and min_size > max_size:
@@ -283,6 +303,7 @@ def max(
         seqids=seqids,
         numprocs=numprocs,
         verbose=verbose,
+        hide_progress=hide_progress,
         finalise=finalise,
     )
 
@@ -322,6 +343,7 @@ def max(
 @_numprocs
 @_limit
 @_verbose
+@_hide_progress
 def nmost(
     seqfile,
     outpath,
@@ -331,6 +353,7 @@ def nmost(
     numprocs,
     limit,
     verbose,
+    hide_progress,
 ):
     """Identify n seqs that maximise average delta JSD"""
 
@@ -365,6 +388,7 @@ def nmost(
         seqids=seqids,
         numprocs=numprocs,
         verbose=verbose,
+        hide_progress=hide_progress,
         finalise=dvs_records.dvs_final_nmost(),  # pylint: disable=no-value-for-parameter
     )
     # user requested inclusions are added to the selected divergent set
