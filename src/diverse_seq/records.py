@@ -629,7 +629,7 @@ def apply_app(
 
 @define_app
 class dvs_select_max:
-    """selects the maximally diverse seqs from a sequence collection"""
+    """selects the maximally divergent seqs from a sequence collection"""
 
     def __init__(
         self,
@@ -647,9 +647,10 @@ class dvs_select_max:
         min_size
             minimum size of the divergent set
         max_size
-            the maximum size if the divergent set
+            the maximum size of the divergent set
         stat
-            statistic for maximising the set, either mean_delta_jsd, mean_jsd, total_jsd
+            either stdev or cov, which represent the statistics
+            std(delta_jsd) and cov(delta_jsd) respectively
         moltype
             molecular type of the sequences
         include
