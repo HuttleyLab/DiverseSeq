@@ -633,8 +633,8 @@ class dvs_select_max:
 
     def __init__(
         self,
-        min_size: int = 3,
-        max_size: int = 10,
+        min_size: int = 5,
+        max_size: int = 30,
         stat: str = "stdev",
         moltype: str = "dna",
         include: list[str] | str | None = None,
@@ -699,7 +699,7 @@ class dvs_select_nmost:
 
     def __init__(
         self,
-        n: int = 3,
+        n: int = 10,
         moltype: str = "dna",
         include: list[str] | str | None = None,
         k: int = 6,
