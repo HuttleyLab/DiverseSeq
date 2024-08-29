@@ -577,6 +577,7 @@ def apply_app(
     seqids: list[str],
     numprocs: int,
     verbose: bool,
+    hide_progress: bool = False,
     finalise: typing.Callable[[list[SummedRecords]], SummedRecords],
 ) -> SummedRecords:
     """applies the app to seqids, polishing the selected set with finalise"""
@@ -593,6 +594,7 @@ def apply_app(
             rich_progress.TaskProgressColumn(),
             rich_progress.TimeRemainingColumn(),
             rich_progress.TimeElapsedColumn(),
+            disable=hide_progress,
         ) as progress:
             select = progress.add_task(
                 description=f"[blue]Selection with {app_name!r}",
@@ -627,12 +629,12 @@ def apply_app(
 
 @define_app
 class dvs_select_max:
-    """selects the maximally diverse seqs from a sequence collection"""
+    """selects the maximally divergent seqs from a sequence collection"""
 
     def __init__(
         self,
-        min_size: int = 3,
-        max_size: int = 10,
+        min_size: int = 5,
+        max_size: int = 30,
         stat: str = "stdev",
         moltype: str = "dna",
         include: list[str] | str | None = None,
@@ -645,9 +647,10 @@ class dvs_select_max:
         min_size
             minimum size of the divergent set
         max_size
-            the maximum size if the divergent set
+            the maximum size of the divergent set
         stat
-            statistic for maximising the set, either mean_delta_jsd, mean_jsd, total_jsd
+            either stdev or cov, which represent the statistics
+            std(delta_jsd) and cov(delta_jsd) respectively
         moltype
             molecular type of the sequences
         include
@@ -696,7 +699,7 @@ class dvs_select_nmost:
 
     def __init__(
         self,
-        n: int = 3,
+        n: int = 10,
         moltype: str = "dna",
         include: list[str] | str | None = None,
         k: int = 6,

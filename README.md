@@ -69,6 +69,7 @@ Options:
   -m, --moltype [dna|rna]  Molecular type of sequences, defaults to DNA
                            [default: dna]
   -L, --limit INTEGER      number of sequences to process
+  -hp, --hide_progress     hide progress bars
   --help                   Show this message and exit.
 
 ```
@@ -109,6 +110,7 @@ Options:
   -L, --limit INTEGER      number of sequences to process
   -v, --verbose            is an integer indicating number of cl occurrences
                            [default: 0]
+  -hp, --hide_progress     hide progress bars
   --help                   Show this message and exit.
 
 ```
@@ -116,7 +118,7 @@ Options:
 
 #### As a cogent3 plugin:
 
-The `dvs_select_nmost` is also available as a [cogent3 app](https://cogent3.org/doc/app/index.html). The result of using `cogent3.app_help("dvs_select_nmost")` is shown below.
+The `dvs nmost` is also available as the [cogent3 app](https://cogent3.org/doc/app/index.html) `dvs_select_nmost`. The result of using `cogent3.app_help("dvs_select_nmost")` is shown below.
 
 <!-- [[[cog
 import cog
@@ -143,7 +145,7 @@ Options for making the app
 --------------------------
 dvs_select_nmost_app = get_app(
     'dvs_select_nmost',
-    n=3,
+    n=10,
     moltype='dna',
     include=None,
     k=6,
@@ -171,11 +173,11 @@ named sequences are added to the final result.
 
 Input type
 ----------
-SequenceCollection, Alignment, ArrayAlignment
+ArrayAlignment, Alignment, SequenceCollection
 
 Output type
 -----------
-SequenceCollection, Alignment, ArrayAlignment
+ArrayAlignment, Alignment, SequenceCollection
 
 ```
 <!-- [[[end]]] -->
@@ -218,6 +220,7 @@ Options:
   -T, --test_run           reduce number of paths and size of query seqs
   -v, --verbose            is an integer indicating number of cl occurrences
                            [default: 0]
+  -hp, --hide_progress     hide progress bars
   --help                   Show this message and exit.
 
 ```
@@ -226,7 +229,7 @@ Options:
 
 #### As a cogent3 plugin:
 
-The `dvs_select_nmost` is also available as a [cogent3 app](https://cogent3.org/doc/app/index.html). The result of using `cogent3.app_help("dvs_select_nmost")` is shown below.
+The `dvs max` is also available as the [cogent3 app](https://cogent3.org/doc/app/index.html) `dvs_select_max`. The result of using `cogent3.app_help("dvs_select_max")` is shown below.
 
 <!-- [[[cog
 import cog
@@ -247,7 +250,7 @@ cog.out(
 ```
 Overview
 --------
-selects the maximally diverse seqs from a sequence collection
+selects the maximally divergent seqs from a sequence collection
 
 Options for making the app
 --------------------------
@@ -267,9 +270,10 @@ Parameters
 min_size
     minimum size of the divergent set
 max_size
-    the maximum size if the divergent set
+    the maximum size of the divergent set
 stat
-    statistic for maximising the set, either mean_delta_jsd, mean_jsd, total_jsd
+    either stdev or cov, which represent the statistics
+    std(delta_jsd) and cov(delta_jsd) respectively
 moltype
     molecular type of the sequences
 include
@@ -287,11 +291,11 @@ named sequences are added to the final result.
 
 Input type
 ----------
-SequenceCollection, Alignment, ArrayAlignment
+ArrayAlignment, Alignment, SequenceCollection
 
 Output type
 -----------
-SequenceCollection, Alignment, ArrayAlignment
+ArrayAlignment, Alignment, SequenceCollection
 
 ```
 <!-- [[[end]]] -->
