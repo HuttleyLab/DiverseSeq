@@ -513,7 +513,7 @@ def _(data: c3_seq.Sequence, *, dtype, k, moltype) -> KmerSeq:
 def _(data: c3_new_seq.Sequence, *, dtype, k, moltype) -> KmerSeq:
     cnvrt = dvs_utils.str2arr(moltype=moltype)
     vec = lazy_kmers(
-        data=cnvrt(str(data)),
+        data=cnvrt(str(data)),  # pylint: disable=not-callable
         k=k,
         moltype=moltype,
         dtype=dtype,
