@@ -147,7 +147,7 @@ def brca1_coll(DATA_DIR):
 def test_merge_summed_records(DATA_DIR, brca1_coll):
     path = DATA_DIR / "brca1.dvseqs"
     names = brca1_coll.names
-    app = dvs_records.dvs_nmost(seq_store=path, n=5, k=1)
+    app = dvs_records.select_nmost(seq_store=path, n=5, k=1)
     sr1 = app(names[:10])  # pylint: disable=not-callable
     sr2 = app(names[10:20])  # pylint: disable=not-callable
     rnames1 = sr1.record_names
@@ -158,35 +158,35 @@ def test_merge_summed_records(DATA_DIR, brca1_coll):
 
 
 def test_dvs_select_max(brca1_coll):
-    app = dvs_records.dvs_select_max(k=1, min_size=2, max_size=5)
+    app = dvs_records.dvs_max(k=1, min_size=2, max_size=5)
     got = app(brca1_coll)  # pylint: disable=not-callable
     assert 2 <= got.num_seqs <= 5
-    app = dvs_records.dvs_select_max(k=1, min_size=2, max_size=5, seed=123)
+    app = dvs_records.dvs_max(k=1, min_size=2, max_size=5, seed=123)
     got = app(brca1_coll)  # pylint: disable=not-callable
     assert 2 <= got.num_seqs <= 5
 
 
 @pytest.mark.parametrize("include", ("Human", ["Human"], ["Human", "Mouse"]))
 def test_dvs_select_max_include(brca1_coll, include):
-    app = dvs_records.dvs_select_max(k=1, min_size=2, max_size=5, include=include)
+    app = dvs_records.dvs_max(k=1, min_size=2, max_size=5, include=include)
     got = app(brca1_coll)  # pylint: disable=not-callable
     include = {include} if isinstance(include, str) else set(include)
     assert include <= set(got.names)
 
 
 def test_dvs_select_nmost(brca1_coll):
-    app = dvs_records.dvs_select_nmost(k=1, n=5)
+    app = dvs_records.dvs_nmost(k=1, n=5)
     got = app(brca1_coll)  # pylint: disable=not-callable
     assert got.num_seqs == 5
     # try setting a seed
-    app = dvs_records.dvs_select_nmost(k=1, n=5, seed=123)
+    app = dvs_records.dvs_nmost(k=1, n=5, seed=123)
     got = app(brca1_coll)  # pylint: disable=not-callable
     assert got.num_seqs == 5
 
 
 @pytest.mark.parametrize("include", ("Human", ["Human"], ["Human", "Mouse"]))
 def test_dvs_select_nmost_keep(brca1_coll, include):
-    app = dvs_records.dvs_select_nmost(k=1, n=5, include=include)
+    app = dvs_records.dvs_nmost(k=1, n=5, include=include)
     got = app(brca1_coll)  # pylint: disable=not-callable
     include = {include} if isinstance(include, str) else set(include)
     assert include <= set(got.names)

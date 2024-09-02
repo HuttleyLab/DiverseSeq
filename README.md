@@ -93,9 +93,9 @@ Options:
 </details>
 
 <details>
-    <summary>Options for cogent3 app dvs_select_nmost</summary>
+    <summary>Options for cogent3 app dvs_nmost</summary>
 
-The `dvs nmost` is also available as the [cogent3 app](https://cogent3.org/doc/app/index.html) `dvs_select_nmost`. The result of using `cogent3.app_help("dvs_select_nmost")` is shown below.
+The `dvs nmost` is also available as the [cogent3 app](https://cogent3.org/doc/app/index.html) `dvs_nmost`. The result of using `cogent3.app_help("dvs_nmost")` is shown below.
 
 <!-- [[[cog
 import cog
@@ -108,7 +108,7 @@ from cogent3 import app_help
 buffer = io.StringIO()
 
 with contextlib.redirect_stdout(buffer):
-  app_help("dvs_select_nmost")
+  app_help("dvs_nmost")
 cog.out(
     "```\n{}\n```".format(buffer.getvalue())
 )
@@ -116,12 +116,12 @@ cog.out(
 ```
 Overview
 --------
-selects the n-most diverse seqs from a sequence collection
+select the n-most diverse seqs from a sequence collection
 
 Options for making the app
 --------------------------
-dvs_select_nmost_app = get_app(
-    'dvs_select_nmost',
+dvs_nmost_app = get_app(
+    'dvs_nmost',
     n=10,
     moltype='dna',
     include=None,
@@ -150,11 +150,11 @@ named sequences are added to the final result.
 
 Input type
 ----------
-SequenceCollection, Alignment, ArrayAlignment
+SequenceCollection, ArrayAlignment, Alignment
 
 Output type
 -----------
-SequenceCollection, Alignment, ArrayAlignment
+SequenceCollection, ArrayAlignment, Alignment
 
 ```
 <!-- [[[end]]] -->
@@ -209,9 +209,9 @@ Options:
 </details>
 
 <details>
-<summary>Options for cogent3 app dvs_select_max</summary>
+<summary>Options for cogent3 app dvs_max</summary>
 
-The `dvs max` is also available as the [cogent3 app](https://cogent3.org/doc/app/index.html) `dvs_select_max`. 
+The `dvs max` is also available as the [cogent3 app](https://cogent3.org/doc/app/index.html) `dvs_max`. 
 
 <!-- [[[cog
 import cog
@@ -224,7 +224,7 @@ from cogent3 import app_help
 buffer = io.StringIO()
 
 with contextlib.redirect_stdout(buffer):
-  app_help("dvs_select_max")
+  app_help("dvs_max")
 cog.out(
     "```\n{}\n```".format(buffer.getvalue())
 )
@@ -232,12 +232,12 @@ cog.out(
 ```
 Overview
 --------
-selects the maximally divergent seqs from a sequence collection
+select the maximally divergent seqs from a sequence collection
 
 Options for making the app
 --------------------------
-dvs_select_max_app = get_app(
-    'dvs_select_max',
+dvs_max_app = get_app(
+    'dvs_max',
     min_size=5,
     max_size=30,
     stat='stdev',
@@ -273,11 +273,11 @@ named sequences are added to the final result.
 
 Input type
 ----------
-SequenceCollection, Alignment, ArrayAlignment
+SequenceCollection, ArrayAlignment, Alignment
 
 Output type
 -----------
-SequenceCollection, Alignment, ArrayAlignment
+SequenceCollection, ArrayAlignment, Alignment
 
 ```
 <!-- [[[end]]] -->

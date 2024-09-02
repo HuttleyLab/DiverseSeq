@@ -12,6 +12,8 @@ from cogent3 import get_moltype
 from cogent3.app import composable
 from cogent3.app import data_store as c3_data_store
 from cogent3.app import typing as c3_types
+from cogent3.core import new_sequence as c3_new_seq
+from cogent3.core import sequence as c3_seq
 from numpy import (
     array,
     errstate,
@@ -55,7 +57,7 @@ def _(name: type) -> type:
 
 @dataclasses.dataclass(slots=True)
 class lazy_kmers:
-    member: c3_data_store.DataMember
+    data: c3_data_store.DataMember | ndarray
     k: int
     dtype: type = uint64
     num_states: int = dataclasses.field(init=False)
@@ -65,7 +67,7 @@ class lazy_kmers:
         self.num_states = len(_get_canonical_states(moltype))
 
     def __array__(self):
-        data = self.member.read()
+        data = self.data if isinstance(self.data, ndarray) else self.data.read()
         return kmer_counts(data, self.num_states, self.k, dtype=self.dtype)
 
 
@@ -435,44 +437,102 @@ class seq_to_seqarray:
         )
 
 
-@composable.define_app
-class seqarray_to_kmerseq:
-    """converts a sequence numpy array to a KmerSeq"""
-
-    def __init__(self, k: int, moltype: str):
-        """
-        Parameters
-        ----------
-        k
-            size of k-mers
-        moltype
-            cogent3 molecular type
-        """
-        self.moltype = moltype
-        self.k = k
-        self.canonical = _get_canonical_states(moltype)
-        self.dtype = min_scalar_type(len(self.canonical) ** self.k)
-
-    def main(self, seq: SeqArray) -> KmerSeq:
-        kwargs = dict(
-            vector_length=len(self.canonical) ** self.k,
-            dtype=int,
-            source=seq.source,
-            name=seq.seqid,
-        )
-        counts = kmer_counts(seq.data, len(self.canonical), self.k, dtype=self.dtype)
-        kwargs["data"] = counts
-
-        return KmerSeq(
-            kcounts=vector(**kwargs),
-            name=kwargs["name"],
-        )
+@functools.singledispatch
+def make_kmerseq(data, *, dtype, k, moltype) -> KmerSeq:
+    raise TypeError(f"type {type(data)} not supported")
 
 
-@composable.define_app
-class member_to_kmerseq:
-    """creates a KmerSeq from a HDF5 datastore member"""
+@make_kmerseq.register
+def _(data: SeqArray, *, dtype, k, moltype) -> KmerSeq:
+    vec = lazy_kmers(
+        data=data.data,
+        k=k,
+        moltype=moltype,
+        dtype=dtype,
+    )
+    kwargs = dict(
+        vector_length=vec.num_states,
+        dtype=dtype,
+        source=data.source,
+        name=data.seqid,
+        data=vec,
+    )
 
+    return KmerSeq(
+        kcounts=vector(**kwargs),
+        name=kwargs["name"],
+    )
+
+
+@make_kmerseq.register
+def _(data: c3_data_store.DataMember, *, dtype, k, moltype) -> KmerSeq:
+    vec = lazy_kmers(
+        data=data,
+        k=k,
+        moltype=moltype,
+        dtype=dtype,
+    )
+    kwargs = dict(
+        vector_length=vec.num_states,
+        dtype=dtype,
+        source=data.data_store.source,
+        name=data.unique_id,
+        data=vec,
+    )
+
+    return KmerSeq(
+        kcounts=vector(**kwargs),
+        name=kwargs["name"],
+    )
+
+
+@make_kmerseq.register
+def _(data: c3_seq.Sequence, *, dtype, k, moltype) -> KmerSeq:
+    cnvrt = dvs_utils.str2arr(moltype=moltype)
+    vec = lazy_kmers(
+        data=cnvrt(str(data)),  # pylint: disable=not-callable
+        k=k,
+        moltype=moltype,
+        dtype=dtype,
+    )
+    kwargs = dict(
+        vector_length=vec.num_states,
+        dtype=dtype,
+        source=data.info.source,
+        name=data.name,
+        data=vec,
+    )
+
+    return KmerSeq(
+        kcounts=vector(**kwargs),
+        name=kwargs["name"],
+    )
+
+
+@make_kmerseq.register
+def _(data: c3_new_seq.Sequence, *, dtype, k, moltype) -> KmerSeq:
+    cnvrt = dvs_utils.str2arr(moltype=moltype)
+    vec = lazy_kmers(
+        data=cnvrt(str(data)),  # pylint: disable=not-callable
+        k=k,
+        moltype=moltype,
+        dtype=dtype,
+    )
+    kwargs = dict(
+        vector_length=vec.num_states,
+        dtype=dtype,
+        source=data.info.source,
+        name=data.name,
+        data=vec,
+    )
+
+    return KmerSeq(
+        kcounts=vector(**kwargs),
+        name=kwargs["name"],
+    )
+
+
+class _make_kmerseq_init:
     def __init__(self, k: int, moltype: str):
         """
         Parameters
@@ -487,25 +547,21 @@ class member_to_kmerseq:
         self.num_states = len(_get_canonical_states(moltype))
         self.dtype = min_scalar_type(self.num_states**k)
 
-    def main(self, member: c3_data_store.DataMember) -> KmerSeq:
-        vec = lazy_kmers(
-            member=member,
-            k=self.k,
-            moltype=self.moltype,
-            dtype=self.dtype,
-        )
-        kwargs = dict(
-            vector_length=vec.num_states,
-            dtype=self.dtype,
-            source=member.data_store.source,
-            name=member.unique_id,
-            data=vec,
-        )
 
-        return KmerSeq(
-            kcounts=vector(**kwargs),
-            name=kwargs["name"],
-        )
+@composable.define_app
+class seqarray_to_kmerseq(_make_kmerseq_init):
+    """converts a sequence numpy array to a KmerSeq"""
+
+    def main(self, seq: SeqArray) -> KmerSeq:
+        return make_kmerseq(seq, dtype=self.dtype, k=self.k, moltype=self.moltype)
+
+
+@composable.define_app
+class member_to_kmerseq(_make_kmerseq_init):
+    """creates a KmerSeq from a HDF5 datastore member"""
+
+    def main(self, member: c3_data_store.DataMember) -> KmerSeq:
+        return make_kmerseq(member, dtype=self.dtype, k=self.k, moltype=self.moltype)
 
 
 @functools.cache
