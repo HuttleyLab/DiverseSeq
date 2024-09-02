@@ -311,7 +311,7 @@ def max_divergent(
             sr = SummedRecords.from_records(sr.records)
 
     if max_set:
-        app = dvs_final_max(stat=stat, min_size=min_size, verbose=verbose)  # pylint: disable=no-value-for-parameter
+        app = select_final_max(stat=stat, min_size=min_size, verbose=verbose)  # pylint: disable=no-value-for-parameter
         sr = app([sr])
     elif verbose:
         num_neg = sum(r.delta_jsd < 0 for r in [sr.lowest] + sr.records)
@@ -320,7 +320,7 @@ def max_divergent(
 
 
 @define_app
-def dvs_final_max(
+def select_final_max(
     summed: list[SummedRecords],
     *,
     stat: str,
@@ -411,7 +411,7 @@ def most_divergent(
 
 
 @define_app
-class dvs_max:
+class select_max:
     """return the maximally divergent sequences"""
 
     def __init__(
@@ -512,7 +512,7 @@ def records_from_seq_store(
 
 
 @define_app
-class dvs_nmost:
+class select_nmost:
     """return the N most divergent sequences"""
 
     def __init__(
@@ -573,7 +573,7 @@ def dvs_final_nmost(summed: list[SummedRecords]) -> SummedRecords:
 
 def apply_app(
     *,
-    app: dvs_max,
+    app: select_max,
     seqids: list[str],
     numprocs: int,
     verbose: bool,
@@ -628,8 +628,8 @@ def apply_app(
 
 
 @define_app
-class dvs_select_max:
-    """selects the maximally divergent seqs from a sequence collection"""
+class dvs_max:
+    """select the maximally divergent seqs from a sequence collection"""
 
     def __init__(
         self,
@@ -694,8 +694,8 @@ class dvs_select_max:
 
 
 @define_app
-class dvs_select_nmost:
-    """selects the n-most diverse seqs from a sequence collection"""
+class dvs_nmost:
+    """select the n-most diverse seqs from a sequence collection"""
 
     def __init__(
         self,

@@ -283,7 +283,7 @@ def max(
     if limit is not None:
         seqids = seqids[:limit]
 
-    app = dvs_records.dvs_max(
+    app = dvs_records.select_max(
         seq_store=seqfile,
         k=k,
         min_size=min_size,
@@ -293,7 +293,7 @@ def max(
         verbose=verbose,
     )
     # turn off pylint check, since the function is made into a class
-    finalise = dvs_records.dvs_final_max(
+    finalise = dvs_records.select_final_max(
         stat=stat,
         min_size=min_size,
         verbose=verbose,
@@ -376,7 +376,7 @@ def nmost(
     if limit is not None:
         seqids = seqids[:limit]
 
-    app = dvs_records.dvs_nmost(
+    app = dvs_records.select_nmost(
         seq_store=seqfile,
         n=number,
         k=k,
