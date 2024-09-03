@@ -439,7 +439,7 @@ def test_make_kmerseq(new_seq):
     seq = make_seq(seq=raw, name=name, moltype="dna", new_type=new_seq)
     seq.info.source = "source1"
     kseq = make_kmerseq(seq, dtype=dtype, k=2, moltype="dna")
-    alpha = get_moltype("dna", new_type=True).alphabet.get_word_alphabet(2)
+    alpha = get_moltype("dna", new_type=True).alphabet.get_kmer_alphabet(2)
     expect_kmers = alpha.to_indices(raw, independent_kmer=False)
     expect = zeros(len(alpha), dtype=dtype)
     expect[expect_kmers] = 1
