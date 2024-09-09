@@ -1,15 +1,15 @@
-from contextlib import nullcontext
 import heapq
 import math
 import pathlib
 from collections.abc import Generator, Sequence
+from contextlib import nullcontext
 from typing import Literal, TypeAlias
-from rich.progress import Progress
 
 import numpy as np
 from cogent3 import PhyloNode, make_tree
 from cogent3.app.composable import define_app
 from cogent3.app.data_store import DataMember
+from rich.progress import Progress
 from sklearn.cluster import AgglomerativeClustering
 
 from diverse_seq.data_store import HDF5DataStore
