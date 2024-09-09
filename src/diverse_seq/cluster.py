@@ -1,8 +1,10 @@
+from contextlib import nullcontext
 import heapq
 import math
 import pathlib
 from collections.abc import Generator, Sequence
 from typing import Literal, TypeAlias
+from rich.progress import Progress
 
 import numpy as np
 from cogent3 import PhyloNode, make_tree
@@ -14,6 +16,8 @@ from diverse_seq.data_store import HDF5DataStore
 from diverse_seq.record import KmerSeq, _get_canonical_states
 from diverse_seq.records import records_from_seq_store
 
+BottomSketch: TypeAlias = list[int]
+
 
 @define_app
 class dvs_cluster_tree:
@@ -24,10 +28,11 @@ class dvs_cluster_tree:
         *,
         seq_store: str | pathlib.Path,
         k: int = 16,
-        sketch_size: int = 400,
+        sketch_size: int | None = None,
         moltype: str = "dna",
         distance_mode: Literal["mash", "euclidean"] = "mash",
         canonical_kmers: bool | None = None,
+        with_progress: bool = True,
     ) -> None:
         if canonical_kmers is None:
             canonical_kmers = False
@@ -36,34 +41,52 @@ class dvs_cluster_tree:
             msg = "Canonical kmers only supported for dna sequences."
             raise ValueError(msg)
 
+        if distance_mode == "mash" and sketch_size is None:
+            msg = "Expected sketch size for mash distance measure."
+            raise ValueError(msg)
+
+        if distance_mode != "mash" and sketch_size is not None:
+            msg = "Sketch size should only be specified for the mash distance."
+            raise ValueError(msg)
+
         self._seq_store = seq_store
-        self._k = k
-        self._sketch_size = sketch_size
         self._moltype = moltype
+        self._k = k
+        self._num_states = len(_get_canonical_states(self._moltype))
+        self._sketch_size = sketch_size
         self._distance_mode = distance_mode
         self._canonical = canonical_kmers
         self._clustering = AgglomerativeClustering(
             metric="precomputed",
             linkage="average",
         )
+        self._with_progress = with_progress
+        self._progress = Progress() if with_progress else nullcontext()
 
     def main(self, seq_names: list[str]) -> PhyloNode:
-        seq_names = seq_names[:100]
-        if self._distance_mode == "mash":
-            distances = self.mash_distances(seq_names)
-        elif self._distance_mode == "euclidean":
-            distances = self.euclidean_distances(seq_names)
-        else:
-            msg = f"Unexpected distance {self._distance_mode}."
-            raise ValueError(msg)
-        return self.make_cluster_tree(seq_names, distances)
+        with self._progress:
+            if self._distance_mode == "mash":
+                distances = self.mash_distances(seq_names)
+            elif self._distance_mode == "euclidean":
+                distances = self.euclidean_distances(seq_names)
+            else:
+                msg = f"Unexpected distance {self._distance_mode}."
+                raise ValueError(msg)
+            return self.make_cluster_tree(seq_names, distances)
 
     def make_cluster_tree(
         self,
         seq_names: Sequence[str],
         pairwise_distances: np.ndarray,
     ) -> PhyloNode:
+        if self._with_progress:
+            self._tree_task = self._progress.add_task(
+                "[green]Computing Tree",
+                total=None,
+            )
+
         self._clustering.fit(pairwise_distances)
+
         tree_dict = {i: seq_names[i] for i in range(len(seq_names))}
         node_index = len(seq_names)
         for left_index, right_index in self._clustering.children_:
@@ -72,7 +95,13 @@ class dvs_cluster_tree:
                 tree_dict.pop(right_index),
             )
             node_index += 1
-        return make_tree(str(tree_dict[node_index - 1]))
+
+        tree = make_tree(str(tree_dict[node_index - 1]))
+
+        if self._with_progress:
+            self._progress.update(self._tree_task, completed=1, total=1)
+
+        return tree
 
     def euclidean_distances(self, seq_names: list[str]) -> np.ndarray:
         records = records_from_seq_store(
@@ -84,48 +113,57 @@ class dvs_cluster_tree:
         return compute_euclidean_distances(records)
 
     def mash_distances(self, seq_names: list[str]) -> np.ndarray:
-        num_states = len(_get_canonical_states(self._moltype))
         dstore = HDF5DataStore(self._seq_store)
         records = [m for m in dstore.completed if m.unique_id in seq_names]
-        return compute_mash_distances(
-            records,
-            self._k,
-            self._sketch_size,
-            num_states,
-            canonical=self._canonical,
-        )
+        return self.compute_mash_distances(records)
 
+    def compute_mash_distances(self, records: list[DataMember]) -> np.ndarray:
+        sketches = self.mash_sketch(records)
 
-BottomSketch: TypeAlias = list[int]
-
-
-def compute_mash_distances(
-    records: list[DataMember],
-    k: int,
-    sketch_size: int,
-    num_states: int,
-    *,
-    canonical: bool = True,
-) -> np.ndarray:
-    sketches = mash_sketch(
-        records,
-        k,
-        sketch_size,
-        num_states,
-        canonical=canonical,
-    )
-    distances = np.zeros((len(sketches), len(sketches)))
-    for i in range(1, len(sketches)):
-        for j in range(i):
-            distance = compute_mash_distance(
-                sketches[i],
-                sketches[j],
-                k=k,
-                sketch_size=sketch_size,
+        if self._with_progress:
+            distance_task = self._progress.add_task(
+                "[green]Computing Pairwise Distances",
+                total=(len(records) * (len(records) - 1)) // 2,
             )
-            distances[i, j] = distance
-            distances[j, i] = distance
-    return distances
+
+        distances = np.zeros((len(sketches), len(sketches)))
+        for i in range(1, len(sketches)):
+            for j in range(i):
+                distance = compute_mash_distance(
+                    sketches[i],
+                    sketches[j],
+                    k=self._k,
+                    sketch_size=self._sketch_size,
+                )
+                distances[i, j] = distance
+                distances[j, i] = distance
+                if self._with_progress:
+                    self._progress.update(distance_task, advance=1)
+        return distances
+
+    def mash_sketch(self, records: list[DataMember]) -> list[BottomSketch]:
+        if self._with_progress:
+            sketch_task = self._progress.add_task(
+                "[green]Generating Sketches",
+                total=len(records),
+            )
+        bottom_sketches = []
+        for record in records:
+            seq = record.read()
+            kmer_hashes = {
+                hash_kmer(kmer, canonical=self._canonical)
+                for kmer in iter_kmers(seq, self._k, self._num_states)
+            }
+            heap = []
+            for kmer_hash in kmer_hashes:
+                if len(heap) < self._sketch_size:
+                    heapq.heappush(heap, -kmer_hash)
+                else:
+                    heapq.heappushpop(heap, -kmer_hash)
+            bottom_sketches.append(sorted(-kmer_hash for kmer_hash in heap))
+            if self._with_progress:
+                self._progress.update(sketch_task, advance=1)
+        return bottom_sketches
 
 
 def compute_mash_distance(
@@ -172,31 +210,6 @@ def compute_mash_distance(
     if distance > 1:
         distance = 1.0
     return distance
-
-
-def mash_sketch(
-    records: list[DataMember],
-    k: int,
-    sketch_size: int,
-    num_states: int,
-    *,
-    canonical: bool = True,
-) -> list[BottomSketch]:
-    bottom_sketches = []
-    for record in records:
-        seq = record.read()
-        kmer_hashes = {
-            hash_kmer(kmer, canonical=canonical)
-            for kmer in iter_kmers(seq, k, num_states)
-        }
-        heap = []
-        for kmer_hash in kmer_hashes:
-            if len(heap) < sketch_size:
-                heapq.heappush(heap, -kmer_hash)
-            else:
-                heapq.heappushpop(heap, -kmer_hash)
-        bottom_sketches.append(sorted(-kmer_hash for kmer_hash in heap))
-    return bottom_sketches
 
 
 def iter_kmers(

@@ -80,6 +80,13 @@ _include = click.option(
 _suffix = click.option("-sf", "--suffix", default="fa", help="sequence file suffix")
 _numprocs = click.option("-np", "--numprocs", default=1, help="number of processes")
 _limit = click.option("-L", "--limit", type=int, help="number of sequences to process")
+_moltype = click.option(
+    "-m",
+    "--moltype",
+    type=click.Choice(["dna", "rna"]),
+    default="dna",
+    help="Molecular type of sequences, defaults to DNA",
+)
 _seqfile = click.option(
     "-s",
     "--seqfile",
@@ -108,13 +115,7 @@ _k = click.option("-k", type=int, default=6, help="k-mer size")
 )
 @_numprocs
 @_overwrite
-@click.option(
-    "-m",
-    "--moltype",
-    type=click.Choice(["dna", "rna"]),
-    default="dna",
-    help="Molecular type of sequences, defaults to DNA",
-)
+@_moltype
 @_limit
 def prep(seqdir, suffix, outpath, numprocs, force_overwrite, moltype, limit):
     """Writes processed sequences to a <HDF5 file>.dvseqs."""
@@ -391,12 +392,45 @@ def nmost(
 
 @main.command(**_click_command_opts)
 @_seqfile
+@click.option(
+    "-o",
+    "--outpath",
+    type=Path,
+    required=True,
+    help="path to write the newick string cluster tree to.",
+)
+@_moltype
 @_k
+@click.option(
+    "--sketch-size",
+    type=int,
+    default=None,
+    help="sketch size for mash distance",
+)
+@click.option(
+    "-d",
+    "--distance",
+    type=click.Choice(["mash", "euclidean"]),
+    default="mash",
+    help="distance measure for tree construction",
+)
+@click.option(
+    "-c",
+    "--canonical-kmers",
+    is_flag=True,
+    default=False,
+    help="use canonical representation of kmers",
+)
 @_numprocs
 def ctree(
-    seqfile,
-    k,
-    numprocs,
+    seqfile: Path,
+    outpath: Path,
+    moltype: str,
+    k: int,
+    sketch_size: int | None,
+    distance: str,
+    canonical_kmers: bool,
+    numprocs: int,
 ):
     """Identify n seqs that maximise average delta JSD"""
 
@@ -409,9 +443,17 @@ def ctree(
 
     seqids = dvs_data_store.get_seqids_from_store(seqfile)
 
-    app = dvs_cluster.dvs_cluster_tree(seq_store=seqfile, k=k, sketch_size=400)
+    app = dvs_cluster.dvs_cluster_tree(
+        seq_store=seqfile,
+        k=k,
+        sketch_size=sketch_size,
+        moltype=moltype,
+        distance_mode=distance,
+        canonical_kmers=canonical_kmers,
+    )
     tree = app(seqids)
-    tree.write("out.tre")
+    print(outpath)
+    tree.write(outpath)
 
 
 if __name__ == "__main__":
