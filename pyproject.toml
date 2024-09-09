@@ -17,7 +17,7 @@ dependencies = [
     "cogent3",
     "hdf5plugin",
     "h5py",
-    "numpy>=2.0",
+    "numpy",
     "rich",
     "scitrack",
     "scikit-learn",

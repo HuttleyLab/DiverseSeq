@@ -85,7 +85,7 @@ _seqfile = click.option(
     "--seqfile",
     required=True,
     type=Path,
-    help="path to .dvtgseqs file",
+    help="path to .dvseqs file",
 )
 _k = click.option("-k", type=int, default=6, help="k-mer size")
 
@@ -490,10 +490,7 @@ def ctree(
 
     seqids = dvs_data_store.get_seqids_from_store(seqfile)
 
-    app = dvs_cluster.dvs_cluster(
-        seq_store=seqfile,
-        k=k,
-    )
+    app = dvs_cluster.dvs_cluster_tree(seq_store=seqfile, k=k, sketch_size=400)
     tree = app(seqids)
     tree.write("out.tre")
 
