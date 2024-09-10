@@ -432,7 +432,7 @@ def ctree(
     canonical_kmers: bool,
     numprocs: int,
 ):
-    """Identify n seqs that maximise average delta JSD"""
+    """Quickly compute a cluster tree based on kmers for a collection of sequences."""
 
     if seqfile.suffix != ".dvseqs":
         dvs_util.print_colour(
