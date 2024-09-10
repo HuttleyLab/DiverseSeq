@@ -2,10 +2,13 @@ import heapq
 import math
 import pathlib
 from collections.abc import Generator, Sequence
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from contextlib import nullcontext
+from time import time
 from typing import Literal, TypeAlias
 
 import numpy as np
+import sklearn.metrics
 from cogent3 import PhyloNode, make_tree
 from cogent3.app.composable import define_app
 from cogent3.app.data_store import DataMember
@@ -33,6 +36,7 @@ class dvs_cluster_tree:
         distance_mode: Literal["mash", "euclidean"] = "mash",
         canonical_kmers: bool | None = None,
         with_progress: bool = True,
+        numprocs: int = 1,
     ) -> None:
         if canonical_kmers is None:
             canonical_kmers = False
@@ -62,9 +66,11 @@ class dvs_cluster_tree:
         )
         self._with_progress = with_progress
         self._progress = Progress() if with_progress else nullcontext()
+        self._executor = ProcessPoolExecutor(max_workers=numprocs)
 
     def main(self, seq_names: list[str]) -> PhyloNode:
-        with self._progress:
+        seq_names = seq_names[:1000]
+        with self._progress, self._executor:
             if self._distance_mode == "mash":
                 distances = self.mash_distances(seq_names)
             elif self._distance_mode == "euclidean":
@@ -80,7 +86,7 @@ class dvs_cluster_tree:
         pairwise_distances: np.ndarray,
     ) -> PhyloNode:
         if self._with_progress:
-            self._tree_task = self._progress.add_task(
+            tree_task = self._progress.add_task(
                 "[green]Computing Tree",
                 total=None,
             )
@@ -99,7 +105,7 @@ class dvs_cluster_tree:
         tree = make_tree(str(tree_dict[node_index - 1]))
 
         if self._with_progress:
-            self._progress.update(self._tree_task, completed=1, total=1)
+            self._progress.update(tree_task, completed=1, total=1)
 
         return tree
 
@@ -118,52 +124,92 @@ class dvs_cluster_tree:
         return self.compute_mash_distances(records)
 
     def compute_mash_distances(self, records: list[DataMember]) -> np.ndarray:
-        sketches = self.mash_sketch(records)
+        sketches = self.mash_sketches(records)
 
         if self._with_progress:
             distance_task = self._progress.add_task(
                 "[green]Computing Pairwise Distances",
-                total=(len(records) * (len(records) - 1)) // 2,
+                total=None,
             )
 
-        distances = np.zeros((len(sketches), len(sketches)))
-        for i in range(1, len(sketches)):
-            for j in range(i):
-                distance = compute_mash_distance(
-                    sketches[i],
-                    sketches[j],
-                    k=self._k,
-                    sketch_size=self._sketch_size,
-                )
-                distances[i, j] = distance
-                distances[j, i] = distance
-                if self._with_progress:
-                    self._progress.update(distance_task, advance=1)
+        start = time()
+        distances = sklearn.metrics.pairwise_distances(
+            sketches,
+            metric=lambda x, y: compute_mash_distance(x, y, self._k, self._sketch_size),
+            n_jobs=-1,
+        )
+        print(time() - start)
+
+        if self._with_progress:
+            self._progress.update(distance_task, completed=1, total=1)
+
         return distances
 
-    def mash_sketch(self, records: list[DataMember]) -> list[BottomSketch]:
+    def mash_sketches(self, records: list[DataMember]) -> list[BottomSketch]:
         if self._with_progress:
             sketch_task = self._progress.add_task(
                 "[green]Generating Sketches",
                 total=len(records),
             )
-        bottom_sketches = []
-        for record in records:
-            seq = record.read()
-            kmer_hashes = {
-                hash_kmer(kmer, canonical=self._canonical)
-                for kmer in iter_kmers(seq, self._k, self._num_states)
-            }
-            heap = []
-            for kmer_hash in kmer_hashes:
-                if len(heap) < self._sketch_size:
-                    heapq.heappush(heap, -kmer_hash)
-                else:
-                    heapq.heappushpop(heap, -kmer_hash)
-            bottom_sketches.append(sorted(-kmer_hash for kmer_hash in heap))
+
+        bottom_sketches = [None for _ in range(len(records))]
+        futures_to_idx = {
+            self._executor.submit(
+                mash_sketch,
+                record,
+                self._k,
+                self._sketch_size,
+                self._num_states,
+                canonical=self._canonical,
+            ): i
+            for i, record in enumerate(records)
+        }
+
+        for future in as_completed(list(futures_to_idx)):
+            idx = futures_to_idx[future]
+            bottom_sketches[idx] = future.result()
+
             if self._with_progress:
                 self._progress.update(sketch_task, advance=1)
+
         return bottom_sketches
+
+
+def compute_distances_for_row(
+    post_sketches: Sequence[BottomSketch],
+    k: int,
+    sketch_size: int,
+) -> np.ndarray:
+    dists = np.zeros(len(post_sketches) - 1)
+    for i in range(len(post_sketches) - 1):
+        dists[i] = compute_mash_distance(
+            post_sketches[0],
+            post_sketches[1 + i],
+            k,
+            sketch_size,
+        )
+    return dists
+
+
+def mash_sketch(
+    record: DataMember,
+    k: int,
+    sketch_size: int,
+    num_states: int,
+    *,
+    canonical: bool,
+) -> BottomSketch:
+    seq = record.read()
+    kmer_hashes = {
+        hash_kmer(kmer, canonical=canonical) for kmer in iter_kmers(seq, k, num_states)
+    }
+    heap = []
+    for kmer_hash in kmer_hashes:
+        if len(heap) < sketch_size:
+            heapq.heappush(heap, -kmer_hash)
+        else:
+            heapq.heappushpop(heap, -kmer_hash)
+    return sorted(-kmer_hash for kmer_hash in heap)
 
 
 def compute_mash_distance(

@@ -450,8 +450,10 @@ def ctree(
         moltype=moltype,
         distance_mode=distance,
         canonical_kmers=canonical_kmers,
+        numprocs=numprocs,
     )
     tree = app(seqids)
+    print(tree)
     print(outpath)
     tree.write(outpath)
 
