@@ -43,16 +43,13 @@ Documentation = "https://github.com/HuttleyLab/DiverseSeq"
 [tool.flit.sdist]
 include = ["tests/*"]
 
-[project.scripts]
-dvs = "diverse_seq.cli:main"
-
 [project.optional-dependencies]
 test = [
     "nox",
     "pytest",
     "pytest-cov",
     "pytest-xdist",
-    "ruff==0.6.2",
+    "ruff==0.6.3",
 ]
 dev = [
     "cogapp",
@@ -62,7 +59,7 @@ dev = [
     "pytest",
     "pytest-cov",
     "pytest-xdist",
-    "ruff==0.6.2",
+    "ruff==0.6.3",
 ]
 doc  = ["click",
         "ipykernel",
@@ -81,9 +78,12 @@ doc  = ["click",
         "plotly"
         ]
 
+[project.scripts]
+dvs = "diverse_seq.cli:main"
+
 [project.entry-points."cogent3.app"]
-dvs_select_nmost = "diverse_seq.records:dvs_select_nmost"
-dvs_select_max = "diverse_seq.records:dvs_select_max"
+dvs_nmost = "diverse_seq.records:dvs_nmost"
+dvs_max = "diverse_seq.records:dvs_max"
 
 [tool.pytest.ini_options]
 addopts = ["--strict-config", "-ra"]

@@ -4,7 +4,7 @@ from pathlib import Path
 
 import numpy
 import pytest
-from cogent3 import make_seq
+from cogent3 import get_moltype, make_seq
 from numpy import (
     array,
     nextafter,
@@ -26,6 +26,7 @@ from diverse_seq.record import (
     indices_to_seqs,
     kmer_counts,
     lazy_kmers,
+    make_kmerseq,
     member_to_kmerseq,
     seqarray_to_kmerseq,
     vector,
@@ -405,7 +406,7 @@ def dstore():
 def test_lazy_kmers(dstore, seqarray):
     member = dstore.write(unique_id="seq1", data=seqarray.data)
 
-    lazy = lazy_kmers(member=member, k=2, moltype="dna")
+    lazy = lazy_kmers(data=member, k=2, moltype="dna")
     s2k = seqarray_to_kmerseq(k=2, moltype="dna")
     expect = s2k(seqarray)  # pylint: disable=not-callable
     assert_allclose(numpy.array(lazy), expect.kcounts)
@@ -413,7 +414,7 @@ def test_lazy_kmers(dstore, seqarray):
 
 def test_member_to_vector(dstore, seqarray):
     member = dstore.write(unique_id="seq1", data=seqarray.data)
-    lazy = lazy_kmers(member=member, k=2, moltype="dna")
+    lazy = lazy_kmers(data=member, k=2, moltype="dna")
     vec = vector(data=lazy, vector_length=lazy.num_states)
     assert_allclose(numpy.array(vec), numpy.array(lazy))
 
@@ -426,3 +427,20 @@ def test_member_to_kmerseq(dstore, seqarray):
     old_app = seqarray_to_kmerseq(k=2, moltype="dna")
     expect = old_app(seqarray)  # pylint: disable=not-callable
     assert_allclose(got.kcounts, expect.kcounts)
+
+
+@pytest.mark.parametrize("new_seq", (True, False))
+def test_make_kmerseq(new_seq):
+    from numpy import min_scalar_type
+
+    dtype = min_scalar_type(16)
+    raw = "ACGT"
+    name = "seq1"
+    seq = make_seq(seq=raw, name=name, moltype="dna", new_type=new_seq)
+    seq.info.source = "source1"
+    kseq = make_kmerseq(seq, dtype=dtype, k=2, moltype="dna")
+    alpha = get_moltype("dna", new_type=True).alphabet.get_kmer_alphabet(2)
+    expect_kmers = alpha.to_indices(raw, independent_kmer=False)
+    expect = zeros(len(alpha), dtype=dtype)
+    expect[expect_kmers] = 1
+    assert_allclose(array(kseq.kcounts), expect)

@@ -311,7 +311,7 @@ def max_divergent(
             sr = SummedRecords.from_records(sr.records)
 
     if max_set:
-        app = dvs_final_max(stat=stat, min_size=min_size, verbose=verbose)  # pylint: disable=no-value-for-parameter
+        app = select_final_max(stat=stat, min_size=min_size, verbose=verbose)  # pylint: disable=no-value-for-parameter
         sr = app([sr])
     elif verbose:
         num_neg = sum(r.delta_jsd < 0 for r in [sr.lowest] + sr.records)
@@ -320,7 +320,7 @@ def max_divergent(
 
 
 @define_app
-def dvs_final_max(
+def select_final_max(
     summed: list[SummedRecords],
     *,
     stat: str,
@@ -411,7 +411,7 @@ def most_divergent(
 
 
 @define_app
-class dvs_max:
+class select_max:
     """return the maximally divergent sequences"""
 
     def __init__(
@@ -512,7 +512,7 @@ def records_from_seq_store(
 
 
 @define_app
-class dvs_nmost:
+class select_nmost:
     """return the N most divergent sequences"""
 
     def __init__(
@@ -573,10 +573,11 @@ def dvs_final_nmost(summed: list[SummedRecords]) -> SummedRecords:
 
 def apply_app(
     *,
-    app: dvs_max,
+    app: select_max,
     seqids: list[str],
     numprocs: int,
     verbose: bool,
+    hide_progress: bool = False,
     finalise: typing.Callable[[list[SummedRecords]], SummedRecords],
 ) -> SummedRecords:
     """applies the app to seqids, polishing the selected set with finalise"""
@@ -593,6 +594,7 @@ def apply_app(
             rich_progress.TaskProgressColumn(),
             rich_progress.TimeRemainingColumn(),
             rich_progress.TimeElapsedColumn(),
+            disable=hide_progress,
         ) as progress:
             select = progress.add_task(
                 description=f"[blue]Selection with {app_name!r}",
@@ -626,13 +628,13 @@ def apply_app(
 
 
 @define_app
-class dvs_select_max:
-    """selects the maximally diverse seqs from a sequence collection"""
+class dvs_max:
+    """select the maximally divergent seqs from a sequence collection"""
 
     def __init__(
         self,
-        min_size: int = 3,
-        max_size: int = 10,
+        min_size: int = 5,
+        max_size: int = 30,
         stat: str = "stdev",
         moltype: str = "dna",
         include: list[str] | str | None = None,
@@ -645,9 +647,10 @@ class dvs_select_max:
         min_size
             minimum size of the divergent set
         max_size
-            the maximum size if the divergent set
+            the maximum size of the divergent set
         stat
-            statistic for maximising the set, either mean_delta_jsd, mean_jsd, total_jsd
+            either stdev or cov, which represent the statistics
+            std(delta_jsd) and cov(delta_jsd) respectively
         moltype
             molecular type of the sequences
         include
@@ -691,12 +694,12 @@ class dvs_select_max:
 
 
 @define_app
-class dvs_select_nmost:
-    """selects the n-most diverse seqs from a sequence collection"""
+class dvs_nmost:
+    """select the n-most diverse seqs from a sequence collection"""
 
     def __init__(
         self,
-        n: int = 3,
+        n: int = 10,
         moltype: str = "dna",
         include: list[str] | str | None = None,
         k: int = 6,
