@@ -4,15 +4,14 @@ import pathlib
 from collections.abc import Generator, Sequence
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from contextlib import nullcontext
-from time import time
 from typing import Literal, TypeAlias
 
 import numpy as np
-import sklearn.metrics
 from cogent3 import PhyloNode, make_tree
 from cogent3.app.composable import define_app
 from cogent3.app.data_store import DataMember
 from rich.progress import Progress
+from scipy.sparse import dok_matrix
 from sklearn.cluster import AgglomerativeClustering
 
 from diverse_seq.data_store import HDF5DataStore
@@ -52,6 +51,9 @@ class dvs_cluster_tree:
         if distance_mode != "mash" and sketch_size is not None:
             msg = "Sketch size should only be specified for the mash distance."
             raise ValueError(msg)
+        if numprocs < 1:
+            msg = "Expect numprocs>=1."
+            raise ValueError(msg)
 
         self._seq_store = seq_store
         self._moltype = moltype
@@ -67,9 +69,9 @@ class dvs_cluster_tree:
         self._with_progress = with_progress
         self._progress = Progress() if with_progress else nullcontext()
         self._executor = ProcessPoolExecutor(max_workers=numprocs)
+        self._numprocs = numprocs
 
     def main(self, seq_names: list[str]) -> PhyloNode:
-        seq_names = seq_names[:1000]
         with self._progress, self._executor:
             if self._distance_mode == "mash":
                 distances = self.mash_distances(seq_names)
@@ -132,13 +134,29 @@ class dvs_cluster_tree:
                 total=None,
             )
 
-        start = time()
-        distances = sklearn.metrics.pairwise_distances(
-            sketches,
-            metric=lambda x, y: compute_mash_distance(x, y, self._k, self._sketch_size),
-            n_jobs=-1,
-        )
-        print(time() - start)
+        distances = np.zeros((len(sketches), len(sketches)))
+
+        num_jobs = self._numprocs
+        futures = [
+            self._executor.submit(
+                compute_chunk_distances,
+                start,
+                num_jobs,
+                sketches,
+                self._k,
+                self._sketch_size,
+            )
+            for start in range(num_jobs)
+        ]
+
+        for future in futures:
+            start_idx, distances_chunk = future.result()
+            distances[start_idx::num_jobs] = distances_chunk[
+                start_idx::num_jobs
+            ].toarray()
+
+        # Make lower triangular matrix symmetric
+        distances = distances + distances.T - np.diag(distances.diagonal())
 
         if self._with_progress:
             self._progress.update(distance_task, completed=1, total=1)
@@ -175,20 +193,19 @@ class dvs_cluster_tree:
         return bottom_sketches
 
 
-def compute_distances_for_row(
-    post_sketches: Sequence[BottomSketch],
+def compute_chunk_distances(
+    start_idx: int,
+    stride: int,
+    sketches: list[BottomSketch],
     k: int,
     sketch_size: int,
 ) -> np.ndarray:
-    dists = np.zeros(len(post_sketches) - 1)
-    for i in range(len(post_sketches) - 1):
-        dists[i] = compute_mash_distance(
-            post_sketches[0],
-            post_sketches[1 + i],
-            k,
-            sketch_size,
-        )
-    return dists
+    distances_chunk = dok_matrix((len(sketches), len(sketches)))
+    for i in range(start_idx, len(sketches), stride):
+        for j in range(i):
+            distance = compute_mash_distance(sketches[i], sketches[j], k, sketch_size)
+            distances_chunk[i, j] = distance
+    return start_idx, distances_chunk
 
 
 def mash_sketch(

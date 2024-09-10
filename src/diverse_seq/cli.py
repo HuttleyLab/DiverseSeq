@@ -453,8 +453,6 @@ def ctree(
         numprocs=numprocs,
     )
     tree = app(seqids)
-    print(tree)
-    print(outpath)
     tree.write(outpath)
 
 
