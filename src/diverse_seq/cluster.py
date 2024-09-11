@@ -113,7 +113,11 @@ class dvs_cluster_tree:
         PhyloNode
             a cluster tree.
         """
-        self._executor = ProcessPoolExecutor(max_workers=self._numprocs)
+        self._executor = (
+            ProcessPoolExecutor(max_workers=self._numprocs)
+            if self._numprocs != 1
+            else nullcontext()
+        )
         with self._progress, self._executor:
             if self._distance_mode == "mash":
                 distances = self.mash_distances(seq_names)
@@ -228,6 +232,31 @@ class dvs_cluster_tree:
 
         distances = np.zeros((len(sketches), len(sketches)))
 
+        # Compute distances in serial mode
+        if self._numprocs == 1:
+            if self._with_progress:
+                self._progress.update(
+                    distance_task,
+                    total=len(sketches) * (len(sketches) - 1) // 2,
+                )
+
+            for i in range(1, len(sketches)):
+                for j in range(i):
+                    distance = compute_mash_distance(
+                        sketches[i],
+                        sketches[j],
+                        self._k,
+                        self._sketch_size,
+                    )
+                    distances[i, j] = distance
+                    distances[j, i] = distance
+
+                    if self._with_progress:
+                        self._progress.update(distance_task, advance=1)
+
+            return distances
+
+        # Compute distances in parallel
         num_jobs = self._numprocs
         futures = [
             self._executor.submit(
@@ -275,6 +304,24 @@ class dvs_cluster_tree:
             )
 
         bottom_sketches = [None for _ in range(len(records))]
+
+        # Compute sketches in serial
+        if self._numprocs == 1:
+            for i, record in enumerate(records):
+                bottom_sketches[i] = mash_sketch(
+                    record,
+                    self._k,
+                    self._sketch_size,
+                    self._num_states,
+                    canonical=self._canonical,
+                )
+
+                if self._with_progress:
+                    self._progress.update(sketch_task, advance=1)
+
+            return bottom_sketches
+
+        # Compute sketches in parallel
         futures_to_idx = {
             self._executor.submit(
                 mash_sketch,
