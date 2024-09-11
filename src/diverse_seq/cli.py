@@ -416,13 +416,7 @@ def nmost(
 
 @main.command(**_click_command_opts)
 @_seqfile
-@click.option(
-    "-o",
-    "--outpath",
-    type=Path,
-    required=True,
-    help="path to write the newick string cluster tree to.",
-)
+@_outpath
 @_moltype
 @_k
 @click.option(
