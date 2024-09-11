@@ -407,7 +407,7 @@ def nmost(
 
     outpath.parent.mkdir(parents=True, exist_ok=True)
     table = result.to_table()
-    # table.write(outpath)
+    table.write(outpath)
     dvs_util.print_colour(
         f"{table.shape[0]} divergent sequences IDs written to {outpath!s}",
         "green",
