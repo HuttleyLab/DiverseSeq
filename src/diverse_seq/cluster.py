@@ -98,7 +98,6 @@ class dvs_cluster_tree:
         )
         self._with_progress = with_progress
         self._progress = Progress() if with_progress else nullcontext()
-        self._executor = ProcessPoolExecutor(max_workers=numprocs)
         self._numprocs = numprocs
 
     def main(self, seq_names: list[str]) -> PhyloNode:
@@ -114,6 +113,7 @@ class dvs_cluster_tree:
         PhyloNode
             a cluster tree.
         """
+        self._executor = ProcessPoolExecutor(max_workers=self._numprocs)
         with self._progress, self._executor:
             if self._distance_mode == "mash":
                 distances = self.mash_distances(seq_names)
@@ -202,7 +202,7 @@ class dvs_cluster_tree:
             Pairwise mash distances between sequences.
         """
         dstore = HDF5DataStore(self._seq_store)
-        records = [m for m in dstore.completed if m.unique_id in seq_names]
+        records = get_ordered_records(dstore, seq_names)
         return self.compute_mash_distances(records)
 
     def compute_mash_distances(self, records: list[DataMember]) -> np.ndarray:
@@ -295,6 +295,29 @@ class dvs_cluster_tree:
                 self._progress.update(sketch_task, advance=1)
 
         return bottom_sketches
+
+
+def get_ordered_records(
+    seq_store: HDF5DataStore,
+    seq_names: Sequence[str],
+) -> list[DataMember]:
+    """Returns ordered data store records given a seqeunce
+    of sequence names.
+
+    Parameters
+    ----------
+    seq_store : HDF5DataStore
+        The data store to load from.
+    seq_names : Sequence[str]
+        The ordered sequence names.
+
+    Returns
+    -------
+    list[DataMember]
+        Ordered data member records.
+    """
+    records = {m.unique_id: m for m in seq_store.completed if m.unique_id in seq_names}
+    return [records[name] for name in seq_names]
 
 
 def compute_chunk_distances(
