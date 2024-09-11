@@ -84,6 +84,7 @@ dvs = "diverse_seq.cli:main"
 [project.entry-points."cogent3.app"]
 dvs_nmost = "diverse_seq.records:dvs_nmost"
 dvs_max = "diverse_seq.records:dvs_max"
+dvs_cluster_tree = "diverse_seq.cluster:dvs_cluster_tree"
 
 [tool.pytest.ini_options]
 addopts = ["--strict-config", "-ra"]
