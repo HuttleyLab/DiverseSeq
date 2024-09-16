@@ -240,7 +240,13 @@ def test_prep_source_from_directory(runner, tmp_dir, seq_dir):
 )
 @pytest.mark.parametrize("numprocs", [1, 4])
 def test_ctree_mash(
-    runner, tmp_dir, processed_seq_path, distance, k, sketch_size, numprocs
+    runner,
+    tmp_dir,
+    processed_seq_path,
+    distance,
+    k,
+    sketch_size,
+    numprocs,
 ):
     outpath = tmp_dir / "out.tre"
 
