@@ -461,7 +461,7 @@ def ctree(
 
     seqids = dvs_data_store.get_seqids_from_store(seqfile)
 
-    app = dvs_cluster.dvs_cluster_tree(
+    app = dvs_cluster.dvs_ctree(
         seq_store=seqfile,
         k=k,
         sketch_size=sketch_size,

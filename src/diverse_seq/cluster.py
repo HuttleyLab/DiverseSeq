@@ -24,7 +24,7 @@ BottomSketch: TypeAlias = list[int]
 
 
 @define_app
-class dvs_cluster_tree:
+class dvs_ctree:
     """return the N most divergent sequences"""
 
     def __init__(
