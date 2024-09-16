@@ -17,6 +17,7 @@ dependencies = [
     "cogent3",
     "hdf5plugin",
     "h5py",
+    "loky",
     "numpy",
     "rich",
     "scitrack",

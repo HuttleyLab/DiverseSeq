@@ -4,7 +4,6 @@ import heapq
 import math
 import pathlib
 from collections.abc import Sequence
-from concurrent.futures import ProcessPoolExecutor, as_completed
 from contextlib import nullcontext
 from typing import Literal, TypeAlias
 
@@ -12,6 +11,7 @@ import numpy
 from cogent3 import PhyloNode, make_tree
 from cogent3.app.composable import define_app
 from cogent3.app.data_store import DataMember
+from loky import as_completed, get_reusable_executor
 from rich.progress import Progress
 from scipy.sparse import dok_matrix
 from sklearn.cluster import AgglomerativeClustering
@@ -119,7 +119,7 @@ class dvs_ctree:
             a cluster tree.
         """
         self._executor = (
-            ProcessPoolExecutor(max_workers=self._numprocs)
+            get_reusable_executor(max_workers=self._numprocs)
             if self._numprocs != 1
             else nullcontext()
         )
