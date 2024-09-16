@@ -1,3 +1,4 @@
+# pylint: disable=not-callable
 import pytest
 from cogent3 import make_tree
 

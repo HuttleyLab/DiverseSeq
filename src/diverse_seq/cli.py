@@ -470,7 +470,7 @@ def ctree(
         canonical_kmers=canonical_kmers,
         numprocs=numprocs,
     )
-    tree = app(seqids)
+    tree = app(seqids)  # pylint: disable=not-callable
     tree.write(outpath)
 
 
