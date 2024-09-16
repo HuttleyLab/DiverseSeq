@@ -549,7 +549,7 @@ def hash_kmer(kmer: numpy.ndarray, *, mash_canonical: bool) -> int:
     """
     tuple_kmer = tuple(map(int, kmer))
     if mash_canonical:
-        reverse = map(int, reverse_complement(kmer))
+        reverse = tuple(map(int, reverse_complement(kmer)))
         tuple_kmer = min(reverse, tuple_kmer)
 
     return hash(tuple_kmer)
