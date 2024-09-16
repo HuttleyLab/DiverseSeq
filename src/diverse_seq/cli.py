@@ -437,7 +437,7 @@ def nmost(
     "--canonical-kmers",
     is_flag=True,
     default=False,
-    help="use canonical representation of kmers",
+    help="consider kmers identical to their reverse complement",
 )
 @_numprocs
 def ctree(
@@ -467,7 +467,7 @@ def ctree(
         sketch_size=sketch_size,
         moltype=moltype,
         distance_mode=distance,
-        canonical_kmers=canonical_kmers,
+        mash_canonical_kmers=canonical_kmers,
         numprocs=numprocs,
     )
     tree = app(seqids)  # pylint: disable=not-callable

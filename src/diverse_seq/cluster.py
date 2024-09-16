@@ -35,7 +35,7 @@ class dvs_ctree:
         sketch_size: int | None = None,
         moltype: str = "dna",
         distance_mode: Literal["mash", "euclidean"] = "mash",
-        canonical_kmers: bool | None = None,
+        mash_canonical_kmers: bool | None = None,
         with_progress: bool = True,
         numprocs: int = 1,
     ) -> None:
@@ -53,12 +53,17 @@ class dvs_ctree:
             moltype, by default "dna"
         distance_mode : Literal[&quot;mash&quot;, &quot;euclidean&quot;], optional
             mash distance or euclidean distance between kmer freqs, by default "mash"
-        canonical_kmers : bool | None, optional
-            whether to use canonical kmers for mash distance, by default False
+        mash_canonical_kmers : bool | None, optional
+            whether to use mash canonical kmers for mash distance, by default False
         with_progress : bool, optional
             whether to show progress bars, by default True
         numprocs : int, optional
             number of workers, by default 1
+
+        Notes
+        -----
+        If mash_canonical_kmers is enabled when using the mash distance,
+        kmers are considered identical to their reverse complement.
 
         References
         ----------
@@ -67,10 +72,10 @@ class dvs_ctree:
            Mash: fast genome and metagenome distance estimation using MinHash.
            Genome biology, 17, 1-14.
         """
-        if canonical_kmers is None:
-            canonical_kmers = False
+        if mash_canonical_kmers is None:
+            mash_canonical_kmers = False
 
-        if moltype not in ("dna", "rna") and canonical_kmers:
+        if moltype not in ("dna", "rna") and mash_canonical_kmers:
             msg = "Canonical kmers only supported for dna sequences."
             raise ValueError(msg)
 
@@ -91,7 +96,7 @@ class dvs_ctree:
         self._num_states = len(_get_canonical_states(self._moltype))
         self._sketch_size = sketch_size
         self._distance_mode = distance_mode
-        self._canonical = canonical_kmers
+        self._mash_canonical = mash_canonical_kmers
         self._clustering = AgglomerativeClustering(
             metric="precomputed",
             linkage="average",
@@ -313,7 +318,7 @@ class dvs_ctree:
                     self._k,
                     self._sketch_size,
                     self._num_states,
-                    canonical=self._canonical,
+                    mash_canonical=self._mash_canonical,
                 )
 
                 if self._with_progress:
@@ -329,7 +334,7 @@ class dvs_ctree:
                 self._k,
                 self._sketch_size,
                 self._num_states,
-                canonical=self._canonical,
+                mash_canonical=self._mash_canonical,
             ): i
             for i, record in enumerate(records)
         }
@@ -390,7 +395,7 @@ def mash_sketch(
     sketch_size: int,
     num_states: int,
     *,
-    canonical: bool,
+    mash_canonical: bool,
 ) -> BottomSketch:
     """Find the mash sketch for a sequence record.
 
@@ -404,8 +409,8 @@ def mash_sketch(
         Size of the sketch.
     num_states : int
         Number of possible states (e.g. GCAT gives 4 for DNA).
-    canonical : bool
-        Whether to use the canonical representation of kmers.
+    mash_canonical : bool
+        Whether to use the mash canonical representation of kmers.
 
     Returns
     -------
@@ -414,7 +419,8 @@ def mash_sketch(
     """
     seq = record.read()
     kmer_hashes = {
-        hash_kmer(kmer, canonical=canonical) for kmer in iter_kmers(seq, k, num_states)
+        hash_kmer(kmer, mash_canonical=mash_canonical)
+        for kmer in iter_kmers(seq, k, num_states)
     }
     heap = []
     for kmer_hash in kmer_hashes:
@@ -524,15 +530,15 @@ def iter_kmers(
         yield seq[i : i + k]
 
 
-def hash_kmer(kmer: numpy.ndarray, *, canonical: bool) -> int:
-    """Hash a kmer, optionally use the canonical representaiton.
+def hash_kmer(kmer: numpy.ndarray, *, mash_canonical: bool) -> int:
+    """Hash a kmer, optionally use the mash canonical representaiton.
 
     Parameters
     ----------
     kmer : numpy.ndarray
         The kmer to hash.
     canonical : bool
-        Whether to use the canonical representation for a kmer
+        Whether to use the mash canonical representation for a kmer.
 
     Returns
     -------
@@ -540,7 +546,7 @@ def hash_kmer(kmer: numpy.ndarray, *, canonical: bool) -> int:
         The has of a kmer.
     """
     tuple_kmer = tuple(map(int, kmer))
-    if canonical:
+    if mash_canonical:
         reverse = map(int, reverse_complement(kmer))
         tuple_kmer = min(reverse, tuple_kmer)
 
