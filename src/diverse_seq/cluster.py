@@ -8,7 +8,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from contextlib import nullcontext
 from typing import Literal, TypeAlias
 
-import numpy as np
+import numpy
 from cogent3 import PhyloNode, make_tree
 from cogent3.app.composable import define_app
 from cogent3.app.data_store import DataMember
@@ -131,7 +131,7 @@ class dvs_ctree:
     def make_cluster_tree(
         self,
         seq_names: Sequence[str],
-        pairwise_distances: np.ndarray,
+        pairwise_distances: numpy.ndarray,
     ) -> PhyloNode:
         """Given pairwise distances between sequences, construct a cluster tree.
 
@@ -139,7 +139,7 @@ class dvs_ctree:
         ----------
         seq_names : Sequence[str]
             Names of sequences to cluster.
-        pairwise_distances : np.ndarray
+        pairwise_distances : numpy.ndarray
             Pairwise distances between clusters.
 
         Returns
@@ -171,7 +171,7 @@ class dvs_ctree:
 
         return tree
 
-    def euclidean_distances(self, seq_names: list[str]) -> np.ndarray:
+    def euclidean_distances(self, seq_names: list[str]) -> numpy.ndarray:
         """Calculates pairwise euclidean distances between sequences.
 
         Parameters
@@ -181,7 +181,7 @@ class dvs_ctree:
 
         Returns
         -------
-        np.ndarray
+        numpy.ndarray
             Pairwise euclidean distances between sequences.
         """
         records = records_from_seq_store(
@@ -192,7 +192,7 @@ class dvs_ctree:
         )
         return compute_euclidean_distances(records)
 
-    def mash_distances(self, seq_names: list[str]) -> np.ndarray:
+    def mash_distances(self, seq_names: list[str]) -> numpy.ndarray:
         """Calculates pairwise mash distances between sequences.
 
         Parameters
@@ -202,14 +202,14 @@ class dvs_ctree:
 
         Returns
         -------
-        np.ndarray
+        numpy.ndarray
             Pairwise mash distances between sequences.
         """
         dstore = HDF5DataStore(self._seq_store)
         records = get_ordered_records(dstore, seq_names)
         return self.compute_mash_distances(records)
 
-    def compute_mash_distances(self, records: list[DataMember]) -> np.ndarray:
+    def compute_mash_distances(self, records: list[DataMember]) -> numpy.ndarray:
         """Calculates pairwise mash distances between sequences.
 
         Parameters
@@ -219,7 +219,7 @@ class dvs_ctree:
 
         Returns
         -------
-        np.ndarray
+        numpy.ndarray
             Pairwise mash distances between sequences.
         """
         sketches = self.mash_sketches(records)
@@ -230,7 +230,7 @@ class dvs_ctree:
                 total=None,
             )
 
-        distances = np.zeros((len(sketches), len(sketches)))
+        distances = numpy.zeros((len(sketches), len(sketches)))
 
         # Compute distances in serial mode
         if self._numprocs == 1:
@@ -277,7 +277,7 @@ class dvs_ctree:
             ].toarray()
 
         # Make lower triangular matrix symmetric
-        distances = distances + distances.T - np.diag(distances.diagonal())
+        distances = distances + distances.T - numpy.diag(distances.diagonal())
 
         if self._with_progress:
             self._progress.update(distance_task, completed=1, total=1)
@@ -513,15 +513,15 @@ def compute_mash_distance(
 
 
 def iter_kmers(
-    seq: np.ndarray,
+    seq: numpy.ndarray,
     k: int,
     num_states: int,
-) -> Generator[np.ndarray, None, None]:
+) -> Generator[numpy.ndarray, None, None]:
     """Iterator for kmers of a sequence.
 
     Parameters
     ----------
-    seq : np.ndarray
+    seq : numpy.ndarray
         A sequence.
     k : int
         kmer size.
@@ -530,7 +530,7 @@ def iter_kmers(
 
     Yields
     ------
-    np.ndarray
+    numpy.ndarray
         kmers of the sequence.
     """
     skip_until = 0
@@ -547,12 +547,12 @@ def iter_kmers(
         yield seq[i : i + k]
 
 
-def hash_kmer(kmer: np.ndarray, *, canonical: bool) -> int:
+def hash_kmer(kmer: numpy.ndarray, *, canonical: bool) -> int:
     """Hash a kmer, optionally use the canonical representaiton.
 
     Parameters
     ----------
-    kmer : np.ndarray
+    kmer : numpy.ndarray
         The kmer to hash.
     canonical : bool
         Whether to use the canonical representation for a kmer
@@ -570,7 +570,7 @@ def hash_kmer(kmer: np.ndarray, *, canonical: bool) -> int:
     return hash(tuple_kmer)
 
 
-def reverse_complement(kmer: np.ndarray) -> np.ndarray:
+def reverse_complement(kmer: numpy.ndarray) -> numpy.ndarray:
     """Take the reverse complement of a kmer.
 
     Assumes cogent3 DNA/RNA sequences (numerical
@@ -579,12 +579,12 @@ def reverse_complement(kmer: np.ndarray) -> np.ndarray:
 
     Parameters
     ----------
-    kmer : np.ndarray
+    kmer : numpy.ndarray
         The kmer to attain the reverse complement of
 
     Returns
     -------
-    np.ndarray
+    numpy.ndarray
         The reverse complement of a kmer.
     """
     # 0123 TCAG
@@ -592,7 +592,7 @@ def reverse_complement(kmer: np.ndarray) -> np.ndarray:
     return ((kmer + 2) % 4)[::-1]
 
 
-def compute_euclidean_distances(records: list[KmerSeq]) -> np.ndarray:
+def compute_euclidean_distances(records: list[KmerSeq]) -> numpy.ndarray:
     """Compute pairwise euclidean distances between kmer frequencies of sequences.
 
     Parameters
@@ -602,16 +602,16 @@ def compute_euclidean_distances(records: list[KmerSeq]) -> np.ndarray:
 
     Returns
     -------
-    np.ndarray
+    numpy.ndarray
         Pairwise euclidean distances.
     """
-    distances = np.zeros((len(records), len(records)))
+    distances = numpy.zeros((len(records), len(records)))
 
     for i, record_i in enumerate(records):
-        freq_i = np.array(record_i.kfreqs)
+        freq_i = numpy.array(record_i.kfreqs)
         for j in range(i + 1, len(records)):
-            freq_j = np.array(records[j].kfreqs)
-            distance = np.sqrt(((freq_i - freq_j) ** 2).sum())
+            freq_j = numpy.array(records[j].kfreqs)
+            distance = numpy.sqrt(((freq_i - freq_j) ** 2).sum())
             distances[i, j] = distance
             distances[j, i] = distance
 
