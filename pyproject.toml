@@ -17,9 +17,11 @@ dependencies = [
     "cogent3",
     "hdf5plugin",
     "h5py",
-    "numpy>=2.0",
+    "loky",
+    "numpy",
     "rich",
     "scitrack",
+    "scikit-learn",
     ]
 classifiers = [
         "Development Status :: 3 - Alpha",
@@ -83,6 +85,7 @@ dvs = "diverse_seq.cli:main"
 [project.entry-points."cogent3.app"]
 dvs_nmost = "diverse_seq.records:dvs_nmost"
 dvs_max = "diverse_seq.records:dvs_max"
+dvs_ctree = "diverse_seq.cluster:dvs_ctree"
 
 [tool.pytest.ini_options]
 addopts = ["--strict-config", "-ra"]
@@ -139,6 +142,9 @@ unfixable = []
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
 [tool.ruff.lint.per-file-ignores]
+"src/**/cli.py" = [
+    "FBT001", # allow bool positionals in cli functions
+]
 "tests/**/*.py" = [
     "S101", # asserts allowed in tests...
     "INP001", # __init__.py files are not required...

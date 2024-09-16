@@ -502,7 +502,12 @@ def records_from_seq_store(
     """
     dstore = dvs_data_store.HDF5DataStore(seq_store, mode="r")
     make_record = member_to_kmerseq(k=k, moltype=moltype)
-    records = [make_record(m) for m in dstore.completed if m.unique_id in seq_names]  # pylint: disable=not-callable
+    records = {
+        m.unique_id: make_record(m)  # pylint: disable=not-callable
+        for m in dstore.completed
+        if m.unique_id in seq_names
+    }
+    records = [records[name] for name in seq_names]
     records = records[:limit] if limit else records
     for record in records:
         if not record:
@@ -608,7 +613,7 @@ def apply_app(
                 show_progress=True,
             ):
                 if not r:
-                    dvs_util.print_colour(r, style="red")
+                    dvs_util.print_colour(r, "red")
                 result.append(r.obj)
                 progress.update(select, advance=1, refresh=True)
 

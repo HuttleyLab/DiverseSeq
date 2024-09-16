@@ -11,6 +11,7 @@ from cogent3.app import data_store as c3_data_store
 from scitrack import CachingLogger
 
 from diverse_seq import __version__
+from diverse_seq import cluster as dvs_cluster
 from diverse_seq import data_store as dvs_data_store
 from diverse_seq import io as dvs_io
 from diverse_seq import records as dvs_records
@@ -85,12 +86,19 @@ _include = click.option(
 _suffix = click.option("-sf", "--suffix", default="fa", help="sequence file suffix")
 _numprocs = click.option("-np", "--numprocs", default=1, help="number of processes")
 _limit = click.option("-L", "--limit", type=int, help="number of sequences to process")
+_moltype = click.option(
+    "-m",
+    "--moltype",
+    type=click.Choice(["dna", "rna"]),
+    default="dna",
+    help="Molecular type of sequences",
+)
 _seqfile = click.option(
     "-s",
     "--seqfile",
     required=True,
     type=Path,
-    help="path to .dvtgseqs file",
+    help="path to .dvseqs file",
 )
 _k = click.option("-k", type=int, default=6, help="k-mer size")
 
@@ -113,13 +121,7 @@ _k = click.option("-k", type=int, default=6, help="k-mer size")
 )
 @_numprocs
 @_overwrite
-@click.option(
-    "-m",
-    "--moltype",
-    type=click.Choice(["dna", "rna"]),
-    default="dna",
-    help="Molecular type of sequences, defaults to DNA",
-)
+@_moltype
 @_limit
 @_hide_progress
 def prep(
@@ -410,6 +412,66 @@ def nmost(
         f"{table.shape[0]} divergent sequences IDs written to {outpath!s}",
         "green",
     )
+
+
+@main.command(**_click_command_opts)
+@_seqfile
+@_outpath
+@_moltype
+@_k
+@click.option(
+    "--sketch-size",
+    type=int,
+    default=None,
+    help="sketch size for mash distance",
+)
+@click.option(
+    "-d",
+    "--distance",
+    type=click.Choice(["mash", "euclidean"]),
+    default="mash",
+    help="distance measure for tree construction",
+)
+@click.option(
+    "-c",
+    "--canonical-kmers",
+    is_flag=True,
+    default=False,
+    help="consider kmers identical to their reverse complement",
+)
+@_numprocs
+def ctree(
+    seqfile: Path,
+    outpath: Path,
+    moltype: str,
+    k: int,
+    sketch_size: int | None,
+    distance: str,
+    canonical_kmers: bool,
+    numprocs: int,
+):
+    """Quickly compute a cluster tree based on kmers for a collection of sequences."""
+
+    if seqfile.suffix != ".dvseqs":
+        dvs_util.print_colour(
+            "Sequence data needs to be preprocessed, use 'dvs prep'",
+            "red",
+        )
+        sys.exit(1)
+
+    seqids = dvs_data_store.get_seqids_from_store(seqfile)
+
+    app = dvs_cluster.dvs_ctree(
+        seq_store=seqfile,
+        k=k,
+        sketch_size=sketch_size,
+        moltype=moltype,
+        distance_mode=distance,
+        mash_canonical_kmers=canonical_kmers,
+        numprocs=numprocs,
+    )
+    tree = app(seqids)  # pylint: disable=not-callable
+    tree.write(outpath)
 
 
 if __name__ == "__main__":

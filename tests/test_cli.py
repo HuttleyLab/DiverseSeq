@@ -4,8 +4,9 @@ import sys
 import h5py
 import pytest
 from click.testing import CliRunner
-from cogent3 import load_table, load_unaligned_seqs
+from cogent3 import load_table, load_tree, load_unaligned_seqs
 
+from diverse_seq.cli import ctree as dvs_ctree
 from diverse_seq.cli import max as dvs_max
 from diverse_seq.cli import nmost as dvs_nmost
 from diverse_seq.cli import prep as dvs_prep
@@ -231,3 +232,26 @@ def test_prep_source_from_directory(runner, tmp_dir, seq_dir):
             if name == "md5":
                 continue
             assert dset.attrs["source"] == str(seq_dir)
+
+
+@pytest.mark.parametrize(
+    ("distance", "k", "sketch_size"),
+    [("mash", 16, 400), ("euclidean", 5, None)],
+)
+@pytest.mark.parametrize("numprocs", [1, 4])
+def test_ctree_mash(
+    runner, tmp_dir, processed_seq_path, distance, k, sketch_size, numprocs
+):
+    outpath = tmp_dir / "out.tre"
+
+    args = f"-s {processed_seq_path} -o {outpath} -d {distance} -k {k} -np {numprocs}"
+    if sketch_size is not None:
+        args += f" --sketch-size {sketch_size}"
+    args = args.split()
+
+    r = runner.invoke(dvs_ctree, args, catch_exceptions=False)
+    assert r.exit_code == 0, r.output
+
+    tree = load_tree(outpath)
+    expected_tips = 55
+    assert len(tree.tips()) == expected_tips

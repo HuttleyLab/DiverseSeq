@@ -2,6 +2,7 @@ import contextlib
 import inspect
 import os
 import pathlib
+from collections.abc import Sequence
 
 import h5py
 import hdf5plugin
@@ -235,3 +236,26 @@ def get_seqids_from_store(
     """return the list of seqids in a sequence store"""
     dstore = HDF5DataStore(seq_store, mode="r")
     return [m.unique_id for m in dstore.completed]
+
+
+def get_ordered_records(
+    seq_store: HDF5DataStore,
+    seq_names: Sequence[str],
+) -> list[DataMember]:
+    """Returns ordered data store records given a seqeunce
+    of sequence names.
+
+    Parameters
+    ----------
+    seq_store : HDF5DataStore
+        The data store to load from.
+    seq_names : Sequence[str]
+        The ordered sequence names.
+
+    Returns
+    -------
+    list[DataMember]
+        Ordered data member records.
+    """
+    records = {m.unique_id: m for m in seq_store.completed if m.unique_id in seq_names}
+    return [records[name] for name in seq_names]
