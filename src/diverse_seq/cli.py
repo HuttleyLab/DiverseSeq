@@ -91,7 +91,7 @@ _moltype = click.option(
     "--moltype",
     type=click.Choice(["dna", "rna"]),
     default="dna",
-    help="Molecular type of sequences, defaults to DNA",
+    help="Molecular type of sequences",
 )
 _seqfile = click.option(
     "-s",
