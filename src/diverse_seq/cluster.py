@@ -16,7 +16,7 @@ from rich.progress import Progress
 from scipy.sparse import dok_matrix
 from sklearn.cluster import AgglomerativeClustering
 
-from diverse_seq.data_store import HDF5DataStore
+from diverse_seq.data_store import HDF5DataStore, get_ordered_records
 from diverse_seq.record import KmerSeq, _get_canonical_states
 from diverse_seq.records import records_from_seq_store
 
@@ -342,29 +342,6 @@ class dvs_ctree:
                 self._progress.update(sketch_task, advance=1)
 
         return bottom_sketches
-
-
-def get_ordered_records(
-    seq_store: HDF5DataStore,
-    seq_names: Sequence[str],
-) -> list[DataMember]:
-    """Returns ordered data store records given a seqeunce
-    of sequence names.
-
-    Parameters
-    ----------
-    seq_store : HDF5DataStore
-        The data store to load from.
-    seq_names : Sequence[str]
-        The ordered sequence names.
-
-    Returns
-    -------
-    list[DataMember]
-        Ordered data member records.
-    """
-    records = {m.unique_id: m for m in seq_store.completed if m.unique_id in seq_names}
-    return [records[name] for name in seq_names]
 
 
 def compute_chunk_distances(
