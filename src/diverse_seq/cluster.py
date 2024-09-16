@@ -3,7 +3,7 @@
 import heapq
 import math
 import pathlib
-from collections.abc import Generator, Sequence
+from collections.abc import Sequence
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from contextlib import nullcontext
 from typing import Literal, TypeAlias
@@ -420,7 +420,7 @@ def mash_sketch(
     seq = record.read()
     kmer_hashes = {
         hash_kmer(kmer, mash_canonical=mash_canonical)
-        for kmer in iter_kmers(seq, k, num_states)
+        for kmer in get_kmers(seq, k, num_states)
     }
     heap = []
     for kmer_hash in kmer_hashes:
@@ -495,12 +495,12 @@ def compute_mash_distance(
     return distance
 
 
-def iter_kmers(
+def get_kmers(
     seq: numpy.ndarray,
     k: int,
     num_states: int,
-) -> Generator[numpy.ndarray, None, None]:
-    """Iterator for kmers of a sequence.
+) -> list[numpy.ndarray]:
+    """Get the kmers comprising a sequence.
 
     Parameters
     ----------
@@ -511,11 +511,12 @@ def iter_kmers(
     num_states : int
         Number of states allowed for sequence type.
 
-    Yields
-    ------
-    numpy.ndarray
-        kmers of the sequence.
+    Returns
+    -------
+    list[numpy.ndarray]
+        kmers for the sequence.
     """
+    kmers = []
     skip_until = 0
     for i in range(k):
         if seq[i] >= num_states:
@@ -527,7 +528,8 @@ def iter_kmers(
 
         if i < skip_until:
             continue
-        yield seq[i : i + k]
+        kmers.append(seq[i : i + k])
+    return kmers
 
 
 def hash_kmer(kmer: numpy.ndarray, *, mash_canonical: bool) -> int:
