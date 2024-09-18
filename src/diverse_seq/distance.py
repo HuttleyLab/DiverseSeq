@@ -78,7 +78,7 @@ class dvs_dist:
         self._sketch_size = sketch_size
         self._distance_mode = distance_mode
         self._mash_canonical = mash_canonical_kmers
-        self._progress = Progress(disable=not with_progress)
+        self._with_progress = with_progress
 
         self._s2a = seq_to_seqarray(moltype=moltype)
         self._dtype = np.min_scalar_type(self._num_states**self._k)
@@ -89,47 +89,65 @@ class dvs_dist:
     ) -> c3_types.PairwiseDistanceType:
         seq_arrays = [self._s2a(seqs.get_seq(name)) for name in seqs.names]
 
-        with self._progress:
-            if self._distance_mode == "mash":
-                distances = self.mash_distances(seq_arrays)
-            elif self._distance_mode == "euclidean":
-                kmer_seqs = [
-                    make_kmerseq(
-                        seq,
-                        dtype=self._dtype,
-                        k=self._k,
-                        moltype=self._moltype,
-                    )
-                    for seq in seq_arrays
-                ]
-                distances = euclidean_distances(kmer_seqs)
-            else:
-                msg = f"Unexpected distance {self._distance_mode}."
-                raise ValueError(msg)
-            return distances
+        if self._distance_mode == "mash":
+            distances = self.mash_distances(seq_arrays)
+        elif self._distance_mode == "euclidean":
+            kmer_seqs = [
+                make_kmerseq(
+                    seq,
+                    dtype=self._dtype,
+                    k=self._k,
+                    moltype=self._moltype,
+                )
+                for seq in seq_arrays
+            ]
+            distances = euclidean_distances(
+                kmer_seqs,
+                with_progress=self._with_progress,
+            )
+        else:
+            msg = f"Unexpected distance {self._distance_mode}."
+            raise ValueError(msg)
+        return distances
 
 
-def euclidean_distances(kmer_seqs: Sequence[KmerSeq]) -> np.ndarray:
+def euclidean_distances(
+    kmer_seqs: Sequence[KmerSeq],
+    *,
+    with_progress: bool = False,
+) -> np.ndarray:
     """Calculates pairwise euclidean distances between sequences.
 
     Parameters
     ----------
     seqs : Sequence[SeqArray]
         Sequences for pairwise distance calculation.
+    with_progress : bool, optional
+        Whether to show progress bar, by default False
 
     Returns
     -------
     np.ndarray
         Pairwise euclidean distances between sequences.
     """
+
     distances = np.zeros((len(kmer_seqs), len(kmer_seqs)))
 
-    for i, kmer_seq_i in enumerate(kmer_seqs):
-        freq_i = np.array(kmer_seq_i.kfreqs)
-        for j in range(i + 1, len(kmer_seqs)):
-            freq_j = np.array(kmer_seqs[j].kfreqs)
-            distance = np.sqrt(((freq_i - freq_j) ** 2).sum())
-            distances[i, j] = distance
-            distances[j, i] = distance
+    with Progress(disable=not with_progress) as progress:
+        distance_task = progress.add_task(
+            "[green]Computing Pairwise Distances",
+            total=len(kmer_seqs) * (len(kmer_seqs) - 1) // 2,
+        )
+
+        for i, kmer_seq_i in enumerate(kmer_seqs):
+            freq_i = np.array(kmer_seq_i.kfreqs)
+            for j in range(i + 1, len(kmer_seqs)):
+                freq_j = np.array(kmer_seqs[j].kfreqs)
+
+                distance = np.sqrt(((freq_i - freq_j) ** 2).sum())
+                distances[i, j] = distance
+                distances[j, i] = distance
+
+                progress.update(distance_task, advance=1)
 
     return distances
