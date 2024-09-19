@@ -160,6 +160,7 @@ def mash_distances(
         sketch_size,
         num_states,
         mash_canonical=mash_canonical,
+        progress=progress,
     )
 
     distance_task = progress.add_task(

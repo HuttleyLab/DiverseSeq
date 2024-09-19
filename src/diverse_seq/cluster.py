@@ -18,8 +18,9 @@ from sklearn.cluster import AgglomerativeClustering
 from diverse_seq.data_store import HDF5DataStore, get_ordered_records
 from diverse_seq.distance import (
     BottomSketch,
-    compute_mash_distance,
+    mash_distance,
     euclidean_distances,
+    mash_distances,
     mash_sketch,
 )
 from diverse_seq.record import KmerSeq, _get_canonical_states, seq_to_seqarray
@@ -112,7 +113,14 @@ class dvs_ctree:
 
         with self._progress:
             if self._distance_mode == "mash":
-                distances = self.mash_distances(seq_names)
+                distances = mash_distances(
+                    seq_arrays,
+                    self._k,
+                    self._sketch_size,
+                    self._num_states,
+                    mash_canonical=self._mash_canonical,
+                    progress=self._progress,
+                )
             elif self._distance_mode == "euclidean":
                 distances = euclidean_distances(
                     seq_arrays,
@@ -123,7 +131,7 @@ class dvs_ctree:
             else:
                 msg = f"Unexpected distance {self._distance_mode}."
                 raise ValueError(msg)
-            return make_cluster_tree(seq_names, distances)
+            return make_cluster_tree(seq_names, distances, progress=self._progress)
 
 
 def make_cluster_tree(
