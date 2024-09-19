@@ -1,25 +1,19 @@
-import pytest
-from cogent3 import load_unaligned_seqs
 from numpy.testing import assert_array_equal
 
 from diverse_seq.distance import dvs_dist
 
 
-@pytest.fixture(scope="session")
-def seq_path(DATA_DIR):
-    return DATA_DIR / "brca1.fasta"
-
-
-def test_euclidean_distance(seq_path):
+def test_euclidean_distance(unaligned_seqs):
     app = dvs_dist(
         "euclidean",
         k=3,
         with_progress=True,
     )
 
-    seqs = load_unaligned_seqs(seq_path)
-    seqs = seqs.take_seqs(["Human", "Chimpanzee", "Manatee", "Dugong", "Rhesus"])
-    dists = app(seqs)
+    unaligned_seqs = unaligned_seqs.take_seqs(
+        ["Human", "Chimpanzee", "Manatee", "Dugong", "Rhesus"],
+    )
+    dists = app(unaligned_seqs)
 
     assert_array_equal(dists, dists.T)  # Symmetric
 
@@ -37,7 +31,7 @@ def test_euclidean_distance(seq_path):
     assert manatee[3] < manatee[4]  # dugong closer than rhesus
 
 
-def test_mash_distance(seq_path):
+def test_mash_distance(unaligned_seqs):
     app = dvs_dist(
         "mash",
         k=16,
@@ -46,9 +40,10 @@ def test_mash_distance(seq_path):
         with_progress=True,
     )
 
-    seqs = load_unaligned_seqs(seq_path)
-    seqs = seqs.take_seqs(["Human", "Chimpanzee", "Manatee", "Dugong", "Rhesus"])
-    dists = app(seqs)
+    unaligned_seqs = unaligned_seqs.take_seqs(
+        ["Human", "Chimpanzee", "Manatee", "Dugong", "Rhesus"],
+    )
+    dists = app(unaligned_seqs)
 
     assert_array_equal(dists, dists.T)  # Symmetric
 

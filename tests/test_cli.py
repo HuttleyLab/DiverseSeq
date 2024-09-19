@@ -34,11 +34,6 @@ def runner():
     return CliRunner()
 
 
-@pytest.fixture(scope="session")
-def seq_path():
-    return DATADIR / "brca1.fasta"
-
-
 @pytest.fixture(scope="function")
 def rna_seq_path(tmp_dir, seq_path):
     seqs = load_unaligned_seqs(seq_path, moltype="rna")
