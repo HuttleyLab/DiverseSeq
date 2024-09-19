@@ -1,11 +1,9 @@
 """Apps and methods used to compute kmer cluster trees for sequences."""
 
-import heapq
-import math
 import pathlib
 from collections.abc import Sequence
 from contextlib import nullcontext
-from typing import Literal, TypeAlias
+from typing import Literal
 
 import numpy
 from cogent3 import PhyloNode, make_tree
@@ -17,10 +15,9 @@ from scipy.sparse import dok_matrix
 from sklearn.cluster import AgglomerativeClustering
 
 from diverse_seq.data_store import HDF5DataStore, get_ordered_records
+from diverse_seq.distance import BottomSketch, compute_mash_distance, mash_sketch
 from diverse_seq.record import KmerSeq, _get_canonical_states
 from diverse_seq.records import records_from_seq_store
-
-BottomSketch: TypeAlias = list[int]
 
 
 @define_app
@@ -306,7 +303,7 @@ class dvs_ctree:
         if self._numprocs == 1:
             for i, record in enumerate(records):
                 bottom_sketches[i] = mash_sketch(
-                    record,
+                    record.read(),
                     self._k,
                     self._sketch_size,
                     self._num_states,
@@ -321,7 +318,7 @@ class dvs_ctree:
         futures_to_idx = {
             self._executor.submit(
                 mash_sketch,
-                record,
+                record.read(),
                 self._k,
                 self._sketch_size,
                 self._num_states,
@@ -377,194 +374,6 @@ def compute_chunk_distances(
             distance = compute_mash_distance(sketches[i], sketches[j], k, sketch_size)
             distances_chunk[i, j] = distance
     return start_idx, distances_chunk
-
-
-def mash_sketch(
-    record: DataMember,
-    k: int,
-    sketch_size: int,
-    num_states: int,
-    *,
-    mash_canonical: bool,
-) -> BottomSketch:
-    """Find the mash sketch for a sequence record.
-
-    Parameters
-    ----------
-    record : DataMember
-        The sequence record to find the sketch for.
-    k : int
-        kmer size.
-    sketch_size : int
-        Size of the sketch.
-    num_states : int
-        Number of possible states (e.g. GCAT gives 4 for DNA).
-    mash_canonical : bool
-        Whether to use the mash canonical representation of kmers.
-
-    Returns
-    -------
-    BottomSketch
-        The bottom sketch for the given sequence record.
-    """
-    seq = record.read()
-    kmer_hashes = {
-        hash_kmer(kmer, mash_canonical=mash_canonical)
-        for kmer in get_kmers(seq, k, num_states)
-    }
-    heap = []
-    for kmer_hash in kmer_hashes:
-        if len(heap) < sketch_size:
-            heapq.heappush(heap, -kmer_hash)
-        else:
-            heapq.heappushpop(heap, -kmer_hash)
-    return sorted(-kmer_hash for kmer_hash in heap)
-
-
-def compute_mash_distance(
-    left_sketch: BottomSketch,
-    right_sketch: BottomSketch,
-    k: int,
-    sketch_size: int,
-) -> float:
-    """Compute the mash distance between two sketches.
-
-    Parameters
-    ----------
-    left_sketch : BottomSketch
-        A sketch for comparison.
-    right_sketch : BottomSketch
-        A sketch for comparison.
-    k : int
-        kmer size.
-    sketch_size : int
-        Size of the sketches.
-
-    Returns
-    -------
-    float
-        The mash distance between two sketches.
-    """
-    # Following the source code implementation
-    intersection_size = 0
-    union_size = 0
-
-    left_index = 0
-    right_index = 0
-    while (
-        union_size < sketch_size
-        and left_index < len(left_sketch)
-        and right_index < len(right_sketch)
-    ):
-        left, right = left_sketch[left_index], right_sketch[right_index]
-        if left < right:
-            left_index += 1
-        elif right < left:
-            right_index += 1
-        else:
-            left_index += 1
-            right_index += 1
-            intersection_size += 1
-        union_size += 1
-
-    if union_size < sketch_size:
-        if left_index < len(left_sketch):
-            union_size += len(left_sketch) - left_index
-        if right_index < len(right_sketch):
-            union_size += len(right_sketch) - right_index
-        union_size = min(union_size, sketch_size)
-
-    jaccard = intersection_size / union_size
-    if intersection_size == union_size:
-        return 0.0
-    if intersection_size == 0:
-        return 1.0
-    distance = -math.log(2 * jaccard / (1.0 + jaccard)) / k
-    if distance > 1:
-        distance = 1.0
-    return distance
-
-
-def get_kmers(
-    seq: numpy.ndarray,
-    k: int,
-    num_states: int,
-) -> list[numpy.ndarray]:
-    """Get the kmers comprising a sequence.
-
-    Parameters
-    ----------
-    seq : numpy.ndarray
-        A sequence.
-    k : int
-        kmer size.
-    num_states : int
-        Number of states allowed for sequence type.
-
-    Returns
-    -------
-    list[numpy.ndarray]
-        kmers for the sequence.
-    """
-    kmers = []
-    skip_until = 0
-    for i in range(k):
-        if seq[i] >= num_states:
-            skip_until = i + 1
-
-    for i in range(len(seq) - k + 1):
-        if seq[i + k - 1] >= num_states:
-            skip_until = i + k
-
-        if i < skip_until:
-            continue
-        kmers.append(seq[i : i + k])
-    return kmers
-
-
-def hash_kmer(kmer: numpy.ndarray, *, mash_canonical: bool) -> int:
-    """Hash a kmer, optionally use the mash canonical representaiton.
-
-    Parameters
-    ----------
-    kmer : numpy.ndarray
-        The kmer to hash.
-    canonical : bool
-        Whether to use the mash canonical representation for a kmer.
-
-    Returns
-    -------
-    int
-        The has of a kmer.
-    """
-    tuple_kmer = tuple(map(int, kmer))
-    if mash_canonical:
-        reverse = tuple(map(int, reverse_complement(kmer)))
-        tuple_kmer = min(reverse, tuple_kmer)
-
-    return hash(tuple_kmer)
-
-
-def reverse_complement(kmer: numpy.ndarray) -> numpy.ndarray:
-    """Take the reverse complement of a kmer.
-
-    Assumes cogent3 DNA/RNA sequences (numerical
-    representation for complement offset by 2
-    from original).
-
-    Parameters
-    ----------
-    kmer : numpy.ndarray
-        The kmer to attain the reverse complement of
-
-    Returns
-    -------
-    numpy.ndarray
-        The reverse complement of a kmer.
-    """
-    # 0123 TCAG
-    # 3->1, 1->3, 2->0, 0->2
-    return ((kmer + 2) % 4)[::-1]
 
 
 def compute_euclidean_distances(records: list[KmerSeq]) -> numpy.ndarray:
