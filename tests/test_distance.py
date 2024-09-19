@@ -35,3 +35,32 @@ def test_euclidean_distance(seq_path):
 
     manatee = dists[2]
     assert manatee[3] < manatee[4]  # dugong closer than rhesus
+
+
+def test_mash_distance(seq_path):
+    app = dvs_dist(
+        "mash",
+        k=16,
+        sketch_size=400,
+        mash_canonical_kmers=True,
+        with_progress=True,
+    )
+
+    seqs = load_unaligned_seqs(seq_path)
+    seqs = seqs.take_seqs(["Human", "Chimpanzee", "Manatee", "Dugong", "Rhesus"])
+    dists = app(seqs)
+
+    assert_array_equal(dists, dists.T)  # Symmetric
+
+    human = dists[0]
+
+    assert human[1] < human[4]  # chimpanzee closer than rhesus
+    assert human[4] < human[2]  # rhesus closer than manatee
+    assert human[4] < human[3]  # rhesus closer than dugong
+
+    chimpanzee = dists[1]
+    assert chimpanzee[4] < chimpanzee[2]  # rhesus closer than manatee
+    assert chimpanzee[4] < chimpanzee[3]  # rhesus closer than dugong
+
+    manatee = dists[2]
+    assert manatee[3] < manatee[4]  # dugong closer than rhesus
