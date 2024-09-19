@@ -1,0 +1,36 @@
+name: "Test against Cogent3 develop branch"
+
+on:
+    schedule:
+      - cron: '0 21 * * *' # 7am AEST
+    workflow_dispatch:  # support for manual triggering
+
+jobs:
+  cogent3-dev:
+    name: "cogent3-dev"
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: "actions/checkout@v4"
+        with:
+          fetch-depth: 0
+
+      - uses: "actions/setup-python@v5"
+        with:
+            python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v2
+        with:
+            enable-cache: true
+
+      - name: Install the cogent3 dev branch
+        run: |
+          uv pip install "cogent3 @ git+https://github.com/cogent3/cogent3.git@develop" --system
+
+      - name: Install the project
+        run: |
+          uv pip install ".[test]" --system
+
+      - name: Run tests
+        run: uv run pytest tests
