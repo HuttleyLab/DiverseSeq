@@ -95,7 +95,7 @@ class dvs_dist:
 
         with Progress(disable=not self._with_progress) as progress:
             if self._distance_mode == "mash":
-                distances = compute_mash_distances(
+                distances = mash_distances(
                     seq_arrays,
                     self._k,
                     self._sketch_size,
@@ -116,7 +116,7 @@ class dvs_dist:
             return distances
 
 
-def compute_mash_distances(
+def mash_distances(
     seq_arrays: list[SeqArray],
     k: int,
     sketch_size: int,
@@ -171,7 +171,7 @@ def compute_mash_distances(
 
     for i in range(1, len(sketches)):
         for j in range(i):
-            distance = compute_mash_distance(
+            distance = mash_distance(
                 sketches[i],
                 sketches[j],
                 k,
@@ -363,7 +363,7 @@ def reverse_complement(kmer: np.ndarray) -> np.ndarray:
     return ((kmer + 2) % 4)[::-1]
 
 
-def compute_mash_distance(
+def mash_distance(
     left_sketch: BottomSketch,
     right_sketch: BottomSketch,
     k: int,
