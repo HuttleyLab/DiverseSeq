@@ -474,10 +474,14 @@ def euclidean_distances(
         for j in range(i + 1, len(kmer_seqs)):
             freq_j = np.array(kmer_seqs[j].kfreqs)
 
-            distance = np.sqrt(((freq_i - freq_j) ** 2).sum())
+            distance = euclidean_distance(freq_i, freq_j)
             distances[i, j] = distance
             distances[j, i] = distance
 
             progress.update(distance_task, advance=1)
 
     return distances
+
+
+def euclidean_distance(freq_1: np.ndarray, freq_2: np.ndarray) -> np.ndarray:
+    return np.linalg.norm(freq_1 - freq_2)

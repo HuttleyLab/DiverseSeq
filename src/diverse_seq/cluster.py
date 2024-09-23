@@ -15,12 +15,19 @@ from sklearn.cluster import AgglomerativeClustering
 
 from diverse_seq.distance import (
     BottomSketch,
+    euclidean_distance,
     euclidean_distances,
     mash_distance,
     mash_distances,
     mash_sketch,
 )
-from diverse_seq.record import SeqArray, _get_canonical_states, seq_to_seqarray
+from diverse_seq.record import (
+    KmerSeq,
+    SeqArray,
+    _get_canonical_states,
+    make_kmerseq,
+    seq_to_seqarray,
+)
 
 
 @define_app
@@ -290,12 +297,7 @@ class dvs_par_ctree:
             if self._distance_mode == "mash":
                 distances = self.mash_distances_parallel(seq_arrays)
             elif self._distance_mode == "euclidean":
-                distances = euclidean_distances(
-                    seq_arrays,
-                    self._k,
-                    self._moltype,
-                    progress=self._progress,
-                )
+                distances = self.euclidean_distances_parallel(seq_arrays)
             else:
                 msg = f"Unexpected distance {self._distance_mode}."
                 raise ValueError(msg)
@@ -360,6 +362,73 @@ class dvs_par_ctree:
 
         return distances
 
+    def euclidean_distances_parallel(
+        self,
+        seq_arrays: Sequence[SeqArray],
+    ) -> numpy.ndarray:
+        """Calculates pairwise euclidean distances between sequences in parallel.
+
+        Parameters
+        ----------
+        seq_arrays : Sequence[SeqArray]
+            Sequence arrays.
+
+        Returns
+        -------
+        numpy.ndarray
+            Pairwise euclidean distances between sequences.
+        """
+        if self._numprocs == 1:
+            return euclidean_distances(
+                seq_arrays,
+                self._k,
+                self._moltype,
+                progress=self._progress,
+            )
+
+        distance_task = self._progress.add_task(
+            "[green]Computing Pairwise Distances",
+            total=None,
+        )
+
+        kmer_seqs = [
+            make_kmerseq(
+                seq,
+                dtype=numpy.min_scalar_type(
+                    len(_get_canonical_states(self._moltype)) ** self._k,
+                ),
+                k=self._k,
+                moltype=self._moltype,
+            )
+            for seq in seq_arrays
+        ]
+
+        # Compute distances in parallel
+        num_jobs = self._numprocs
+        futures = [
+            self._executor.submit(
+                compute_euclidean_chunk_distances,
+                start,
+                num_jobs,
+                kmer_seqs,
+            )
+            for start in range(num_jobs)
+        ]
+
+        distances = numpy.zeros((len(kmer_seqs), len(kmer_seqs)))
+
+        for future in futures:
+            start_idx, distances_chunk = future.result()
+            distances[start_idx::num_jobs] = distances_chunk[
+                start_idx::num_jobs
+            ].toarray()
+
+        # Make lower triangular matrix symmetric
+        distances = distances + distances.T - numpy.diag(distances.diagonal())
+
+        self._progress.update(distance_task, completed=1, total=1)
+        return distances
+
     def mash_sketches_parallel(
         self,
         seq_arrays: Sequence[SeqArray],
@@ -405,7 +474,7 @@ class dvs_par_ctree:
         return bottom_sketches
 
 
-def compute_mash_chunk_distances(  # TODO: implement euclidean chunking variant
+def compute_mash_chunk_distances(
     start_idx: int,
     stride: int,
     sketches: list[BottomSketch],
@@ -441,5 +510,41 @@ def compute_mash_chunk_distances(  # TODO: implement euclidean chunking variant
     for i in range(start_idx, len(sketches), stride):
         for j in range(i):
             distance = mash_distance(sketches[i], sketches[j], k, sketch_size)
+            distances_chunk[i, j] = distance
+    return start_idx, distances_chunk
+
+
+def compute_euclidean_chunk_distances(
+    start_idx: int,
+    stride: int,
+    kmer_seqs: list[KmerSeq],
+) -> tuple[int, dok_matrix]:
+    """Find a subset of pairwise distances between sketches.
+
+    Finds pairwise distances for the row with the given start index
+    and each stride after that.
+
+    Only finds lower triangular portion.
+
+    Parameters
+    ----------
+    start_idx : int
+        Start index for distance calculation.
+    stride : int
+        Index increment.
+    kmer_seqs : list[KmerSeq]
+        kmer sequences.
+
+    Returns
+    -------
+    tuple[int, dok_matrix]
+        The start index, and the calculated pairwise distances.
+    """
+    distances_chunk = dok_matrix((len(kmer_seqs), len(kmer_seqs)))
+    for i in range(start_idx, len(kmer_seqs), stride):
+        freq_i = numpy.array(kmer_seqs[i].kfreqs)
+        for j in range(i):
+            freq_j = numpy.array(kmer_seqs[j].kfreqs)
+            distance = euclidean_distance(freq_i, freq_j)
             distances_chunk[i, j] = distance
     return start_idx, distances_chunk
