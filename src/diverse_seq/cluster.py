@@ -77,7 +77,7 @@ class dvs_ctree:
             mash_canonical_kmers = False
 
         if moltype not in ("dna", "rna") and mash_canonical_kmers:
-            msg = "Canonical kmers only supported for dna sequences."
+            msg = "Canonical kmers only supported for dna/rna sequences."
             raise ValueError(msg)
 
         if distance_mode == "mash" and sketch_size is None:
