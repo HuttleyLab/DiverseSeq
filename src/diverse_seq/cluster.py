@@ -78,7 +78,7 @@ class dvs_ctree:
             mash_canonical_kmers = False
 
         if distance_mode not in ("mash", "euclidean"):
-            msg = f"Unexpected distance {self._distance_mode}."
+            msg = f"Unexpected distance {distance_mode}."
             raise ValueError(msg)
 
         if moltype not in ("dna", "rna") and mash_canonical_kmers:
@@ -249,7 +249,7 @@ class dvs_par_ctree:
             mash_canonical_kmers = False
 
         if distance_mode not in ("mash", "euclidean"):
-            msg = f"Unexpected distance {self._distance_mode}."
+            msg = f"Unexpected distance {distance_mode}."
             raise ValueError(msg)
 
         if moltype not in ("dna", "rna") and mash_canonical_kmers:
