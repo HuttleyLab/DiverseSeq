@@ -1,5 +1,6 @@
 """Apps and methods used to compute kmer cluster trees for sequences."""
 
+import warnings
 from collections.abc import Sequence
 from contextlib import nullcontext
 from typing import Literal
@@ -86,6 +87,10 @@ class dvs_ctree:
 
         if distance_mode != "mash" and sketch_size is not None:
             msg = "Sketch size should only be specified for the mash distance."
+            warnings.warn(
+                "Sketch size should only be specified for the mash distance. It currently has no effect",
+                stacklevel=2,
+            )
             raise ValueError(msg)
 
         self._moltype = moltype
