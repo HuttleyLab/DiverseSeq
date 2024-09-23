@@ -90,12 +90,10 @@ class dvs_ctree:
             raise ValueError(msg)
 
         if distance_mode != "mash" and sketch_size is not None:
-            msg = "Sketch size should only be specified for the mash distance."
             warnings.warn(
                 "Sketch size should only be specified for the mash distance. It currently has no effect",
                 stacklevel=2,
             )
-            raise ValueError(msg)
 
         self._moltype = moltype
         self._k = k
@@ -198,7 +196,10 @@ def make_cluster_tree(
 
 @define_app(app_type=AppType.NON_COMPOSABLE)
 class dvs_par_ctree:
-    """Create a cluster tree from kmer distances."""
+    """Create a cluster tree from kmer distances.
+
+    If numprocs>1, computations are performed in parallel.
+    """
 
     def __init__(
         self,
@@ -247,6 +248,10 @@ class dvs_par_ctree:
         if mash_canonical_kmers is None:
             mash_canonical_kmers = False
 
+        if distance_mode not in ("mash", "euclidean"):
+            msg = f"Unexpected distance {self._distance_mode}."
+            raise ValueError(msg)
+
         if moltype not in ("dna", "rna") and mash_canonical_kmers:
             msg = "Canonical kmers only supported for dna sequences."
             raise ValueError(msg)
@@ -256,8 +261,10 @@ class dvs_par_ctree:
             raise ValueError(msg)
 
         if distance_mode != "mash" and sketch_size is not None:
-            msg = "Sketch size should only be specified for the mash distance."
-            raise ValueError(msg)
+            warnings.warn(
+                "Sketch size should only be specified for the mash distance. It currently has no effect",
+                stacklevel=2,
+            )
         if numprocs < 1:
             msg = "Expect numprocs>=1."
             raise ValueError(msg)
@@ -304,9 +311,6 @@ class dvs_par_ctree:
                 distances = self.mash_distances_parallel(seq_arrays)
             elif self._distance_mode == "euclidean":
                 distances = self.euclidean_distances_parallel(seq_arrays)
-            else:
-                msg = f"Unexpected distance {self._distance_mode}."
-                raise ValueError(msg)
             return make_cluster_tree(seq_names, distances, progress=self._progress)
 
     def mash_distances_parallel(self, seq_arrays: Sequence[SeqArray]) -> numpy.ndarray:
