@@ -13,7 +13,7 @@ def test_euclidean_distance(unaligned_seqs):
     unaligned_seqs = unaligned_seqs.take_seqs(
         ["Human", "Chimpanzee", "Manatee", "Dugong", "Rhesus"],
     )
-    dists = app(unaligned_seqs)
+    dists = app(unaligned_seqs)  # pylint: disable=not-callable
 
     assert_array_equal(dists, dists.T)  # Symmetric
 

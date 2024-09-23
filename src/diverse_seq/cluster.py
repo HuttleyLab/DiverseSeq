@@ -112,7 +112,7 @@ class dvs_ctree:
             a cluster tree.
         """
         seq_names = seqs.names
-        seq_arrays = [self._s2a(seqs.get_seq(name)) for name in seq_names]
+        seq_arrays = [self._s2a(seqs.get_seq(name)) for name in seq_names]  # pylint: disable=not-callable
 
         with self._progress:
             if self._distance_mode == "mash":

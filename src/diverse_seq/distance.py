@@ -90,7 +90,7 @@ class dvs_dist:
         self,
         seqs: c3_types.SeqsCollectionType,
     ) -> c3_types.PairwiseDistanceType:
-        seq_arrays = [self._s2a(seqs.get_seq(name)) for name in seqs.names]
+        seq_arrays = [self._s2a(seqs.get_seq(name)) for name in seqs.names]  # pylint: disable=not-callable
 
         with Progress(disable=not self._with_progress) as progress:
             if self._distance_mode == "mash":
