@@ -9,7 +9,6 @@ from cogent3.app.composable import define_app
 from rich.progress import Progress
 
 from diverse_seq.record import (
-    KmerSeq,
     SeqArray,
     _get_canonical_states,
     make_kmerseq,
