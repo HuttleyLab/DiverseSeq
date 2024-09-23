@@ -42,7 +42,7 @@ class dvs_ctree:
         moltype: str = "dna",
         distance_mode: Literal["mash", "euclidean"] = "mash",
         mash_canonical_kmers: bool | None = None,
-        with_progress: bool = True,
+        hide_progress: bool = True,
     ) -> None:
         """Initialise parameters for generating a kmer cluster tree.
 
@@ -58,8 +58,8 @@ class dvs_ctree:
             mash distance or euclidean distance between kmer freqs, by default "mash"
         mash_canonical_kmers : bool | None, optional
             whether to use mash canonical kmers for mash distance, by default False
-        with_progress : bool, optional
-            whether to show progress bars, by default True
+        hide_progress : bool, optional
+            whether to hide progress bars, by default True
 
         Notes
         -----
@@ -94,7 +94,7 @@ class dvs_ctree:
         self._sketch_size = sketch_size
         self._distance_mode = distance_mode
         self._mash_canonical = mash_canonical_kmers
-        self._progress = Progress(disable=not with_progress)
+        self._progress = Progress(disable=hide_progress)
 
         self._s2a = seq_to_seqarray(moltype=moltype)
 
@@ -202,7 +202,7 @@ class dvs_par_ctree:
         moltype: str = "dna",
         distance_mode: Literal["mash", "euclidean"] = "mash",
         mash_canonical_kmers: bool | None = None,
-        with_progress: bool = True,
+        hide_progress: bool = True,
         numprocs: int = 1,
     ) -> None:
         """Initialise parameters for generating a kmer cluster tree.
@@ -221,8 +221,8 @@ class dvs_par_ctree:
             mash distance or euclidean distance between kmer freqs, by default "mash"
         mash_canonical_kmers : bool | None, optional
             whether to use mash canonical kmers for mash distance, by default False
-        with_progress : bool, optional
-            whether to show progress bars, by default True
+        hide_progress : bool, optional
+            whether to hide progress bars, by default True
         numprocs : int, optional
             number of workers, by default 1
 
@@ -266,7 +266,7 @@ class dvs_par_ctree:
             metric="precomputed",
             linkage="average",
         )
-        self._progress = Progress(disable=not with_progress)
+        self._progress = Progress(disable=hide_progress)
         self._numprocs = numprocs
 
         self._s2a = seq_to_seqarray(moltype=moltype)

@@ -440,7 +440,9 @@ def nmost(
     default=False,
     help="consider kmers identical to their reverse complement",
 )
+@_limit
 @_numprocs
+@_hide_progress
 def ctree(
     seqfile: Path,
     outpath: Path,
@@ -449,7 +451,9 @@ def ctree(
     sketch_size: int | None,
     distance: str,
     canonical_kmers: bool,
+    limit: int | None,
     numprocs: int,
+    hide_progress: bool,
 ):
     """Quickly compute a cluster tree based on kmers for a collection of sequences."""
 
@@ -474,7 +478,7 @@ def ctree(
         )
         sys.exit(1)
 
-    seqids = dvs_data_store.get_seqids_from_store(seqfile)
+    seqids = dvs_data_store.get_seqids_from_store(seqfile)[:limit]
     records = dvs_data_store.get_ordered_records(
         dvs_data_store.HDF5DataStore(seqfile),
         seqids,
@@ -495,6 +499,7 @@ def ctree(
         distance_mode=distance,
         mash_canonical_kmers=canonical_kmers,
         numprocs=numprocs,
+        hide_progress=hide_progress,
     )
     tree = app(seqs)  # pylint: disable=not-callable
     tree.write(outpath)
