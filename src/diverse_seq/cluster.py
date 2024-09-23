@@ -291,7 +291,7 @@ class dvs_par_ctree:
         )
 
         seq_names = seqs.names
-        seq_arrays = [self._s2a(seqs.get_seq(name)) for name in seq_names]
+        seq_arrays = [self._s2a(seqs.get_seq(name)) for name in seq_names]  # pylint: disable=not-callable
 
         with self._progress, self._executor:
             if self._distance_mode == "mash":

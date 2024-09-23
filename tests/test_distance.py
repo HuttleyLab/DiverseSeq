@@ -1,3 +1,4 @@
+# pylint: disable=not-callable
 from numpy.testing import assert_array_equal
 
 from diverse_seq.distance import dvs_dist
@@ -13,7 +14,7 @@ def test_euclidean_distance(unaligned_seqs):
     unaligned_seqs = unaligned_seqs.take_seqs(
         ["Human", "Chimpanzee", "Manatee", "Dugong", "Rhesus"],
     )
-    dists = app(unaligned_seqs)  # pylint: disable=not-callable
+    dists = app(unaligned_seqs)
 
     assert_array_equal(dists, dists.T)  # Symmetric
 
