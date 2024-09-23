@@ -316,6 +316,9 @@ class dvs_par_ctree:
     def mash_distances_parallel(self, seq_arrays: Sequence[SeqArray]) -> numpy.ndarray:
         """Calculates pairwise mash distances between sequences in parallel.
 
+        Uses the number of processes specified in the constructor. If one process was
+        specified runs in serial.
+
         Parameters
         ----------
         seq_arrays : Sequence[SeqArray]
@@ -377,6 +380,9 @@ class dvs_par_ctree:
         seq_arrays: Sequence[SeqArray],
     ) -> numpy.ndarray:
         """Calculates pairwise euclidean distances between sequences in parallel.
+
+        Uses the number of processes specified in the constructor. If one process was
+        specified runs in serial.
 
         Parameters
         ----------
