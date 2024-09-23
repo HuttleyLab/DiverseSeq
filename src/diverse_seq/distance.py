@@ -6,6 +6,7 @@ from typing import Literal, TypeAlias
 import cogent3.app.typing as c3_types
 import numpy as np
 from cogent3.app.composable import define_app
+from cogent3.evolve.fast_distance import DistanceMatrix
 from rich.progress import Progress
 
 from diverse_seq.record import (
@@ -112,7 +113,17 @@ class dvs_dist:
             else:
                 msg = f"Unexpected distance {self._distance_mode}."
                 raise ValueError(msg)
-            return distances
+            return dists_to_distmatrix(distances, seqs.names)
+
+
+def dists_to_distmatrix(
+    distances: np.ndarray, names: Sequence[str]
+) -> c3_types.PairwiseDistanceType:
+    dist_dict = {}
+    for i in range(1, len(distances)):
+        for j in range(i):
+            dist_dict[(names[i], names[j])] = distances[i, j]
+    return DistanceMatrix(dist_dict)
 
 
 def mash_distances(

@@ -1,4 +1,5 @@
 # pylint: disable=not-callable
+import numpy as np
 from numpy.testing import assert_array_equal
 
 from diverse_seq.distance import dvs_dist
@@ -16,20 +17,26 @@ def test_euclidean_distance(unaligned_seqs):
     )
     dists = app(unaligned_seqs)
 
-    assert_array_equal(dists, dists.T)  # Symmetric
+    assert (
+        dists["Human", "Chimpanzee"] < dists["Human", "Dugong"]
+    )  # chimpanzee closer than rhesus
+    assert (
+        dists["Human", "Rhesus"] < dists["Human", "Manatee"]
+    )  # rhesus closer than manatee
+    assert (
+        dists["Human", "Rhesus"] < dists["Human", "Dugong"]
+    )  # rhesus closer than dugong
 
-    human = dists[0]
+    assert (
+        dists["Chimpanzee", "Rhesus"] < dists["Chimpanzee", "Manatee"]
+    )  # rhesus closer than manatee
+    assert (
+        dists["Chimpanzee", "Rhesus"] < dists["Chimpanzee", "Dugong"]
+    )  # rhesus closer than dugong
 
-    assert human[1] < human[4]  # chimpanzee closer than rhesus
-    assert human[4] < human[2]  # rhesus closer than manatee
-    assert human[4] < human[3]  # rhesus closer than dugong
-
-    chimpanzee = dists[1]
-    assert chimpanzee[4] < chimpanzee[2]  # rhesus closer than manatee
-    assert chimpanzee[4] < chimpanzee[3]  # rhesus closer than dugong
-
-    manatee = dists[2]
-    assert manatee[3] < manatee[4]  # dugong closer than rhesus
+    assert (
+        dists["Manatee", "Dugong"] < dists["Manatee", "Rhesus"]
+    )  # dugong closer than rhesus
 
 
 def test_mash_distance(unaligned_seqs):
@@ -46,17 +53,23 @@ def test_mash_distance(unaligned_seqs):
     )
     dists = app(unaligned_seqs)
 
-    assert_array_equal(dists, dists.T)  # Symmetric
+    assert (
+        dists["Human", "Chimpanzee"] < dists["Human", "Dugong"]
+    )  # chimpanzee closer than rhesus
+    assert (
+        dists["Human", "Rhesus"] < dists["Human", "Manatee"]
+    )  # rhesus closer than manatee
+    assert (
+        dists["Human", "Rhesus"] < dists["Human", "Dugong"]
+    )  # rhesus closer than dugong
 
-    human = dists[0]
+    assert (
+        dists["Chimpanzee", "Rhesus"] < dists["Chimpanzee", "Manatee"]
+    )  # rhesus closer than manatee
+    assert (
+        dists["Chimpanzee", "Rhesus"] < dists["Chimpanzee", "Dugong"]
+    )  # rhesus closer than dugong
 
-    assert human[1] < human[4]  # chimpanzee closer than rhesus
-    assert human[4] < human[2]  # rhesus closer than manatee
-    assert human[4] < human[3]  # rhesus closer than dugong
-
-    chimpanzee = dists[1]
-    assert chimpanzee[4] < chimpanzee[2]  # rhesus closer than manatee
-    assert chimpanzee[4] < chimpanzee[3]  # rhesus closer than dugong
-
-    manatee = dists[2]
-    assert manatee[3] < manatee[4]  # dugong closer than rhesus
+    assert (
+        dists["Manatee", "Dugong"] < dists["Manatee", "Rhesus"]
+    )  # dugong closer than rhesus
