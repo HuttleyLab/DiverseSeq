@@ -234,7 +234,7 @@ def test_prep_source_from_directory(runner, tmp_dir, seq_dir):
     [("mash", 16, 400), ("euclidean", 5, None)],
 )
 @pytest.mark.parametrize("numprocs", [1, 4])
-def test_ctree_mash(
+def test_ctree(
     runner,
     tmp_dir,
     processed_seq_path,
