@@ -77,6 +77,10 @@ class dvs_ctree:
         if mash_canonical_kmers is None:
             mash_canonical_kmers = False
 
+        if distance_mode not in ("mash", "euclidean"):
+            msg = f"Unexpected distance {self._distance_mode}."
+            raise ValueError(msg)
+
         if moltype not in ("dna", "rna") and mash_canonical_kmers:
             msg = "Canonical kmers only supported for dna/rna sequences."
             raise ValueError(msg)
@@ -136,9 +140,6 @@ class dvs_ctree:
                     self._moltype,
                     progress=self._progress,
                 )
-            else:
-                msg = f"Unexpected distance {self._distance_mode}."
-                raise ValueError(msg)
             return make_cluster_tree(seq_names, distances, progress=self._progress)
 
 
