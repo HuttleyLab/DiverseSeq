@@ -9,6 +9,7 @@ jobs:
   cogent3-dev:
     name: "cogent3-dev"
     runs-on: ubuntu-latest
+    if: github.repository == 'HuttleyLab/DiverseSeq'
 
     steps:
       - uses: "actions/checkout@v4"
