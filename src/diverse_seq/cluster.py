@@ -48,7 +48,7 @@ class dvs_ctree:
             size of sketches, by default None
         moltype : str, optional
             moltype, by default "dna"
-        distance_mode : Literal[&quot;mash&quot;, &quot;euclidean&quot;], optional
+        distance_mode : Literal["mash", "euclidean"], optional
             mash distance or euclidean distance between kmer freqs, by default "mash"
         mash_canonical_kmers : bool | None, optional
             whether to use mash canonical kmers for mash distance, by default False
