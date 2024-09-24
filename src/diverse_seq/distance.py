@@ -68,6 +68,10 @@ class dvs_dist:
         if mash_canonical_kmers is None:
             mash_canonical_kmers = False
 
+        if distance_mode not in ("mash", "euclidean"):
+            msg = f"Unexpected distance {distance_mode}."
+            raise ValueError(msg)
+
         if moltype not in ("dna", "rna") and mash_canonical_kmers:
             msg = "Canonical kmers only supported for dna sequences."
             raise ValueError(msg)
@@ -120,9 +124,6 @@ class dvs_dist:
                 kmer_seqs,
                 with_progress=self._with_progress,
             )
-        else:
-            msg = f"Unexpected distance {self._distance_mode}."
-            raise ValueError(msg)
         return distances
 
 
