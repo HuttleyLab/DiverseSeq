@@ -273,7 +273,6 @@ class dvs_par_ctree:
         self._k = k
         self._num_states = len(_get_canonical_states(self._moltype))
         self._sketch_size = sketch_size
-        self._distance_mode = distance_mode
         self._mash_canonical = mash_canonical_kmers
         self._clustering = AgglomerativeClustering(
             metric="precomputed",
@@ -283,6 +282,10 @@ class dvs_par_ctree:
         self._numprocs = numprocs
 
         self._s2a = seq_to_seqarray(moltype=moltype)
+
+        self._calc_dist = (
+            self._mash_dist if distance_mode == "mash" else self._euclidean_dist
+        )
 
     def main(self, seqs: c3_types.SeqsCollectionType) -> PhyloNode:
         """Construct a cluster tree for a collection of sequences.
@@ -307,13 +310,10 @@ class dvs_par_ctree:
         seq_arrays = [self._s2a(seqs.get_seq(name)) for name in seq_names]  # pylint: disable=not-callable
 
         with self._progress, self._executor:
-            if self._distance_mode == "mash":
-                distances = self.mash_distances_parallel(seq_arrays)
-            elif self._distance_mode == "euclidean":
-                distances = self.euclidean_distances_parallel(seq_arrays)
+            distances = self._calc_dist(seq_arrays)
             return make_cluster_tree(seq_names, distances, progress=self._progress)
 
-    def mash_distances_parallel(self, seq_arrays: Sequence[SeqArray]) -> numpy.ndarray:
+    def _mash_dist(self, seq_arrays: Sequence[SeqArray]) -> numpy.ndarray:
         """Calculates pairwise mash distances between sequences in parallel.
 
         Uses the number of processes specified in the constructor. If one process was
@@ -375,7 +375,7 @@ class dvs_par_ctree:
 
         return distances
 
-    def euclidean_distances_parallel(
+    def _euclidean_dist(
         self,
         seq_arrays: Sequence[SeqArray],
     ) -> numpy.ndarray:
