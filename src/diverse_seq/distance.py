@@ -40,7 +40,7 @@ class dvs_dist:
 
         Parameters
         ----------
-        distance_mode : Literal[&quot;mash&quot;, &quot;euclidean&quot;], optional
+        distance_mode : Literal["mash", "euclidean"], optional
             mash distance or euclidean distance between kmer freqs, by default "mash"
         k : int, optional
             kmer size, by default 16
