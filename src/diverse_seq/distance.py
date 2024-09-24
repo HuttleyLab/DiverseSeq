@@ -21,7 +21,10 @@ BottomSketch: TypeAlias = list[int]
 
 @define_app
 class dvs_dist:
-    """return the N most divergent sequences"""
+    """Calculate pairwise kmer-based distances between sequences.
+    Supported distances include mash distance, and euclidean distance
+    based on kmer frequencies.
+    """
 
     def __init__(
         self,
