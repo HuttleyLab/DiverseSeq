@@ -31,10 +31,7 @@ from diverse_seq.record import (
 )
 
 
-@define_app
-class dvs_ctree:
-    """Create a cluster tree from kmer distances."""
-
+class ClusterTreeBase:
     def __init__(
         self,
         *,
@@ -104,6 +101,59 @@ class dvs_ctree:
         self._progress = Progress(disable=hide_progress)
 
         self._s2a = seq_to_seqarray(moltype=moltype)
+
+
+@define_app
+class dvs_ctree(ClusterTreeBase):
+    """Create a cluster tree from kmer distances."""
+
+    def __init__(
+        self,
+        *,
+        k: int = 16,
+        sketch_size: int | None = None,
+        moltype: str = "dna",
+        distance_mode: Literal["mash", "euclidean"] = "mash",
+        mash_canonical_kmers: bool | None = None,
+        hide_progress: bool = True,
+    ) -> None:
+        """Initialise parameters for generating a kmer cluster tree.
+
+        Parameters
+        ----------
+        k : int, optional
+            kmer size, by default 16
+        sketch_size : int | None, optional
+            size of sketches, by default None
+        moltype : str, optional
+            moltype, by default "dna"
+        distance_mode : Literal[&quot;mash&quot;, &quot;euclidean&quot;], optional
+            mash distance or euclidean distance between kmer freqs, by default "mash"
+        mash_canonical_kmers : bool | None, optional
+            whether to use mash canonical kmers for mash distance, by default False
+        hide_progress : bool, optional
+            whether to hide progress bars, by default True
+
+        Notes
+        -----
+        If mash_canonical_kmers is enabled when using the mash distance,
+        kmers are considered identical to their reverse complement.
+
+        References
+        ----------
+        .. [1] Ondov, B. D., Treangen, T. J., Melsted, P., Mallonee, A. B.,
+           Bergman, N. H., Koren, S., & Phillippy, A. M. (2016).
+           Mash: fast genome and metagenome distance estimation using MinHash.
+           Genome biology, 17, 1-14.
+        """
+        super().__init__(
+            k=k,
+            sketch_size=sketch_size,
+            moltype=moltype,
+            distance_mode=distance_mode,
+            mash_canonical_kmers=mash_canonical_kmers,
+            hide_progress=hide_progress,
+        )
 
     def main(self, seqs: c3_types.SeqsCollectionType) -> PhyloNode:
         """Construct a cluster tree for a collection of sequences.
@@ -195,7 +245,7 @@ def make_cluster_tree(
 
 
 @define_app(app_type=AppType.NON_COMPOSABLE)
-class dvs_par_ctree:
+class dvs_par_ctree(ClusterTreeBase):
     """Create a cluster tree from kmer distances.
 
     If numprocs>1, computations are performed in parallel.
@@ -245,44 +295,16 @@ class dvs_par_ctree:
            Mash: fast genome and metagenome distance estimation using MinHash.
            Genome biology, 17, 1-14.
         """
-        if mash_canonical_kmers is None:
-            mash_canonical_kmers = False
-
-        if distance_mode not in ("mash", "euclidean"):
-            msg = f"Unexpected distance {distance_mode}."
-            raise ValueError(msg)
-
-        if moltype not in ("dna", "rna") and mash_canonical_kmers:
-            msg = "Canonical kmers only supported for dna sequences."
-            raise ValueError(msg)
-
-        if distance_mode == "mash" and sketch_size is None:
-            msg = "Expected sketch size for mash distance measure."
-            raise ValueError(msg)
-
-        if distance_mode != "mash" and sketch_size is not None:
-            warnings.warn(
-                "Sketch size should only be specified for the mash distance. It currently has no effect",
-                stacklevel=2,
-            )
-        if numprocs < 1:
-            msg = "Expect numprocs>=1."
-            raise ValueError(msg)
-
-        self._moltype = moltype
-        self._k = k
-        self._num_states = len(_get_canonical_states(self._moltype))
-        self._sketch_size = sketch_size
-        self._mash_canonical = mash_canonical_kmers
-        self._clustering = AgglomerativeClustering(
-            metric="precomputed",
-            linkage="average",
+        super().__init__(
+            k=k,
+            sketch_size=sketch_size,
+            moltype=moltype,
+            distance_mode=distance_mode,
+            mash_canonical_kmers=mash_canonical_kmers,
+            hide_progress=hide_progress,
         )
-        self._progress = Progress(disable=hide_progress)
+
         self._numprocs = numprocs
-
-        self._s2a = seq_to_seqarray(moltype=moltype)
-
         self._calc_dist = (
             self._mash_dist if distance_mode == "mash" else self._euclidean_dist
         )
