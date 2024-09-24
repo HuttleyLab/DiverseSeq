@@ -101,8 +101,7 @@ class dvs_ctree:
             metric="precomputed",
             linkage="average",
         )
-        self._with_progress = with_progress
-        self._progress = Progress() if with_progress else nullcontext()
+        self._progress = Progress(disable=not with_progress)
         self._numprocs = numprocs
 
     def main(self, seq_names: list[str]) -> PhyloNode:
@@ -152,11 +151,10 @@ class dvs_ctree:
         PhyloNode
             The cluster tree.
         """
-        if self._with_progress:
-            tree_task = self._progress.add_task(
-                "[green]Computing Tree",
-                total=None,
-            )
+        tree_task = self._progress.add_task(
+            "[green]Computing Tree",
+            total=None,
+        )
 
         self._clustering.fit(pairwise_distances)
 
@@ -171,8 +169,7 @@ class dvs_ctree:
 
         tree = make_tree(str(tree_dict[node_index - 1]))
 
-        if self._with_progress:
-            self._progress.update(tree_task, completed=1, total=1)
+        self._progress.update(tree_task, completed=1, total=1)
 
         return tree
 
@@ -229,21 +226,19 @@ class dvs_ctree:
         """
         sketches = self.mash_sketches(records)
 
-        if self._with_progress:
-            distance_task = self._progress.add_task(
-                "[green]Computing Pairwise Distances",
-                total=None,
-            )
+        distance_task = self._progress.add_task(
+            "[green]Computing Pairwise Distances",
+            total=None,
+        )
 
         distances = numpy.zeros((len(sketches), len(sketches)))
 
         # Compute distances in serial mode
         if self._numprocs == 1:
-            if self._with_progress:
-                self._progress.update(
-                    distance_task,
-                    total=len(sketches) * (len(sketches) - 1) // 2,
-                )
+            self._progress.update(
+                distance_task,
+                total=len(sketches) * (len(sketches) - 1) // 2,
+            )
 
             for i in range(1, len(sketches)):
                 for j in range(i):
@@ -256,8 +251,7 @@ class dvs_ctree:
                     distances[i, j] = distance
                     distances[j, i] = distance
 
-                    if self._with_progress:
-                        self._progress.update(distance_task, advance=1)
+                    self._progress.update(distance_task, advance=1)
 
             return distances
 
@@ -284,8 +278,7 @@ class dvs_ctree:
         # Make lower triangular matrix symmetric
         distances = distances + distances.T - numpy.diag(distances.diagonal())
 
-        if self._with_progress:
-            self._progress.update(distance_task, completed=1, total=1)
+        self._progress.update(distance_task, completed=1, total=1)
 
         return distances
 
@@ -302,11 +295,10 @@ class dvs_ctree:
         list[BottomSketch]
             Sketches for each sequence.
         """
-        if self._with_progress:
-            sketch_task = self._progress.add_task(
-                "[green]Generating Sketches",
-                total=len(records),
-            )
+        sketch_task = self._progress.add_task(
+            "[green]Generating Sketches",
+            total=len(records),
+        )
 
         bottom_sketches = [None for _ in range(len(records))]
 
@@ -321,8 +313,7 @@ class dvs_ctree:
                     mash_canonical=self._mash_canonical,
                 )
 
-                if self._with_progress:
-                    self._progress.update(sketch_task, advance=1)
+                self._progress.update(sketch_task, advance=1)
 
             return bottom_sketches
 
@@ -343,8 +334,7 @@ class dvs_ctree:
             idx = futures_to_idx[future]
             bottom_sketches[idx] = future.result()
 
-            if self._with_progress:
-                self._progress.update(sketch_task, advance=1)
+            self._progress.update(sketch_task, advance=1)
 
         return bottom_sketches
 
