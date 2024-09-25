@@ -124,7 +124,8 @@ class dvs_dist:
 
 
 def dists_to_distmatrix(
-    distances: np.ndarray, names: Sequence[str]
+    distances: np.ndarray,
+    names: Sequence[str],
 ) -> c3_types.PairwiseDistanceType:
     dist_dict = {}
     for i in range(1, len(distances)):
