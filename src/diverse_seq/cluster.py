@@ -46,17 +46,17 @@ class ClusterTreeBase:
 
         Parameters
         ----------
-        k : int, optional
+        k
             kmer size, by default 16
-        sketch_size : int | None, optional
+        sketch_size
             size of sketches, by default None
-        moltype : str, optional
+        moltype
             moltype, by default "dna"
-        distance_mode : Literal[&quot;mash&quot;, &quot;euclidean&quot;], optional
+        distance_mode
             mash distance or euclidean distance between kmer freqs, by default "mash"
-        mash_canonical_kmers : bool | None, optional
+        mash_canonical_kmers
             whether to use mash canonical kmers for mash distance, by default False
-        show_progress : bool, optional
+        show_progress
             whether to show progress bars, by default False
 
         Notes
@@ -121,17 +121,17 @@ class dvs_ctree(ClusterTreeBase):
 
         Parameters
         ----------
-        k : int, optional
+        k
             kmer size, by default 16
-        sketch_size : int | None, optional
+        sketch_size
             size of sketches, by default None
-        moltype : str, optional
+        moltype
             moltype, by default "dna"
-        distance_mode : Literal[&quot;mash&quot;, &quot;euclidean&quot;], optional
+        distance_mode
             mash distance or euclidean distance between kmer freqs, by default "mash"
-        mash_canonical_kmers : bool | None, optional
+        mash_canonical_kmers
             whether to use mash canonical kmers for mash distance, by default False
-        show_progress : bool, optional
+        show_progress
             whether to show progress bars, by default False
 
         Notes
@@ -160,7 +160,7 @@ class dvs_ctree(ClusterTreeBase):
 
         Parameters
         ----------
-        seqs : list[c3_types.SeqsCollectionType]
+        seqs
             Sequence collection to form cluster tree for.
 
         Returns
@@ -201,11 +201,11 @@ def make_cluster_tree(
 
     Parameters
     ----------
-    seq_names : Sequence[str]
+    seq_names
         Names of sequences to cluster.
-    pairwise_distances : numpy.ndarray
+    pairwise_distances
         Pairwise distances between clusters.
-    progress : Progress | None, optional
+    progress
         Progress bar, by default None.
 
     Returns
@@ -266,21 +266,21 @@ class dvs_par_ctree(ClusterTreeBase):
 
         Parameters
         ----------
-        seq_store : str | pathlib.Path
+        seq_store
             path to sequence store
-        k : int, optional
+        k
             kmer size, by default 16
-        sketch_size : int | None, optional
+        sketch_size
             size of sketches, by default None
-        moltype : str, optional
+        moltype
             moltype, by default "dna"
-        distance_mode : Literal["mash", "euclidean"], optional
+        distance_mode
             mash distance or euclidean distance between kmer freqs, by default "mash"
-        mash_canonical_kmers : bool | None, optional
+        mash_canonical_kmers
             whether to use mash canonical kmers for mash distance, by default False
-        show_progress : bool, optional
+        show_progress
             whether to show progress bars, by default False
-        numprocs : int, optional
+        numprocs
             number of workers, by default 1
 
         Notes
@@ -314,7 +314,7 @@ class dvs_par_ctree(ClusterTreeBase):
 
         Parameters
         ----------
-        seqs : list[c3_types.SeqsCollectionType]
+        seqs
             Sequence collection to form cluster tree for.
 
         Returns
@@ -343,7 +343,7 @@ class dvs_par_ctree(ClusterTreeBase):
 
         Parameters
         ----------
-        seq_arrays : Sequence[SeqArray]
+        seq_arrays
             Sequence arrays.
 
         Returns
@@ -408,7 +408,7 @@ class dvs_par_ctree(ClusterTreeBase):
 
         Parameters
         ----------
-        seq_arrays : Sequence[SeqArray]
+        seq_arrays
             Sequence arrays.
 
         Returns
@@ -475,7 +475,7 @@ class dvs_par_ctree(ClusterTreeBase):
 
         Parameters
         ----------
-        seq_arrays : Sequence[SeqArray]
+        seq_arrays
             Sequence arrays.
 
         Returns
@@ -528,15 +528,15 @@ def compute_mash_chunk_distances(
 
     Parameters
     ----------
-    start_idx : int
+    start_idx
         Start index for distance calculation.
-    stride : int
+    stride
         Index increment.
-    sketches : list[BottomSketch]
+    sketches
         Sketches for pairwise distances.
-    k : int
+    k
         kmer size.
-    sketch_size : int
+    sketch_size
         Size of the sketches.
 
     Returns
@@ -566,11 +566,11 @@ def compute_euclidean_chunk_distances(
 
     Parameters
     ----------
-    start_idx : int
+    start_idx
         Start index for distance calculation.
-    stride : int
+    stride
         Index increment.
-    kmer_seqs : list[KmerSeq]
+    kmer_seqs
         kmer sequences.
 
     Returns

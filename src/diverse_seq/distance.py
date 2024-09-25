@@ -40,17 +40,17 @@ class dvs_dist:
 
         Parameters
         ----------
-        distance_mode : Literal["mash", "euclidean"], optional
+        distance_mode
             mash distance or euclidean distance between kmer freqs, by default "mash"
-        k : int, optional
+        k
             kmer size, by default 16
-        sketch_size : int | None, optional
+        sketch_size
             size of sketches, by default None
-        moltype : str, optional
+        moltype
             moltype, by default "dna"
-        mash_canonical_kmers : bool | None, optional
+        mash_canonical_kmers
             whether to use mash canonical kmers for mash distance, by default False
-        show_progress : bool, optional
+        show_progress
             whether to show progress bars, by default False
 
         Notes
@@ -146,18 +146,18 @@ def mash_distances(
 
     Parameters
     ----------
-    seq_arrays : list[SeqArray]
+    seq_arrays
         Sequence arrays.
-    k : int
+    k
         kmer size.
-    sketch_size : int
+    sketch_size
         sketch size.
-    num_states : int
+    num_states
         number of states for each position.
-    mash_canonical : bool, optional
+    mash_canonical
         whether to use mash canonical representation of kmers,
         by default False
-    progress : Progress | None, optional
+    progress
         progress bar, by default None
 
     Returns
@@ -216,17 +216,17 @@ def mash_sketches(
 
     Parameters
     ----------
-    seq_arrays : Sequence[np.ndarray]
+    seq_arrays
         Sequence arrays.
-    k : int
+    k
         kmer size.
-    sketch_size : int
+    sketch_size
         sketch size.
-    num_states : int
+    num_states
         number of states.
-    mash_canonical : bool, optional
+    mash_canonical
         whether to use mash canonical kmer representation, by default False
-    progress : Progress | None, optional
+    progress
         progress bar, by default None
     Returns
     -------
@@ -270,15 +270,15 @@ def mash_sketch(
 
     Parameters
     ----------
-    seq_array : np.ndarray
+    seq_array
         The sequence array to find the sketch for.
-    k : int
+    k
         kmer size.
-    sketch_size : int
+    sketch_size
         Size of the sketch.
-    num_states : int
+    num_states
         Number of possible states (e.g. GCAT gives 4 for DNA).
-    mash_canonical : bool
+    mash_canonical
         Whether to use the mash canonical representation of kmers.
 
     Returns
@@ -308,11 +308,11 @@ def get_kmers(
 
     Parameters
     ----------
-    seq : numpy.ndarray
+    seq
         A sequence.
-    k : int
+    k
         kmer size.
-    num_states : int
+    num_states
         Number of states allowed for sequence type.
 
     Returns
@@ -341,9 +341,9 @@ def hash_kmer(kmer: np.ndarray, *, mash_canonical: bool) -> int:
 
     Parameters
     ----------
-    kmer : numpy.ndarray
+    kmer
         The kmer to hash.
-    canonical : bool
+    canonical
         Whether to use the mash canonical representation for a kmer.
 
     Returns
@@ -368,7 +368,7 @@ def reverse_complement(kmer: np.ndarray) -> np.ndarray:
 
     Parameters
     ----------
-    kmer : numpy.ndarray
+    kmer
         The kmer to attain the reverse complement of
 
     Returns
@@ -391,13 +391,13 @@ def mash_distance(
 
     Parameters
     ----------
-    left_sketch : BottomSketch
+    left_sketch
         A sketch for comparison.
-    right_sketch : BottomSketch
+    right_sketch
         A sketch for comparison.
-    k : int
+    k
         kmer size.
-    sketch_size : int
+    sketch_size
         Size of the sketches.
 
     Returns
@@ -456,9 +456,9 @@ def euclidean_distances(
 
     Parameters
     ----------
-    seqs : Sequence[KmerSeq]
+    seqs
         Sequences for pairwise distance calculation.
-    progress : Progress | None, optional
+    progress
         Progress bar, by default None
 
     Returns
