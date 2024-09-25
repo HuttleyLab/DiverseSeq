@@ -86,6 +86,7 @@ dvs = "diverse_seq.cli:main"
 dvs_nmost = "diverse_seq.records:dvs_nmost"
 dvs_max = "diverse_seq.records:dvs_max"
 dvs_ctree = "diverse_seq.cluster:dvs_ctree"
+dvs_par_ctree = "diverse_seq.cluster:dvs_par_ctree"
 
 [tool.pytest.ini_options]
 addopts = ["--strict-config", "-ra"]

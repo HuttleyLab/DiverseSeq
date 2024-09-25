@@ -1,29 +1,73 @@
-import pytest
-from numpy import array
-from numpy.testing import assert_allclose
+# pylint: disable=not-callable
+import numpy as np
+from numpy.testing import assert_array_equal
 
-from diverse_seq.distance import _intersect_union, jaccard
-
-
-def _make_sample(type_):
-    return type_([0, 1, 3]), type_([1, 4, 5])
+from diverse_seq.distance import dvs_dist
 
 
-@pytest.mark.parametrize("rec1,rec2", (_make_sample(set), _make_sample(array)))
-def test_intersect_union(rec1, rec2):
-    i, u = _intersect_union(rec1, rec2)
-    assert i == 1 and u == 5
+def test_euclidean_distance(unaligned_seqs):
+    app = dvs_dist(
+        "euclidean",
+        k=3,
+    )
+
+    unaligned_seqs = unaligned_seqs.take_seqs(
+        ["Human", "Chimpanzee", "Manatee", "Dugong", "Rhesus"],
+    )
+    dists = app(unaligned_seqs)
+
+    assert (
+        dists["Human", "Chimpanzee"] < dists["Human", "Dugong"]
+    )  # chimpanzee closer than rhesus
+    assert (
+        dists["Human", "Rhesus"] < dists["Human", "Manatee"]
+    )  # rhesus closer than manatee
+    assert (
+        dists["Human", "Rhesus"] < dists["Human", "Dugong"]
+    )  # rhesus closer than dugong
+
+    assert (
+        dists["Chimpanzee", "Rhesus"] < dists["Chimpanzee", "Manatee"]
+    )  # rhesus closer than manatee
+    assert (
+        dists["Chimpanzee", "Rhesus"] < dists["Chimpanzee", "Dugong"]
+    )  # rhesus closer than dugong
+
+    assert (
+        dists["Manatee", "Dugong"] < dists["Manatee", "Rhesus"]
+    )  # dugong closer than rhesus
 
 
-@pytest.mark.parametrize(
-    "rec1,rec2,exp",
-    (
-        [{1, 2}, {3, 4}, 1],
-        [set(), {1}, 1],
-        [{1}, set(), 1],
-        [{1, 2}, {1, 2}, 0],
-        [{1, 2}, {1, 3}, 2 / 3],
-    ),
-)
-def test_jaccard(rec1, rec2, exp):
-    assert_allclose(jaccard(rec1, rec2), exp)
+def test_mash_distance(unaligned_seqs):
+    app = dvs_dist(
+        "mash",
+        k=16,
+        sketch_size=400,
+        mash_canonical_kmers=True,
+    )
+
+    unaligned_seqs = unaligned_seqs.take_seqs(
+        ["Human", "Chimpanzee", "Manatee", "Dugong", "Rhesus"],
+    )
+    dists = app(unaligned_seqs)
+
+    assert (
+        dists["Human", "Chimpanzee"] < dists["Human", "Dugong"]
+    )  # chimpanzee closer than rhesus
+    assert (
+        dists["Human", "Rhesus"] < dists["Human", "Manatee"]
+    )  # rhesus closer than manatee
+    assert (
+        dists["Human", "Rhesus"] < dists["Human", "Dugong"]
+    )  # rhesus closer than dugong
+
+    assert (
+        dists["Chimpanzee", "Rhesus"] < dists["Chimpanzee", "Manatee"]
+    )  # rhesus closer than manatee
+    assert (
+        dists["Chimpanzee", "Rhesus"] < dists["Chimpanzee", "Dugong"]
+    )  # rhesus closer than dugong
+
+    assert (
+        dists["Manatee", "Dugong"] < dists["Manatee", "Rhesus"]
+    )  # dugong closer than rhesus
