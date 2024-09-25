@@ -9,6 +9,7 @@ jobs:
   cogent3-dev:
     name: "cogent3-dev"
     runs-on: ubuntu-latest
+    if: github.repository == 'HuttleyLab/DiverseSeq'
 
     steps:
       - uses: "actions/checkout@v4"
@@ -20,7 +21,7 @@ jobs:
             python-version: "3.12"
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v2
+        uses: astral-sh/setup-uv@v3
         with:
             enable-cache: true
 
