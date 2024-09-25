@@ -203,6 +203,7 @@ def prep(
                     print(r)
                 writer(r)  # pylint: disable=not-callable
                 progress.update(convert, advance=1, refresh=True)
+                del r
 
     out_dstore.close()
     dvs_util.print_colour(

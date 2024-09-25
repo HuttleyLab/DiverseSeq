@@ -1,6 +1,6 @@
-import contextlib
+import functools
 import inspect
-import os
+import io
 import pathlib
 from collections.abc import Sequence
 
@@ -14,6 +14,7 @@ from scitrack import get_text_hexdigest
 _NOT_COMPLETED_TABLE = "not_completed"
 _LOG_TABLE = "logs"
 _MD5_TABLE = "md5"
+_H5_STRING_DTYPE = h5py.string_dtype()
 
 
 _HDF5_BLOSC2_KWARGS = hdf5plugin.Blosc2(
@@ -21,6 +22,63 @@ _HDF5_BLOSC2_KWARGS = hdf5plugin.Blosc2(
     clevel=3,
     filters=hdf5plugin.Blosc2.BITSHUFFLE,
 )
+
+
+class HF5FileWrapper:
+    """virtualizes a HDF5 file so that it can be either on disk or in memory
+    behaving consistently as a context manager"""
+
+    def __init__(
+        self,
+        *,
+        source: str | pathlib.Path,
+        mode: Mode = "r",
+        in_memory: bool = False,
+    ):
+        self.in_memory = in_memory
+        mode = "w" if in_memory else mode
+        self.mode = Mode(mode)
+        self.source = pathlib.Path(source)
+        if self.mode == Mode.r and not self.source.exists():
+            raise OSError(f"{self.source!s} not found")
+        if in_memory:
+            mode = "w"
+            in_memory = io.BytesIO()
+
+        self._file = None
+        self._init_file(in_memory)
+
+    @functools.singledispatchmethod
+    def _init_file(self, in_memory: io.BytesIO) -> None:
+        self._file = h5py.File(in_memory, mode=self.mode.name)
+        self._file.create_group(_NOT_COMPLETED_TABLE)
+        self._file.create_group(_LOG_TABLE)
+        self._file.create_group(_MD5_TABLE)
+        self._file.attrs["source"] = str(self.source)
+
+    @_init_file.register
+    def _(self, in_memory: bool) -> None:
+        if self.mode == Mode.w:
+            with h5py.File(self.source, mode="w") as f:
+                f.create_group(_NOT_COMPLETED_TABLE)
+                f.create_group(_LOG_TABLE)
+                f.create_group(_MD5_TABLE)
+                f.attrs["source"] = str(self.source)
+            self.mode = Mode.a
+
+    def __enter__(self):
+        if not self.in_memory:
+            self._file = h5py.File(self.source, mode=self.mode.name)
+        return self._file
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if not self.in_memory:
+            self._file.close()
+        return False
+
+    def close(self):
+        if self.in_memory:
+            self._file.close()
 
 
 class HDF5DataStore(DataStoreABC):
@@ -45,25 +103,10 @@ class HDF5DataStore(DataStoreABC):
         limit: int = None,
         in_memory: bool = False,
     ) -> None:
-        if in_memory:
-            h5_kwargs = dict(
-                driver="core",
-                backing_store=False,
-            )
-            source = "memory"
-            mode = "w"
-        else:
-            h5_kwargs = {}
-
+        self._hf5_file = HF5FileWrapper(source=source, mode=mode, in_memory=in_memory)
         self._source = pathlib.Path(source)
-
-        self._mode = Mode(mode)
-        if self._mode == Mode.r and not self._source.exists():
-            raise OSError(f"{self._source!s} not found")
+        self._mode = self._hf5_file.mode
         self._limit = limit
-        self._h5_kwargs = h5_kwargs
-        self._file = h5py.File(source, mode=self.mode.name, **self._h5_kwargs)
-        self._is_open = True
         self._completed = []
 
     def __getstate__(self):
@@ -74,16 +117,11 @@ class HDF5DataStore(DataStoreABC):
     def __setstate__(self, state):
         obj = self.__class__(**state)
         self.__dict__.update(obj.__dict__)
-        # because we have a __del__ method, and self attributes point to
-        # attributes on obj, we need to modify obj state so that garbage
-        # collection does not screw up self
-        obj._is_open = False
-        obj._file = None
 
     @property
     def source(self) -> pathlib.Path:
         """string that references connecting to data store"""
-        return self._source
+        return self._hf5_file.source
 
     @property
     def mode(self) -> Mode:
@@ -96,14 +134,17 @@ class HDF5DataStore(DataStoreABC):
 
     def read(self, unique_id: str) -> numpy.ndarray:
         """reads and return array data corresponding to identifier"""
-        data = self._file[unique_id]
-        out = numpy.empty(len(data), dtype=numpy.uint8)
-        data.read_direct(out)
-        return out
+        with self._hf5_file as f:
+            data = f[unique_id]
+            out = numpy.empty(len(data), dtype=numpy.uint8)
+            data.read_direct(out)
+            return out
 
     def get_attrs(self, unique_id: str) -> dict:
         """return all data set attributes connected to an identifier"""
-        data = self._file[unique_id]
+        with self._hf5_file as f:
+            data = f[unique_id]
+
         return dict(data.attrs.items())
 
     def _write(
@@ -114,28 +155,32 @@ class HDF5DataStore(DataStoreABC):
         data: numpy.ndarray,
         **kwargs,
     ) -> DataMember:
-        f = self._file
-        path = f"{subdir}/{unique_id}" if subdir else unique_id
-        dset = f.create_dataset(path, data=data, dtype="u1", **_HDF5_BLOSC2_KWARGS)
-
         if subdir == _LOG_TABLE:
             return None
 
-        if subdir == _NOT_COMPLETED_TABLE:
-            member = DataMember(
-                data_store=self,
-                unique_id=pathlib.Path(_NOT_COMPLETED_TABLE) / unique_id,
+        with self._hf5_file as f:
+            path = f"{subdir}/{unique_id}" if subdir else unique_id
+            dset = f.create_dataset(path, data=data, dtype="u1", **_HDF5_BLOSC2_KWARGS)
+            del data
+
+            if subdir == _NOT_COMPLETED_TABLE:
+                member = DataMember(
+                    data_store=self,
+                    unique_id=pathlib.Path(_NOT_COMPLETED_TABLE) / unique_id,
+                )
+
+            elif not subdir:
+                member = DataMember(data_store=self, unique_id=unique_id)
+                for key, value in kwargs.items():
+                    dset.attrs[key] = value
+
+            md5 = get_text_hexdigest(data.tobytes())
+            f.create_dataset(
+                f"{_MD5_TABLE}/{unique_id}",
+                data=md5,
+                dtype=_H5_STRING_DTYPE,
             )
 
-        elif not subdir:
-            member = DataMember(data_store=self, unique_id=unique_id)
-            for key, value in kwargs.items():
-                dset.attrs[key] = value
-
-        md5 = get_text_hexdigest(data.tobytes())
-        md5_dtype = h5py.string_dtype()
-        f.create_dataset(f"{_MD5_TABLE}/{unique_id}", data=md5, dtype=md5_dtype)
-        f.flush()
         return member
 
     def write(self, *, unique_id: str, data: numpy.ndarray, **kwargs) -> DataMember:
@@ -175,20 +220,24 @@ class HDF5DataStore(DataStoreABC):
     def drop_not_completed(self, *, unique_id: str | None = None) -> None: ...
 
     def md5(self, unique_id: str) -> str | None:
-        f = self._file
-        if f"md5/{unique_id}" in f:
-            dset = f[f"md5/{unique_id}"]
-            return dset[()].decode("utf-8")
+        with self._hf5_file as f:
+            if f"{_MD5_TABLE}/{unique_id}" in f:
+                dset = f[f"{_MD5_TABLE}/{unique_id}"]
+                return dset[()].decode("utf-8")
         return None
 
     @property
     def completed(self) -> list[DataMember]:
         if not self._completed:
-            self._completed = [
-                DataMember(data_store=self, unique_id=name)
-                for name in self._file.keys()
-                if name not in (_LOG_TABLE, _NOT_COMPLETED_TABLE, _MD5_TABLE)
-            ]
+            r = []
+            with self._hf5_file as f:
+                for name in f.keys():
+                    if name in (_LOG_TABLE, _NOT_COMPLETED_TABLE, _MD5_TABLE):
+                        continue
+
+                    m = DataMember(data_store=self, unique_id=name)
+                    r.append(m)
+            self._completed = r
         return self._completed
 
     @property
@@ -207,27 +256,6 @@ class HDF5DataStore(DataStoreABC):
         # hdf5 dumps content to stdout if resource already closed, so
         # we trap that here, and capture expected exceptions raised in the
         # process
-        try:
-            open
-        except NameError:
-            # builtin open() already garbage collected, so nothing to do
-            return
-        with open(os.devnull, "w") as devnull:
-            with (
-                contextlib.redirect_stderr(devnull),
-                contextlib.redirect_stdout(devnull),
-            ):
-                with contextlib.suppress(
-                    ValueError,
-                    AttributeError,
-                    RuntimeError,
-                    PermissionError,
-                ):
-                    if self._is_open:
-                        self._file.flush()
-
-                with contextlib.suppress(AttributeError):
-                    self._file.close()
 
 
 def get_seqids_from_store(
