@@ -40,7 +40,7 @@ class ClusterTreeBase:
         moltype: str = "dna",
         distance_mode: Literal["mash", "euclidean"] = "mash",
         mash_canonical_kmers: bool | None = None,
-        hide_progress: bool = True,
+        show_progress: bool = False,
     ) -> None:
         """Initialise parameters for generating a kmer cluster tree.
 
@@ -56,8 +56,8 @@ class ClusterTreeBase:
             mash distance or euclidean distance between kmer freqs, by default "mash"
         mash_canonical_kmers : bool | None, optional
             whether to use mash canonical kmers for mash distance, by default False
-        hide_progress : bool, optional
-            whether to hide progress bars, by default True
+        show_progress : bool, optional
+            whether to show progress bars, by default False
 
         Notes
         -----
@@ -98,7 +98,7 @@ class ClusterTreeBase:
         self._sketch_size = sketch_size
         self._distance_mode = distance_mode
         self._mash_canonical = mash_canonical_kmers
-        self._progress = Progress(disable=hide_progress)
+        self._progress = Progress(disable=not show_progress)
 
         self._s2a = seq_to_seqarray(moltype=moltype)
 
@@ -115,7 +115,7 @@ class dvs_ctree(ClusterTreeBase):
         moltype: str = "dna",
         distance_mode: Literal["mash", "euclidean"] = "mash",
         mash_canonical_kmers: bool | None = None,
-        hide_progress: bool = True,
+        show_progress: bool = False,
     ) -> None:
         """Initialise parameters for generating a kmer cluster tree.
 
@@ -131,8 +131,8 @@ class dvs_ctree(ClusterTreeBase):
             mash distance or euclidean distance between kmer freqs, by default "mash"
         mash_canonical_kmers : bool | None, optional
             whether to use mash canonical kmers for mash distance, by default False
-        hide_progress : bool, optional
-            whether to hide progress bars, by default True
+        show_progress : bool, optional
+            whether to show progress bars, by default False
 
         Notes
         -----
@@ -152,7 +152,7 @@ class dvs_ctree(ClusterTreeBase):
             moltype=moltype,
             distance_mode=distance_mode,
             mash_canonical_kmers=mash_canonical_kmers,
-            hide_progress=hide_progress,
+            show_progress=show_progress,
         )
 
     def main(self, seqs: c3_types.SeqsCollectionType) -> PhyloNode:
@@ -259,7 +259,7 @@ class dvs_par_ctree(ClusterTreeBase):
         moltype: str = "dna",
         distance_mode: Literal["mash", "euclidean"] = "mash",
         mash_canonical_kmers: bool | None = None,
-        hide_progress: bool = True,
+        show_progress: bool = False,
         numprocs: int = 1,
     ) -> None:
         """Initialise parameters for generating a kmer cluster tree.
@@ -278,8 +278,8 @@ class dvs_par_ctree(ClusterTreeBase):
             mash distance or euclidean distance between kmer freqs, by default "mash"
         mash_canonical_kmers : bool | None, optional
             whether to use mash canonical kmers for mash distance, by default False
-        hide_progress : bool, optional
-            whether to hide progress bars, by default True
+        show_progress : bool, optional
+            whether to show progress bars, by default False
         numprocs : int, optional
             number of workers, by default 1
 
@@ -301,7 +301,7 @@ class dvs_par_ctree(ClusterTreeBase):
             moltype=moltype,
             distance_mode=distance_mode,
             mash_canonical_kmers=mash_canonical_kmers,
-            hide_progress=hide_progress,
+            show_progress=show_progress,
         )
 
         self._numprocs = numprocs

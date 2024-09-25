@@ -34,7 +34,7 @@ class dvs_dist:
         sketch_size: int | None = None,
         moltype: str = "dna",
         mash_canonical_kmers: bool | None = None,
-        hide_progress: bool = True,
+        show_progress: bool = False,
     ) -> None:
         """Initialise parameters for kmer distance calculation.
 
@@ -50,8 +50,8 @@ class dvs_dist:
             moltype, by default "dna"
         mash_canonical_kmers : bool | None, optional
             whether to use mash canonical kmers for mash distance, by default False
-        hide_progress : bool, optional
-            whether to show progress bars, by default True
+        show_progress : bool, optional
+            whether to show progress bars, by default False
 
         Notes
         -----
@@ -90,7 +90,7 @@ class dvs_dist:
         self._sketch_size = sketch_size
         self._distance_mode = distance_mode
         self._mash_canonical = mash_canonical_kmers
-        self._hide_progress = hide_progress
+        self._show_progress = show_progress
 
         self._s2a = seq_to_seqarray(moltype=moltype)
 
@@ -100,7 +100,7 @@ class dvs_dist:
     ) -> c3_types.PairwiseDistanceType:
         seq_arrays = [self._s2a(seqs.get_seq(name)) for name in seqs.names]  # pylint: disable=not-callable
 
-        with Progress(disable=self._hide_progress) as progress:
+        with Progress(disable=not self._show_progress) as progress:
             if self._distance_mode == "mash":
                 distances = mash_distances(
                     seq_arrays,

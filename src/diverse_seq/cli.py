@@ -499,7 +499,7 @@ def ctree(
         distance_mode=distance,
         mash_canonical_kmers=canonical_kmers,
         numprocs=numprocs,
-        hide_progress=hide_progress,
+        show_progress=not hide_progress,
     )
     tree = app(seqs)  # pylint: disable=not-callable
     tree.write(outpath)

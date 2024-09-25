@@ -9,7 +9,6 @@ def test_euclidean_distance(unaligned_seqs):
     app = dvs_dist(
         "euclidean",
         k=3,
-        hide_progress=True,
     )
 
     unaligned_seqs = unaligned_seqs.take_seqs(
@@ -45,7 +44,6 @@ def test_mash_distance(unaligned_seqs):
         k=16,
         sketch_size=400,
         mash_canonical_kmers=True,
-        hide_progress=True,
     )
 
     unaligned_seqs = unaligned_seqs.take_seqs(
