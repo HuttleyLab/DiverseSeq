@@ -7,6 +7,7 @@ from pathlib import Path
 
 import click
 import rich.progress as rich_progress
+from cogent3 import make_unaligned_seqs
 from cogent3.app import data_store as c3_data_store
 from scitrack import CachingLogger
 
@@ -440,7 +441,9 @@ def nmost(
     default=False,
     help="consider kmers identical to their reverse complement",
 )
+@_limit
 @_numprocs
+@_hide_progress
 def ctree(
     seqfile: Path,
     outpath: Path,
@@ -449,7 +452,9 @@ def ctree(
     sketch_size: int | None,
     distance: str,
     canonical_kmers: bool,
+    limit: int | None,
     numprocs: int,
+    hide_progress: bool,
 ):
     """Quickly compute a cluster tree based on kmers for a collection of sequences."""
 
@@ -460,18 +465,45 @@ def ctree(
         )
         sys.exit(1)
 
-    seqids = dvs_data_store.get_seqids_from_store(seqfile)
+    if outpath is None:
+        dvs_util.print_colour(
+            "Specify a file name to write the newick tree to.",
+            "red",
+        )
+        sys.exit(1)
 
-    app = dvs_cluster.dvs_ctree(
-        seq_store=seqfile,
+    if sketch_size is None and distance == "mash":
+        dvs_util.print_colour(
+            "Sketch size must be specified for mash distance.",
+            "red",
+        )
+        sys.exit(1)
+
+    seqids = dvs_data_store.get_seqids_from_store(seqfile)[:limit]
+    records = dvs_data_store.get_ordered_records(
+        dvs_data_store.HDF5DataStore(seqfile),
+        seqids,
+    )
+
+    arr2str_app = dvs_util.arr2str(moltype)
+
+    seqs = {}
+    for name, record in zip(seqids, records, strict=True):
+        seqs[name] = arr2str_app(record.read())  # pylint: disable=not-callable
+
+    seqs = make_unaligned_seqs(seqs, moltype=moltype)
+
+    app = dvs_cluster.dvs_par_ctree(
         k=k,
         sketch_size=sketch_size,
         moltype=moltype,
         distance_mode=distance,
         mash_canonical_kmers=canonical_kmers,
-        numprocs=numprocs,
+        max_workers=numprocs,
+        parallel=numprocs > 1,
+        show_progress=not hide_progress,
     )
-    tree = app(seqids)  # pylint: disable=not-callable
+    tree = app(seqs)  # pylint: disable=not-callable
     tree.write(outpath)
 
 

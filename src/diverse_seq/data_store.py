@@ -275,9 +275,9 @@ def get_ordered_records(
 
     Parameters
     ----------
-    seq_store : HDF5DataStore
+    seq_store
         The data store to load from.
-    seq_names : Sequence[str]
+    seq_names
         The ordered sequence names.
 
     Returns

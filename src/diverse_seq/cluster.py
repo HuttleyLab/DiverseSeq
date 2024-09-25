@@ -1,64 +1,64 @@
 """Apps and methods used to compute kmer cluster trees for sequences."""
 
-import heapq
-import math
-import pathlib
+import multiprocessing
+import warnings
 from collections.abc import Sequence
 from contextlib import nullcontext
-from typing import Literal, TypeAlias
+from typing import Literal
 
+import cogent3.app.typing as c3_types
 import numpy
 from cogent3 import PhyloNode, make_tree
-from cogent3.app.composable import define_app
-from cogent3.app.data_store import DataMember
+from cogent3.app.composable import AppType, define_app
 from loky import as_completed, get_reusable_executor
 from rich.progress import Progress
 from scipy.sparse import dok_matrix
 from sklearn.cluster import AgglomerativeClustering
 
-from diverse_seq.data_store import HDF5DataStore, get_ordered_records
-from diverse_seq.record import KmerSeq, _get_canonical_states
-from diverse_seq.records import records_from_seq_store
+from diverse_seq.distance import (
+    BottomSketch,
+    euclidean_distance,
+    euclidean_distances,
+    mash_distance,
+    mash_distances,
+    mash_sketch,
+)
+from diverse_seq.record import (
+    KmerSeq,
+    SeqArray,
+    _get_canonical_states,
+    make_kmerseq,
+    seq_to_seqarray,
+)
 
-BottomSketch: TypeAlias = list[int]
 
-
-@define_app
-class dvs_ctree:
-    """return the N most divergent sequences"""
-
+class ClusterTreeBase:
     def __init__(
         self,
         *,
-        seq_store: str | pathlib.Path,
         k: int = 16,
         sketch_size: int | None = None,
         moltype: str = "dna",
         distance_mode: Literal["mash", "euclidean"] = "mash",
         mash_canonical_kmers: bool | None = None,
-        with_progress: bool = True,
-        numprocs: int = 1,
+        show_progress: bool = False,
     ) -> None:
         """Initialise parameters for generating a kmer cluster tree.
 
         Parameters
         ----------
-        seq_store : str | pathlib.Path
-            path to sequence store
-        k : int, optional
+        k
             kmer size, by default 16
-        sketch_size : int | None, optional
+        sketch_size
             size of sketches, by default None
-        moltype : str, optional
+        moltype
             moltype, by default "dna"
-        distance_mode : Literal[&quot;mash&quot;, &quot;euclidean&quot;], optional
+        distance_mode
             mash distance or euclidean distance between kmer freqs, by default "mash"
-        mash_canonical_kmers : bool | None, optional
+        mash_canonical_kmers
             whether to use mash canonical kmers for mash distance, by default False
-        with_progress : bool, optional
-            whether to show progress bars, by default True
-        numprocs : int, optional
-            number of workers, by default 1
+        show_progress
+            whether to show progress bars, by default False
 
         Notes
         -----
@@ -75,8 +75,12 @@ class dvs_ctree:
         if mash_canonical_kmers is None:
             mash_canonical_kmers = False
 
+        if distance_mode not in ("mash", "euclidean"):
+            msg = f"Unexpected distance {distance_mode!r}."
+            raise ValueError(msg)
+
         if moltype not in ("dna", "rna") and mash_canonical_kmers:
-            msg = "Canonical kmers only supported for dna sequences."
+            msg = "Canonical kmers only supported for dna/rna sequences."
             raise ValueError(msg)
 
         if distance_mode == "mash" and sketch_size is None:
@@ -84,33 +88,242 @@ class dvs_ctree:
             raise ValueError(msg)
 
         if distance_mode != "mash" and sketch_size is not None:
-            msg = "Sketch size should only be specified for the mash distance."
-            raise ValueError(msg)
-        if numprocs < 1:
-            msg = "Expect numprocs>=1."
-            raise ValueError(msg)
+            warnings.warn(
+                'Sketch size only applies when distance is "mash".',
+                stacklevel=2,
+            )
 
-        self._seq_store = seq_store
         self._moltype = moltype
         self._k = k
         self._num_states = len(_get_canonical_states(self._moltype))
         self._sketch_size = sketch_size
         self._distance_mode = distance_mode
         self._mash_canonical = mash_canonical_kmers
-        self._clustering = AgglomerativeClustering(
-            metric="precomputed",
-            linkage="average",
-        )
-        self._progress = Progress(disable=not with_progress)
-        self._numprocs = numprocs
+        self._progress = Progress(disable=not show_progress)
 
-    def main(self, seq_names: list[str]) -> PhyloNode:
+        self._s2a = seq_to_seqarray(moltype=moltype)
+
+
+@define_app
+class dvs_ctree(ClusterTreeBase):
+    """Create a cluster tree from kmer distances."""
+
+    def __init__(
+        self,
+        *,
+        k: int = 16,
+        sketch_size: int | None = None,
+        moltype: str = "dna",
+        distance_mode: Literal["mash", "euclidean"] = "mash",
+        mash_canonical_kmers: bool | None = None,
+        show_progress: bool = False,
+    ) -> None:
+        """Initialise parameters for generating a kmer cluster tree.
+
+        Parameters
+        ----------
+        k
+            kmer size, by default 16
+        sketch_size
+            size of sketches, by default None
+        moltype
+            moltype, by default "dna"
+        distance_mode
+            mash distance or euclidean distance between kmer freqs, by default "mash"
+        mash_canonical_kmers
+            whether to use mash canonical kmers for mash distance, by default False
+        show_progress
+            whether to show progress bars, by default False
+
+        Notes
+        -----
+        If mash_canonical_kmers is enabled when using the mash distance,
+        kmers are considered identical to their reverse complement.
+
+        References
+        ----------
+        .. [1] Ondov, B. D., Treangen, T. J., Melsted, P., Mallonee, A. B.,
+           Bergman, N. H., Koren, S., & Phillippy, A. M. (2016).
+           Mash: fast genome and metagenome distance estimation using MinHash.
+           Genome biology, 17, 1-14.
+        """
+        super().__init__(
+            k=k,
+            sketch_size=sketch_size,
+            moltype=moltype,
+            distance_mode=distance_mode,
+            mash_canonical_kmers=mash_canonical_kmers,
+            show_progress=show_progress,
+        )
+
+    def main(self, seqs: c3_types.SeqsCollectionType) -> PhyloNode:
         """Construct a cluster tree for a collection of sequences.
 
         Parameters
         ----------
-        seq_names : list[str]
-            sequence names to cluster.
+        seqs
+            Sequence collection to form cluster tree for.
+
+        Returns
+        -------
+        PhyloNode
+            a cluster tree.
+        """
+        seq_names = seqs.names
+        seq_arrays = [self._s2a(seqs.get_seq(name)) for name in seq_names]  # pylint: disable=not-callable
+
+        with self._progress:
+            if self._distance_mode == "mash":
+                distances = mash_distances(
+                    seq_arrays,
+                    self._k,
+                    self._sketch_size,
+                    self._num_states,
+                    mash_canonical=self._mash_canonical,
+                    progress=self._progress,
+                )
+            elif self._distance_mode == "euclidean":
+                distances = euclidean_distances(
+                    seq_arrays,
+                    self._k,
+                    self._moltype,
+                    progress=self._progress,
+                )
+            return make_cluster_tree(seq_names, distances, progress=self._progress)
+
+
+def make_cluster_tree(
+    seq_names: Sequence[str],
+    pairwise_distances: numpy.ndarray,
+    *,
+    progress: Progress | None = None,
+) -> PhyloNode:
+    """Given pairwise distances between sequences, construct a cluster tree.
+
+    Parameters
+    ----------
+    seq_names
+        Names of sequences to cluster.
+    pairwise_distances
+        Pairwise distances between clusters.
+    progress
+        Progress bar, by default None.
+
+    Returns
+    -------
+    PhyloNode
+        The cluster tree.
+    """
+    if progress is None:
+        progress = Progress(disable=True)
+
+    clustering = AgglomerativeClustering(
+        metric="precomputed",
+        linkage="average",
+    )
+
+    tree_task = progress.add_task(
+        "[green]Computing Tree",
+        total=None,
+    )
+
+    clustering.fit(pairwise_distances)
+
+    tree_dict = {i: seq_names[i] for i in range(len(seq_names))}
+    node_index = len(seq_names)
+    for left_index, right_index in clustering.children_:
+        tree_dict[node_index] = (
+            tree_dict.pop(left_index),
+            tree_dict.pop(right_index),
+        )
+        node_index += 1
+
+    tree = make_tree(str(tree_dict[node_index - 1]))
+
+    progress.update(tree_task, completed=1, total=1)
+
+    return tree
+
+
+@define_app(app_type=AppType.NON_COMPOSABLE)
+class dvs_par_ctree(ClusterTreeBase):
+    """Create a cluster tree from kmer distances.
+
+    If numprocs>1, computations are performed in parallel.
+    """
+
+    def __init__(
+        self,
+        *,
+        k: int = 16,
+        sketch_size: int | None = None,
+        moltype: str = "dna",
+        distance_mode: Literal["mash", "euclidean"] = "mash",
+        mash_canonical_kmers: bool | None = None,
+        show_progress: bool = False,
+        max_workers: int | None = None,
+        parallel: bool = True,
+    ) -> None:
+        """Initialise parameters for generating a kmer cluster tree.
+
+        Parameters
+        ----------
+        seq_store
+            path to sequence store
+        k
+            kmer size, by default 16
+        sketch_size
+            size of sketches, by default None
+        moltype
+            moltype, by default "dna"
+        distance_mode
+            mash distance or euclidean distance between kmer freqs, by default "mash"
+        mash_canonical_kmers
+            whether to use mash canonical kmers for mash distance, by default False
+        show_progress
+            whether to show progress bars, by default False
+        numprocs
+            number of workers, by default 1
+
+        Notes
+        -----
+        If mash_canonical_kmers is enabled when using the mash distance,
+        kmers are considered identical to their reverse complement.
+
+        References
+        ----------
+        .. [1] Ondov, B. D., Treangen, T. J., Melsted, P., Mallonee, A. B.,
+           Bergman, N. H., Koren, S., & Phillippy, A. M. (2016).
+           Mash: fast genome and metagenome distance estimation using MinHash.
+           Genome biology, 17, 1-14.
+        """
+        super().__init__(
+            k=k,
+            sketch_size=sketch_size,
+            moltype=moltype,
+            distance_mode=distance_mode,
+            mash_canonical_kmers=mash_canonical_kmers,
+            show_progress=show_progress,
+        )
+
+        if parallel:
+            if max_workers is None:
+                max_workers = multiprocessing.cpu_count()
+            self._numprocs = min(max_workers, multiprocessing.cpu_count())
+        else:
+            self._numprocs = 1
+
+        self._calc_dist = (
+            self._mash_dist if distance_mode == "mash" else self._euclidean_dist
+        )
+
+    def main(self, seqs: c3_types.SeqsCollectionType) -> PhyloNode:
+        """Construct a cluster tree for a collection of sequences.
+
+        Parameters
+        ----------
+        seqs
+            Sequence collection to form cluster tree for.
 
         Returns
         -------
@@ -122,144 +335,52 @@ class dvs_ctree:
             if self._numprocs != 1
             else nullcontext()
         )
+
+        seq_names = seqs.names
+        seq_arrays = [self._s2a(seqs.get_seq(name)) for name in seq_names]  # pylint: disable=not-callable
+
         with self._progress, self._executor:
-            if self._distance_mode == "mash":
-                distances = self.mash_distances(seq_names)
-            elif self._distance_mode == "euclidean":
-                distances = self.euclidean_distances(seq_names)
-            else:
-                msg = f"Unexpected distance {self._distance_mode}."
-                raise ValueError(msg)
-            return self.make_cluster_tree(seq_names, distances)
+            distances = self._calc_dist(seq_arrays)
+            return make_cluster_tree(seq_names, distances, progress=self._progress)
 
-    def make_cluster_tree(
-        self,
-        seq_names: Sequence[str],
-        pairwise_distances: numpy.ndarray,
-    ) -> PhyloNode:
-        """Given pairwise distances between sequences, construct a cluster tree.
+    def _mash_dist(self, seq_arrays: Sequence[SeqArray]) -> numpy.ndarray:
+        """Calculates pairwise mash distances between sequences in parallel.
+
+        Uses the number of processes specified in the constructor. If one process was
+        specified runs in serial.
 
         Parameters
         ----------
-        seq_names : Sequence[str]
-            Names of sequences to cluster.
-        pairwise_distances : numpy.ndarray
-            Pairwise distances between clusters.
+        seq_arrays
+            Sequence arrays.
 
         Returns
         -------
-        PhyloNode
-            The cluster tree.
+        numpy.ndarray
+            Pairwise mash distances between sequences.
         """
-        tree_task = self._progress.add_task(
-            "[green]Computing Tree",
-            total=None,
-        )
-
-        self._clustering.fit(pairwise_distances)
-
-        tree_dict = {i: seq_names[i] for i in range(len(seq_names))}
-        node_index = len(seq_names)
-        for left_index, right_index in self._clustering.children_:
-            tree_dict[node_index] = (
-                tree_dict.pop(left_index),
-                tree_dict.pop(right_index),
+        if self._numprocs == 1:
+            return mash_distances(
+                seq_arrays,
+                self._k,
+                self._sketch_size,
+                self._num_states,
+                mash_canonical=self._mash_canonical,
+                progress=self._progress,
             )
-            node_index += 1
 
-        tree = make_tree(str(tree_dict[node_index - 1]))
-
-        self._progress.update(tree_task, completed=1, total=1)
-
-        return tree
-
-    def euclidean_distances(self, seq_names: list[str]) -> numpy.ndarray:
-        """Calculates pairwise euclidean distances between sequences.
-
-        Parameters
-        ----------
-        seq_names : list[str]
-            Names for pairwise distance calculation.
-
-        Returns
-        -------
-        numpy.ndarray
-            Pairwise euclidean distances between sequences.
-        """
-        records = records_from_seq_store(
-            seq_store=self._seq_store,
-            seq_names=seq_names,
-            limit=None,
-            k=self._k,
-        )
-        return compute_euclidean_distances(records)
-
-    def mash_distances(self, seq_names: list[str]) -> numpy.ndarray:
-        """Calculates pairwise mash distances between sequences.
-
-        Parameters
-        ----------
-        seq_names : list[str]
-            Names for pairwise distance calculation.
-
-        Returns
-        -------
-        numpy.ndarray
-            Pairwise mash distances between sequences.
-        """
-        dstore = HDF5DataStore(self._seq_store)
-        records = get_ordered_records(dstore, seq_names)
-        return self.compute_mash_distances(records)
-
-    def compute_mash_distances(self, records: list[DataMember]) -> numpy.ndarray:
-        """Calculates pairwise mash distances between sequences.
-
-        Parameters
-        ----------
-        records : list[DataMember]
-            Sequence records.
-
-        Returns
-        -------
-        numpy.ndarray
-            Pairwise mash distances between sequences.
-        """
-        sketches = self.mash_sketches(records)
+        sketches = self.mash_sketches_parallel(seq_arrays)
 
         distance_task = self._progress.add_task(
             "[green]Computing Pairwise Distances",
             total=None,
         )
 
-        distances = numpy.zeros((len(sketches), len(sketches)))
-
-        # Compute distances in serial mode
-        if self._numprocs == 1:
-            self._progress.update(
-                distance_task,
-                total=len(sketches) * (len(sketches) - 1) // 2,
-            )
-
-            for i in range(1, len(sketches)):
-                for j in range(i):
-                    distance = compute_mash_distance(
-                        sketches[i],
-                        sketches[j],
-                        self._k,
-                        self._sketch_size,
-                    )
-                    distances[i, j] = distance
-                    distances[j, i] = distance
-
-                    self._progress.update(distance_task, advance=1)
-
-            return distances
-
         # Compute distances in parallel
         num_jobs = self._numprocs
         futures = [
             self._executor.submit(
-                compute_chunk_distances,
+                compute_mash_chunk_distances,
                 start,
                 num_jobs,
                 sketches,
@@ -268,6 +389,8 @@ class dvs_ctree:
             )
             for start in range(num_jobs)
         ]
+
+        distances = numpy.zeros((len(sketches), len(sketches)))
 
         for future in futures:
             start_idx, distances_chunk = future.result()
@@ -282,13 +405,86 @@ class dvs_ctree:
 
         return distances
 
-    def mash_sketches(self, records: list[DataMember]) -> list[BottomSketch]:
-        """Create sketch representations for a collection of sequence records.
+    def _euclidean_dist(
+        self,
+        seq_arrays: Sequence[SeqArray],
+    ) -> numpy.ndarray:
+        """Calculates pairwise euclidean distances between sequences in parallel.
+
+        Uses the number of processes specified in the constructor. If one process was
+        specified runs in serial.
 
         Parameters
         ----------
-        records : list[DataMember]
-            Sequence records.
+        seq_arrays
+            Sequence arrays.
+
+        Returns
+        -------
+        numpy.ndarray
+            Pairwise euclidean distances between sequences.
+        """
+        if self._numprocs == 1:
+            return euclidean_distances(
+                seq_arrays,
+                self._k,
+                self._moltype,
+                progress=self._progress,
+            )
+
+        distance_task = self._progress.add_task(
+            "[green]Computing Pairwise Distances",
+            total=None,
+        )
+
+        kmer_seqs = [
+            make_kmerseq(
+                seq,
+                dtype=numpy.min_scalar_type(
+                    len(_get_canonical_states(self._moltype)) ** self._k,
+                ),
+                k=self._k,
+                moltype=self._moltype,
+            )
+            for seq in seq_arrays
+        ]
+
+        # Compute distances in parallel
+        num_jobs = self._numprocs
+        futures = [
+            self._executor.submit(
+                compute_euclidean_chunk_distances,
+                start,
+                num_jobs,
+                kmer_seqs,
+            )
+            for start in range(num_jobs)
+        ]
+
+        distances = numpy.zeros((len(kmer_seqs), len(kmer_seqs)))
+
+        for future in futures:
+            start_idx, distances_chunk = future.result()
+            distances[start_idx::num_jobs] = distances_chunk[
+                start_idx::num_jobs
+            ].toarray()
+
+        # Make lower triangular matrix symmetric
+        distances = distances + distances.T - numpy.diag(distances.diagonal())
+
+        self._progress.update(distance_task, completed=1, total=1)
+        return distances
+
+    def mash_sketches_parallel(
+        self,
+        seq_arrays: Sequence[SeqArray],
+    ) -> list[BottomSketch]:
+        """Create sketch representations for a collection of sequence records in parallel.
+
+        Parameters
+        ----------
+        seq_arrays
+            Sequence arrays.
 
         Returns
         -------
@@ -297,37 +493,22 @@ class dvs_ctree:
         """
         sketch_task = self._progress.add_task(
             "[green]Generating Sketches",
-            total=len(records),
+            total=len(seq_arrays),
         )
 
-        bottom_sketches = [None for _ in range(len(records))]
-
-        # Compute sketches in serial
-        if self._numprocs == 1:
-            for i, record in enumerate(records):
-                bottom_sketches[i] = mash_sketch(
-                    record,
-                    self._k,
-                    self._sketch_size,
-                    self._num_states,
-                    mash_canonical=self._mash_canonical,
-                )
-
-                self._progress.update(sketch_task, advance=1)
-
-            return bottom_sketches
+        bottom_sketches = [None for _ in range(len(seq_arrays))]
 
         # Compute sketches in parallel
         futures_to_idx = {
             self._executor.submit(
                 mash_sketch,
-                record,
+                seq_array.data,
                 self._k,
                 self._sketch_size,
                 self._num_states,
                 mash_canonical=self._mash_canonical,
             ): i
-            for i, record in enumerate(records)
+            for i, seq_array in enumerate(seq_arrays)
         }
 
         for future in as_completed(list(futures_to_idx)):
@@ -339,7 +520,7 @@ class dvs_ctree:
         return bottom_sketches
 
 
-def compute_chunk_distances(
+def compute_mash_chunk_distances(
     start_idx: int,
     stride: int,
     sketches: list[BottomSketch],
@@ -355,15 +536,15 @@ def compute_chunk_distances(
 
     Parameters
     ----------
-    start_idx : int
+    start_idx
         Start index for distance calculation.
-    stride : int
+    stride
         Index increment.
-    sketches : list[BottomSketch]
+    sketches
         Sketches for pairwise distances.
-    k : int
+    k
         kmer size.
-    sketch_size : int
+    sketch_size
         Size of the sketches.
 
     Returns
@@ -374,220 +555,42 @@ def compute_chunk_distances(
     distances_chunk = dok_matrix((len(sketches), len(sketches)))
     for i in range(start_idx, len(sketches), stride):
         for j in range(i):
-            distance = compute_mash_distance(sketches[i], sketches[j], k, sketch_size)
+            distance = mash_distance(sketches[i], sketches[j], k, sketch_size)
             distances_chunk[i, j] = distance
     return start_idx, distances_chunk
 
 
-def mash_sketch(
-    record: DataMember,
-    k: int,
-    sketch_size: int,
-    num_states: int,
-    *,
-    mash_canonical: bool,
-) -> BottomSketch:
-    """Find the mash sketch for a sequence record.
+def compute_euclidean_chunk_distances(
+    start_idx: int,
+    stride: int,
+    kmer_seqs: list[KmerSeq],
+) -> tuple[int, dok_matrix]:
+    """Find a subset of pairwise distances between sketches.
+
+    Finds pairwise distances for the row with the given start index
+    and each stride after that.
+
+    Only finds lower triangular portion.
 
     Parameters
     ----------
-    record : DataMember
-        The sequence record to find the sketch for.
-    k : int
-        kmer size.
-    sketch_size : int
-        Size of the sketch.
-    num_states : int
-        Number of possible states (e.g. GCAT gives 4 for DNA).
-    mash_canonical : bool
-        Whether to use the mash canonical representation of kmers.
+    start_idx
+        Start index for distance calculation.
+    stride
+        Index increment.
+    kmer_seqs
+        kmer sequences.
 
     Returns
     -------
-    BottomSketch
-        The bottom sketch for the given sequence record.
+    tuple[int, dok_matrix]
+        The start index, and the calculated pairwise distances.
     """
-    seq = record.read()
-    kmer_hashes = {
-        hash_kmer(kmer, mash_canonical=mash_canonical)
-        for kmer in get_kmers(seq, k, num_states)
-    }
-    heap = []
-    for kmer_hash in kmer_hashes:
-        if len(heap) < sketch_size:
-            heapq.heappush(heap, -kmer_hash)
-        else:
-            heapq.heappushpop(heap, -kmer_hash)
-    return sorted(-kmer_hash for kmer_hash in heap)
-
-
-def compute_mash_distance(
-    left_sketch: BottomSketch,
-    right_sketch: BottomSketch,
-    k: int,
-    sketch_size: int,
-) -> float:
-    """Compute the mash distance between two sketches.
-
-    Parameters
-    ----------
-    left_sketch : BottomSketch
-        A sketch for comparison.
-    right_sketch : BottomSketch
-        A sketch for comparison.
-    k : int
-        kmer size.
-    sketch_size : int
-        Size of the sketches.
-
-    Returns
-    -------
-    float
-        The mash distance between two sketches.
-    """
-    # Following the source code implementation
-    intersection_size = 0
-    union_size = 0
-
-    left_index = 0
-    right_index = 0
-    while (
-        union_size < sketch_size
-        and left_index < len(left_sketch)
-        and right_index < len(right_sketch)
-    ):
-        left, right = left_sketch[left_index], right_sketch[right_index]
-        if left < right:
-            left_index += 1
-        elif right < left:
-            right_index += 1
-        else:
-            left_index += 1
-            right_index += 1
-            intersection_size += 1
-        union_size += 1
-
-    if union_size < sketch_size:
-        if left_index < len(left_sketch):
-            union_size += len(left_sketch) - left_index
-        if right_index < len(right_sketch):
-            union_size += len(right_sketch) - right_index
-        union_size = min(union_size, sketch_size)
-
-    jaccard = intersection_size / union_size
-    if intersection_size == union_size:
-        return 0.0
-    if intersection_size == 0:
-        return 1.0
-    distance = -math.log(2 * jaccard / (1.0 + jaccard)) / k
-    if distance > 1:
-        distance = 1.0
-    return distance
-
-
-def get_kmers(
-    seq: numpy.ndarray,
-    k: int,
-    num_states: int,
-) -> list[numpy.ndarray]:
-    """Get the kmers comprising a sequence.
-
-    Parameters
-    ----------
-    seq : numpy.ndarray
-        A sequence.
-    k : int
-        kmer size.
-    num_states : int
-        Number of states allowed for sequence type.
-
-    Returns
-    -------
-    list[numpy.ndarray]
-        kmers for the sequence.
-    """
-    kmers = []
-    skip_until = 0
-    for i in range(k):
-        if seq[i] >= num_states:
-            skip_until = i + 1
-
-    for i in range(len(seq) - k + 1):
-        if seq[i + k - 1] >= num_states:
-            skip_until = i + k
-
-        if i < skip_until:
-            continue
-        kmers.append(seq[i : i + k])
-    return kmers
-
-
-def hash_kmer(kmer: numpy.ndarray, *, mash_canonical: bool) -> int:
-    """Hash a kmer, optionally use the mash canonical representaiton.
-
-    Parameters
-    ----------
-    kmer : numpy.ndarray
-        The kmer to hash.
-    canonical : bool
-        Whether to use the mash canonical representation for a kmer.
-
-    Returns
-    -------
-    int
-        The has of a kmer.
-    """
-    tuple_kmer = tuple(map(int, kmer))
-    if mash_canonical:
-        reverse = tuple(map(int, reverse_complement(kmer)))
-        tuple_kmer = min(reverse, tuple_kmer)
-
-    return hash(tuple_kmer)
-
-
-def reverse_complement(kmer: numpy.ndarray) -> numpy.ndarray:
-    """Take the reverse complement of a kmer.
-
-    Assumes cogent3 DNA/RNA sequences (numerical
-    representation for complement offset by 2
-    from original).
-
-    Parameters
-    ----------
-    kmer : numpy.ndarray
-        The kmer to attain the reverse complement of
-
-    Returns
-    -------
-    numpy.ndarray
-        The reverse complement of a kmer.
-    """
-    # 0123 TCAG
-    # 3->1, 1->3, 2->0, 0->2
-    return ((kmer + 2) % 4)[::-1]
-
-
-def compute_euclidean_distances(records: list[KmerSeq]) -> numpy.ndarray:
-    """Compute pairwise euclidean distances between kmer frequencies of sequences.
-
-    Parameters
-    ----------
-    records : list[KmerSeq]
-        kmer sequences to calculate distances between.
-
-    Returns
-    -------
-    numpy.ndarray
-        Pairwise euclidean distances.
-    """
-    distances = numpy.zeros((len(records), len(records)))
-
-    for i, record_i in enumerate(records):
-        freq_i = numpy.array(record_i.kfreqs)
-        for j in range(i + 1, len(records)):
-            freq_j = numpy.array(records[j].kfreqs)
-            distance = numpy.sqrt(((freq_i - freq_j) ** 2).sum())
-            distances[i, j] = distance
-            distances[j, i] = distance
-
-    return distances
+    distances_chunk = dok_matrix((len(kmer_seqs), len(kmer_seqs)))
+    for i in range(start_idx, len(kmer_seqs), stride):
+        freq_i = numpy.array(kmer_seqs[i].kfreqs)
+        for j in range(i):
+            freq_j = numpy.array(kmer_seqs[j].kfreqs)
+            distance = euclidean_distance(freq_i, freq_j)
+            distances_chunk[i, j] = distance
+    return start_idx, distances_chunk
