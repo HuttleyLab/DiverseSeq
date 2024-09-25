@@ -88,7 +88,7 @@ class ClusterTreeBase:
 
         if distance_mode != "mash" and sketch_size is not None:
             warnings.warn(
-                "Sketch size should only be specified for the mash distance. It currently has no effect",
+                'Sketch size only applies when distance is "mash".',
                 stacklevel=2,
             )
 
