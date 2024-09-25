@@ -10,7 +10,12 @@ from diverse_seq.cli import ctree as dvs_ctree
 from diverse_seq.cli import max as dvs_max
 from diverse_seq.cli import nmost as dvs_nmost
 from diverse_seq.cli import prep as dvs_prep
-from diverse_seq.data_store import HDF5DataStore
+from diverse_seq.data_store import (
+    _LOG_TABLE,
+    _MD5_TABLE,
+    _NOT_COMPLETED_TABLE,
+    HDF5DataStore,
+)
 
 __author__ = "Gavin Huttley"
 __credits__ = ["Gavin Huttley"]
@@ -32,11 +37,6 @@ def tmp_path(tmp_path_factory):
 def runner():
     """exportrc works correctly."""
     return CliRunner()
-
-
-@pytest.fixture(scope="session")
-def seq_path():
-    return DATADIR / "brca1.fasta"
 
 
 @pytest.fixture(scope="function")
@@ -228,29 +228,34 @@ def test_prep_source_from_directory(runner, tmp_dir, seq_dir):
     r = runner.invoke(dvs_prep, args)
     assert r.exit_code == 0, r.output
     with h5py.File(outpath, mode="r") as f:
-        for name, dset in f.items():
-            if name == "md5":
-                continue
-            assert dset.attrs["source"] == str(seq_dir)
+        sources = {
+            dset.attrs["source"]
+            for name, dset in f.items()
+            if name not in (_LOG_TABLE, _MD5_TABLE, _NOT_COMPLETED_TABLE)
+        }
+
+    assert sources == {str(seq_dir)}
 
 
 @pytest.mark.parametrize(
     ("distance", "k", "sketch_size"),
     [("mash", 16, 400), ("euclidean", 5, None)],
 )
-@pytest.mark.parametrize("numprocs", [1, 4])
-def test_ctree_mash(
+@pytest.mark.parametrize("max_workers", [1, 4])
+def test_ctree(
     runner,
     tmp_dir,
     processed_seq_path,
     distance,
     k,
     sketch_size,
-    numprocs,
+    max_workers,
 ):
     outpath = tmp_dir / "out.tre"
 
-    args = f"-s {processed_seq_path} -o {outpath} -d {distance} -k {k} -np {numprocs}"
+    args = (
+        f"-s {processed_seq_path} -o {outpath} -d {distance} -k {k} -np {max_workers}"
+    )
     if sketch_size is not None:
         args += f" --sketch-size {sketch_size}"
     args = args.split()

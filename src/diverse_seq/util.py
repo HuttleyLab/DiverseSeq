@@ -42,7 +42,7 @@ class str2arr:
             data = data[: self.max_length]
 
         b = data.encode("utf8").translate(self.translation)
-        return numpy.array(memoryview(bytearray(b)), dtype=numpy.uint8)
+        return numpy.frombuffer(bytearray(b), dtype=numpy.uint8)
 
 
 @composable.define_app
