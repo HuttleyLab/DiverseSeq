@@ -2,6 +2,8 @@ import nox
 
 _py_versions = range(10, 13)
 
+nox.options.sessions = ["test", "testcov"]
+
 
 @nox.session(python=[f"3.{v}" for v in _py_versions])
 def test(session):
@@ -24,4 +26,15 @@ def testcov(session):
         "html",
         "--cov",
         "diverse_seq",
+    )
+
+
+@nox.session(python=[f"3.{v}" for v in _py_versions])
+def test_coveralls(session):
+    session.install("-e.[test]")
+    session.chdir("tests")
+    session.run(
+        "pytest",
+        "-x",
+        *session.posargs,  # propagates sys.argv to pytest
     )
