@@ -296,11 +296,11 @@ def max(
         verbose=verbose,
     )
     # turn off pylint check, since the function is made into a class
-    finalise = dvs_records.select_final_max(
+    finalise = dvs_records.select_final_max(  # pylint: disable=no-value-for-parameter
         stat=stat,
         min_size=min_size,
         verbose=verbose,
-    )  # pylint: disable=no-value-for-parameter
+    )
     result = dvs_records.apply_app(
         app=app,
         seqids=seqids,
