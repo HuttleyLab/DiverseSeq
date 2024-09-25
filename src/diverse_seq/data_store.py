@@ -161,7 +161,6 @@ class HDF5DataStore(DataStoreABC):
         with self._hf5_file as f:
             path = f"{subdir}/{unique_id}" if subdir else unique_id
             dset = f.create_dataset(path, data=data, dtype="u1", **_HDF5_BLOSC2_KWARGS)
-            del data
 
             if subdir == _NOT_COMPLETED_TABLE:
                 member = DataMember(
@@ -180,6 +179,7 @@ class HDF5DataStore(DataStoreABC):
                 data=md5,
                 dtype=_H5_STRING_DTYPE,
             )
+            del data
 
         return member
 
