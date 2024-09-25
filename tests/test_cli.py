@@ -233,7 +233,7 @@ def test_prep_source_from_directory(runner, tmp_dir, seq_dir):
     ("distance", "k", "sketch_size"),
     [("mash", 16, 400), ("euclidean", 5, None)],
 )
-@pytest.mark.parametrize("numprocs", [1, 4])
+@pytest.mark.parametrize("max_workers", [1, 4])
 def test_ctree(
     runner,
     tmp_dir,
@@ -241,11 +241,13 @@ def test_ctree(
     distance,
     k,
     sketch_size,
-    numprocs,
+    max_workers,
 ):
     outpath = tmp_dir / "out.tre"
 
-    args = f"-s {processed_seq_path} -o {outpath} -d {distance} -k {k} -np {numprocs}"
+    args = (
+        f"-s {processed_seq_path} -o {outpath} -d {distance} -k {k} -np {max_workers}"
+    )
     if sketch_size is not None:
         args += f" --sketch-size {sketch_size}"
     args = args.split()

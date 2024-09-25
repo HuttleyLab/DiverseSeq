@@ -1,5 +1,6 @@
 """Apps and methods used to compute kmer cluster trees for sequences."""
 
+import multiprocessing
 import warnings
 from collections.abc import Sequence
 from contextlib import nullcontext
@@ -260,7 +261,8 @@ class dvs_par_ctree(ClusterTreeBase):
         distance_mode: Literal["mash", "euclidean"] = "mash",
         mash_canonical_kmers: bool | None = None,
         show_progress: bool = False,
-        numprocs: int = 1,
+        max_workers: int | None = None,
+        parallel: bool = True,
     ) -> None:
         """Initialise parameters for generating a kmer cluster tree.
 
@@ -304,7 +306,13 @@ class dvs_par_ctree(ClusterTreeBase):
             show_progress=show_progress,
         )
 
-        self._numprocs = numprocs
+        if parallel:
+            if max_workers is None:
+                max_workers = multiprocessing.cpu_count()
+            self._numprocs = min(max_workers, multiprocessing.cpu_count())
+        else:
+            self._numprocs = 1
+
         self._calc_dist = (
             self._mash_dist if distance_mode == "mash" else self._euclidean_dist
         )

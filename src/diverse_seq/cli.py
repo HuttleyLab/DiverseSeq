@@ -498,7 +498,8 @@ def ctree(
         moltype=moltype,
         distance_mode=distance,
         mash_canonical_kmers=canonical_kmers,
-        numprocs=numprocs,
+        max_workers=numprocs,
+        parallel=numprocs > 1,
         show_progress=not hide_progress,
     )
     tree = app(seqs)  # pylint: disable=not-callable

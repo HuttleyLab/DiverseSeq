@@ -30,28 +30,30 @@ def test_ctree_euclidean(unaligned_seqs: SequenceCollection) -> None:
     check_ctree_app(app, unaligned_seqs)
 
 
-@pytest.mark.parametrize("numprocs", [1, 4])
+@pytest.mark.parametrize("max_workers", [1, 4])
 def test_ctree_mash_parallel(
     unaligned_seqs: SequenceCollection,
-    numprocs: int,
+    max_workers: int,
 ) -> None:
     app = dvs_par_ctree(
         k=16,
         sketch_size=400,
-        numprocs=numprocs,
+        max_workers=max_workers,
+        parallel=True,
         distance_mode="mash",
     )
     check_ctree_app(app, unaligned_seqs)
 
 
-@pytest.mark.parametrize("numprocs", [1, 4])
+@pytest.mark.parametrize("max_workers", [1, 4])
 def test_ctree_euclidean_parallel(
     unaligned_seqs: SequenceCollection,
-    numprocs: int,
+    max_workers: int,
 ) -> None:
     app = dvs_par_ctree(
         k=5,
-        numprocs=numprocs,
+        max_workers=max_workers,
+        parallel=True,
         distance_mode="euclidean",
     )
     check_ctree_app(app, unaligned_seqs)
