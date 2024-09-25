@@ -69,7 +69,7 @@ class dvs_dist:
             mash_canonical_kmers = False
 
         if distance_mode not in ("mash", "euclidean"):
-            msg = f"Unexpected distance {distance_mode}."
+            msg = f"Unexpected distance {distance_mode!r}."
             raise ValueError(msg)
 
         if moltype not in ("dna", "rna") and mash_canonical_kmers:
