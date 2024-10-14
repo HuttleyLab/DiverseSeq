@@ -4,6 +4,7 @@ from collections.abc import Sequence
 from typing import Literal, TypeAlias
 
 import cogent3.app.typing as c3_types
+import numba
 import numpy as np
 from cogent3.app.composable import define_app
 from cogent3.evolve.fast_distance import DistanceMatrix
@@ -287,11 +288,13 @@ def mash_sketch(
     BottomSketch
         The bottom sketch for the given sequence seq_array.
     """
-    kmer_hashes = get_kmer_hashes(
-        seq_array,
-        k,
-        num_states,
-        mash_canonical=mash_canonical,
+    kmer_hashes = set(
+        get_kmer_hashes(
+            seq_array,
+            k,
+            num_states,
+            mash_canonical=mash_canonical,
+        ),
     )
 
     heap = []
@@ -303,13 +306,14 @@ def mash_sketch(
     return sorted(-kmer_hash for kmer_hash in heap)
 
 
+@numba.njit
 def get_kmer_hashes(
     seq: np.ndarray,
     k: int,
     num_states: int,
     *,
     mash_canonical: bool,
-) -> set[int]:
+) -> list[int]:
     """Get the kmer hashes comprising a sequence.
 
     Parameters
@@ -328,7 +332,9 @@ def get_kmer_hashes(
     set[int]
         kmer hashes for the sequence.
     """
-    kmer_hashes = set()
+    kmer_hashes = [0]
+    kmer_hashes.pop()  # numba requires list to be pre-populated to infer type
+
     skip_until = 0
     for i in range(k):
         if seq[i] >= num_states:
@@ -340,11 +346,52 @@ def get_kmer_hashes(
 
         if i < skip_until:
             continue
-        kmer_hashes.add(hash_kmer(seq[i : i + k], mash_canonical=mash_canonical))
+        kmer_hashes.append(hash_kmer(seq[i : i + k], mash_canonical))
     return kmer_hashes
 
 
-def hash_kmer(kmer: np.ndarray, *, mash_canonical: bool) -> int:
+@numba.njit
+def murmurhash3_32(data: np.ndarray, seed: int = 0x9747B28C) -> int:
+    """MurmurHash3 32-bit implementation for an array of integers.
+
+    Parameters
+    ----------
+    data : np.ndarray
+        The input array to hash.
+    seed : int
+        A seed for the hash function.
+
+    Returns
+    -------
+    int
+        The computed hash value.
+    """
+    length = data.size
+    h = seed ^ length
+
+    for i in range(length):
+        k = data[i]
+
+        # Mix the hash
+        k *= 0xCC9E2D51
+        k = (k << 15) | (k >> (32 - 15))  # Rotate left
+        k *= 0x1B873593
+
+        h ^= k
+        h = (h << 13) | (h >> (32 - 13))  # Rotate left
+        h = h * 5 + 0xE6546B64
+
+    h ^= h >> 16
+    h *= 0x85EBCA6B
+    h ^= h >> 13
+    h *= 0xC2B2AE35
+    h ^= h >> 16
+
+    return h & 0xFFFFFFFF  # Return as 32-bit integer
+
+
+@numba.njit
+def hash_kmer(kmer: np.ndarray, mash_canonical: bool) -> int:
     """Hash a kmer, optionally use the mash canonical representaiton.
 
     Parameters
@@ -358,15 +405,25 @@ def hash_kmer(kmer: np.ndarray, *, mash_canonical: bool) -> int:
     -------
     int
         The has of a kmer.
+
+    Notes
+    -----
+    Uses MurmurHash3 32-bit implementation.
     """
-    tuple_kmer = tuple(map(int, kmer))
+    smallest = kmer
     if mash_canonical:
-        reverse = tuple(map(int, reverse_complement(kmer)))
-        tuple_kmer = min(reverse, tuple_kmer)
+        reverse = reverse_complement(kmer)
+        for i in range(kmer.size):
+            if kmer[i] < reverse[i]:
+                break
+            if kmer[i] > reverse[i]:
+                smallest = reverse
+                break
 
-    return hash(tuple_kmer)
+    return murmurhash3_32(smallest)
 
 
+@numba.njit
 def reverse_complement(kmer: np.ndarray) -> np.ndarray:
     """Take the reverse complement of a kmer.
 
