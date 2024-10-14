@@ -287,10 +287,13 @@ def mash_sketch(
     BottomSketch
         The bottom sketch for the given sequence seq_array.
     """
-    kmer_hashes = {
-        hash_kmer(kmer, mash_canonical=mash_canonical)
-        for kmer in get_kmers(seq_array, k, num_states)
-    }
+    kmer_hashes = get_kmer_hashes(
+        seq_array,
+        k,
+        num_states,
+        mash_canonical=mash_canonical,
+    )
+
     heap = []
     for kmer_hash in kmer_hashes:
         if len(heap) < sketch_size:
@@ -300,12 +303,14 @@ def mash_sketch(
     return sorted(-kmer_hash for kmer_hash in heap)
 
 
-def get_kmers(
+def get_kmer_hashes(
     seq: np.ndarray,
     k: int,
     num_states: int,
-) -> list[np.ndarray]:
-    """Get the kmers comprising a sequence.
+    *,
+    mash_canonical: bool,
+) -> set[int]:
+    """Get the kmer hashes comprising a sequence.
 
     Parameters
     ----------
@@ -315,13 +320,15 @@ def get_kmers(
         kmer size.
     num_states
         Number of states allowed for sequence type.
+    mash_canonical
+        Whether to use the mash canonical representation of kmers.
 
     Returns
     -------
-    list[numpy.ndarray]
-        kmers for the sequence.
+    set[int]
+        kmer hashes for the sequence.
     """
-    kmers = []
+    kmer_hashes = set()
     skip_until = 0
     for i in range(k):
         if seq[i] >= num_states:
@@ -333,8 +340,8 @@ def get_kmers(
 
         if i < skip_until:
             continue
-        kmers.append(seq[i : i + k])
-    return kmers
+        kmer_hashes.add(hash_kmer(seq[i : i + k], mash_canonical=mash_canonical))
+    return kmer_hashes
 
 
 def hash_kmer(kmer: np.ndarray, *, mash_canonical: bool) -> int:
