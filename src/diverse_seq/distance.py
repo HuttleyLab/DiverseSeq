@@ -332,6 +332,8 @@ def get_kmer_hashes(
     set[int]
         kmer hashes for the sequence.
     """
+    seq = seq.astype(np.int64)
+
     kmer_hashes = [0]
     kmer_hashes.pop()  # numba requires list to be pre-populated to infer type
 
