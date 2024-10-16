@@ -448,7 +448,6 @@ def reverse_complement(kmer: np.ndarray) -> np.ndarray:
     return ((kmer + 2) % 4)[::-1]
 
 
-@numba.njit
 def mash_distance(
     left_sketch: BottomSketch,
     right_sketch: BottomSketch,
@@ -568,6 +567,5 @@ def euclidean_distances(
     return distances
 
 
-@numba.njit
 def euclidean_distance(freq_1: np.ndarray, freq_2: np.ndarray) -> np.ndarray:
     return np.linalg.norm(freq_1 - freq_2)
