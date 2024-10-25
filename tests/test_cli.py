@@ -10,7 +10,12 @@ from diverse_seq.cli import ctree as dvs_ctree
 from diverse_seq.cli import max as dvs_max
 from diverse_seq.cli import nmost as dvs_nmost
 from diverse_seq.cli import prep as dvs_prep
-from diverse_seq.data_store import HDF5DataStore
+from diverse_seq.data_store import (
+    _LOG_TABLE,
+    _MD5_TABLE,
+    _NOT_COMPLETED_TABLE,
+    HDF5DataStore,
+)
 
 __author__ = "Gavin Huttley"
 __credits__ = ["Gavin Huttley"]
@@ -223,10 +228,13 @@ def test_prep_source_from_directory(runner, tmp_dir, seq_dir):
     r = runner.invoke(dvs_prep, args)
     assert r.exit_code == 0, r.output
     with h5py.File(outpath, mode="r") as f:
-        for name, dset in f.items():
-            if name == "md5":
-                continue
-            assert dset.attrs["source"] == str(seq_dir)
+        sources = {
+            dset.attrs["source"]
+            for name, dset in f.items()
+            if name not in (_LOG_TABLE, _MD5_TABLE, _NOT_COMPLETED_TABLE)
+        }
+
+    assert sources == {str(seq_dir)}
 
 
 @pytest.mark.parametrize(

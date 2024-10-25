@@ -682,6 +682,7 @@ class dvs_max:
         self._include = [include] if isinstance(include, str) else include
 
     def main(self, seqs: c3_types.SeqsCollectionType) -> c3_types.SeqsCollectionType:
+        seqs = seqs.degap()
         records = [self._s2k(seqs.get_seq(name)) for name in seqs.names]
         self._rng.shuffle(records)
         for record in records:
@@ -740,6 +741,7 @@ class dvs_nmost:
         self._include = [include] if isinstance(include, str) else include
 
     def main(self, seqs: c3_types.SeqsCollectionType) -> c3_types.SeqsCollectionType:
+        seqs = seqs.degap()
         records = [self._s2k(seqs.get_seq(name)) for name in seqs.names]
         self._rng.shuffle(records)
         result = most_divergent(

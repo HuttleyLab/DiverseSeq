@@ -1,7 +1,6 @@
 """Apps and methods used to compute kmer cluster trees for sequences."""
 
 import multiprocessing
-import warnings
 from collections.abc import Sequence
 from contextlib import nullcontext
 from typing import Literal
@@ -48,17 +47,17 @@ class ClusterTreeBase:
         Parameters
         ----------
         k
-            kmer size, by default 16
+            kmer size
         sketch_size
-            size of sketches, by default None
+            size of sketches
         moltype
-            moltype, by default "dna"
+            seq collection molecular type
         distance_mode
-            mash distance or euclidean distance between kmer freqs, by default "mash"
+            mash distance or euclidean distance between kmer freqs
         mash_canonical_kmers
-            whether to use mash canonical kmers for mash distance, by default False
+            whether to use mash canonical kmers for mash distance
         show_progress
-            whether to show progress bars, by default False
+            whether to show progress bars
 
         Notes
         -----
@@ -87,12 +86,6 @@ class ClusterTreeBase:
             msg = "Expected sketch size for mash distance measure."
             raise ValueError(msg)
 
-        if distance_mode != "mash" and sketch_size is not None:
-            warnings.warn(
-                'Sketch size only applies when distance is "mash".',
-                stacklevel=2,
-            )
-
         self._moltype = moltype
         self._k = k
         self._num_states = len(_get_canonical_states(self._moltype))
@@ -111,8 +104,8 @@ class dvs_ctree(ClusterTreeBase):
     def __init__(
         self,
         *,
-        k: int = 16,
-        sketch_size: int | None = None,
+        k: int = 12,
+        sketch_size: int | None = 3_000,
         moltype: str = "dna",
         distance_mode: Literal["mash", "euclidean"] = "mash",
         mash_canonical_kmers: bool | None = None,
@@ -123,17 +116,17 @@ class dvs_ctree(ClusterTreeBase):
         Parameters
         ----------
         k
-            kmer size, by default 16
+            kmer size
         sketch_size
-            size of sketches, by default None
+            size of sketches, only applies to mash distance
         moltype
-            moltype, by default "dna"
+            seq collection molecular type
         distance_mode
-            mash distance or euclidean distance between kmer freqs, by default "mash"
+            mash distance or euclidean distance between kmer freqs
         mash_canonical_kmers
-            whether to use mash canonical kmers for mash distance, by default False
+            whether to use mash canonical kmers for mash distance
         show_progress
-            whether to show progress bars, by default False
+            whether to show progress bars
 
         Notes
         -----
@@ -169,6 +162,7 @@ class dvs_ctree(ClusterTreeBase):
         PhyloNode
             a cluster tree.
         """
+        seqs = seqs.degap()
         seq_names = seqs.names
         seq_arrays = [self._s2a(seqs.get_seq(name)) for name in seq_names]  # pylint: disable=not-callable
 
@@ -247,16 +241,13 @@ def make_cluster_tree(
 
 @define_app(app_type=AppType.NON_COMPOSABLE)
 class dvs_par_ctree(ClusterTreeBase):
-    """Create a cluster tree from kmer distances.
-
-    If numprocs>1, computations are performed in parallel.
-    """
+    """Create a cluster tree from kmer distances in parallel."""
 
     def __init__(
         self,
         *,
-        k: int = 16,
-        sketch_size: int | None = None,
+        k: int = 12,
+        sketch_size: int | None = 3000,
         moltype: str = "dna",
         distance_mode: Literal["mash", "euclidean"] = "mash",
         mash_canonical_kmers: bool | None = None,
@@ -268,25 +259,26 @@ class dvs_par_ctree(ClusterTreeBase):
 
         Parameters
         ----------
-        seq_store
-            path to sequence store
         k
-            kmer size, by default 16
+            kmer size
         sketch_size
-            size of sketches, by default None
+            size of sketches, only applies to mash distance
         moltype
-            moltype, by default "dna"
+            seq collection molecular type
         distance_mode
-            mash distance or euclidean distance between kmer freqs, by default "mash"
+            mash distance or euclidean distance between kmer freqs
         mash_canonical_kmers
-            whether to use mash canonical kmers for mash distance, by default False
+            whether to use mash canonical kmers for mash distance
         show_progress
-            whether to show progress bars, by default False
+            whether to show progress bars
         numprocs
-            number of workers, by default 1
+            number of workers, defaults to running serial
 
         Notes
         -----
+        This is app is not composable but can run in parallel. It is
+        best suited to a single large sequence collection.
+
         If mash_canonical_kmers is enabled when using the mash distance,
         kmers are considered identical to their reverse complement.
 
@@ -330,6 +322,7 @@ class dvs_par_ctree(ClusterTreeBase):
         PhyloNode
             a cluster tree.
         """
+        seqs = seqs.degap()
         self._executor = (
             get_reusable_executor(max_workers=self._numprocs)
             if self._numprocs != 1

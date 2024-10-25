@@ -16,7 +16,7 @@ dependencies = [
     "click",
     "cogent3",
     "hdf5plugin",
-    "h5py",
+    "h5py!=3.12.0",
     "loky",
     "numpy",
     "rich",
