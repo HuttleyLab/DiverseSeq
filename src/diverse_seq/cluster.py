@@ -169,6 +169,7 @@ class dvs_ctree(ClusterTreeBase):
         PhyloNode
             a cluster tree.
         """
+        seqs = seqs.degap()
         seq_names = seqs.names
         seq_arrays = [self._s2a(seqs.get_seq(name)) for name in seq_names]  # pylint: disable=not-callable
 
@@ -330,6 +331,7 @@ class dvs_par_ctree(ClusterTreeBase):
         PhyloNode
             a cluster tree.
         """
+        seqs = seqs.degap()
         self._executor = (
             get_reusable_executor(max_workers=self._numprocs)
             if self._numprocs != 1
