@@ -48,17 +48,17 @@ class ClusterTreeBase:
         Parameters
         ----------
         k
-            kmer size, by default 16
+            kmer size
         sketch_size
-            size of sketches, by default None
+            size of sketches
         moltype
-            moltype, by default "dna"
+            seq collection molecular type
         distance_mode
-            mash distance or euclidean distance between kmer freqs, by default "mash"
+            mash distance or euclidean distance between kmer freqs
         mash_canonical_kmers
-            whether to use mash canonical kmers for mash distance, by default False
+            whether to use mash canonical kmers for mash distance
         show_progress
-            whether to show progress bars, by default False
+            whether to show progress bars
 
         Notes
         -----
@@ -123,17 +123,17 @@ class dvs_ctree(ClusterTreeBase):
         Parameters
         ----------
         k
-            kmer size, by default 16
+            kmer size
         sketch_size
-            size of sketches, by default None
+            size of sketches, only applies to mash distance
         moltype
-            moltype, by default "dna"
+            seq collection molecular type
         distance_mode
-            mash distance or euclidean distance between kmer freqs, by default "mash"
+            mash distance or euclidean distance between kmer freqs
         mash_canonical_kmers
-            whether to use mash canonical kmers for mash distance, by default False
+            whether to use mash canonical kmers for mash distance
         show_progress
-            whether to show progress bars, by default False
+            whether to show progress bars
 
         Notes
         -----
@@ -272,19 +272,19 @@ class dvs_par_ctree(ClusterTreeBase):
         seq_store
             path to sequence store
         k
-            kmer size, by default 16
+            kmer size
         sketch_size
-            size of sketches, by default None
+            size of sketches, only applies to mash distance
         moltype
-            moltype, by default "dna"
+            seq collection molecular type
         distance_mode
-            mash distance or euclidean distance between kmer freqs, by default "mash"
+            mash distance or euclidean distance between kmer freqs
         mash_canonical_kmers
-            whether to use mash canonical kmers for mash distance, by default False
+            whether to use mash canonical kmers for mash distance
         show_progress
-            whether to show progress bars, by default False
+            whether to show progress bars
         numprocs
-            number of workers, by default 1
+            number of workers, defaults to running serial
 
         Notes
         -----
