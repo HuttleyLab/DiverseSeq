@@ -1,7 +1,6 @@
 """Apps and methods used to compute kmer cluster trees for sequences."""
 
 import multiprocessing
-import warnings
 from collections.abc import Sequence
 from contextlib import nullcontext
 from typing import Literal
@@ -87,12 +86,6 @@ class ClusterTreeBase:
             msg = "Expected sketch size for mash distance measure."
             raise ValueError(msg)
 
-        if distance_mode != "mash" and sketch_size is not None:
-            warnings.warn(
-                'Sketch size only applies when distance is "mash".',
-                stacklevel=2,
-            )
-
         self._moltype = moltype
         self._k = k
         self._num_states = len(_get_canonical_states(self._moltype))
@@ -111,8 +104,8 @@ class dvs_ctree(ClusterTreeBase):
     def __init__(
         self,
         *,
-        k: int = 16,
-        sketch_size: int | None = None,
+        k: int = 12,
+        sketch_size: int | None = 3_000,
         moltype: str = "dna",
         distance_mode: Literal["mash", "euclidean"] = "mash",
         mash_canonical_kmers: bool | None = None,
@@ -256,8 +249,8 @@ class dvs_par_ctree(ClusterTreeBase):
     def __init__(
         self,
         *,
-        k: int = 16,
-        sketch_size: int | None = None,
+        k: int = 12,
+        sketch_size: int | None = 3000,
         moltype: str = "dna",
         distance_mode: Literal["mash", "euclidean"] = "mash",
         mash_canonical_kmers: bool | None = None,
