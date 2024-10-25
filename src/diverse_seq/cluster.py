@@ -241,10 +241,7 @@ def make_cluster_tree(
 
 @define_app(app_type=AppType.NON_COMPOSABLE)
 class dvs_par_ctree(ClusterTreeBase):
-    """Create a cluster tree from kmer distances.
-
-    If numprocs>1, computations are performed in parallel.
-    """
+    """Create a cluster tree from kmer distances in parallel."""
 
     def __init__(
         self,
@@ -262,8 +259,6 @@ class dvs_par_ctree(ClusterTreeBase):
 
         Parameters
         ----------
-        seq_store
-            path to sequence store
         k
             kmer size
         sketch_size
@@ -281,6 +276,9 @@ class dvs_par_ctree(ClusterTreeBase):
 
         Notes
         -----
+        This is app is not composable but can run in parallel. It is
+        best suited to a single large sequence collection.
+
         If mash_canonical_kmers is enabled when using the mash distance,
         kmers are considered identical to their reverse complement.
 
