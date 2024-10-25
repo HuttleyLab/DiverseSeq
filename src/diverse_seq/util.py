@@ -17,10 +17,7 @@ try:
         ...
 
 except (NotImplementedError, ImportError):
-
-    @contextlib.contextmanager
-    def keep_running(*args, **kwargs):
-        yield
+    keep_running = contextlib.nullcontext
 
 
 @composable.define_app
