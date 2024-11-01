@@ -31,8 +31,8 @@ class dvs_dist:
         self,
         distance_mode: Literal["mash", "euclidean"] = "mash",
         *,
-        k: int = 16,
-        sketch_size: int | None = None,
+        k: int = 12,
+        sketch_size: int | None = 3000,
         moltype: str = "dna",
         mash_canonical_kmers: bool | None = None,
         show_progress: bool = False,
@@ -42,17 +42,17 @@ class dvs_dist:
         Parameters
         ----------
         distance_mode
-            mash distance or euclidean distance between kmer freqs, by default "mash"
+            mash distance or euclidean distance between kmer freqs
         k
-            kmer size, by default 16
+            kmer size
         sketch_size
             size of sketches, by default None
         moltype
-            moltype, by default "dna"
+            moltype
         mash_canonical_kmers
-            whether to use mash canonical kmers for mash distance, by default False
+            whether to use mash canonical kmers for mash distance
         show_progress
-            whether to show progress bars, by default False
+            whether to show progress bars
 
         Notes
         -----
@@ -81,47 +81,39 @@ class dvs_dist:
             msg = "Expected sketch size for mash distance measure."
             raise ValueError(msg)
 
-        if distance_mode != "mash" and sketch_size is not None:
-            msg = "Sketch size should only be specified for the mash distance."
-            raise ValueError(msg)
-
         self._moltype = moltype
         self._k = k
-        self._num_states = len(_get_canonical_states(self._moltype))
-        self._sketch_size = sketch_size
-        self._distance_mode = distance_mode
-        self._mash_canonical = mash_canonical_kmers
         self._show_progress = show_progress
 
         self._s2a = seq_to_seqarray(moltype=moltype)
+        if distance_mode == "mash":
+            self._func = mash_distances
+            kwargs = dict(
+                k=self._k,
+                sketch_size=sketch_size,
+                num_states=len(_get_canonical_states(self._moltype)),
+                mash_canonical=mash_canonical_kmers,
+            )
+        else:
+            self._func = euclidean_distances
+            kwargs = dict(k=self._k, moltype=self._moltype)
+        self._func_kwargs = kwargs
 
     def main(
         self,
         seqs: c3_types.SeqsCollectionType,
     ) -> c3_types.PairwiseDistanceType:
+        seqs = seqs.to_moltype(self._moltype)
         seq_arrays = [self._s2a(seqs.get_seq(name)) for name in seqs.names]  # pylint: disable=not-callable
 
         with Progress(disable=not self._show_progress) as progress:
-            if self._distance_mode == "mash":
-                distances = mash_distances(
-                    seq_arrays,
-                    self._k,
-                    self._sketch_size,
-                    self._num_states,
-                    mash_canonical=self._mash_canonical,
-                    progress=progress,
-                )
-            elif self._distance_mode == "euclidean":
-                distances = euclidean_distances(
-                    seq_arrays,
-                    self._k,
-                    self._moltype,
-                    progress=progress,
-                )
-            else:
-                msg = f"Unexpected distance {self._distance_mode}."
-                raise ValueError(msg)
-            return dists_to_distmatrix(distances, seqs.names)
+            distances = self._func(
+                seq_arrays,
+                progress=progress,
+                **self._func_kwargs,
+            )
+
+        return dists_to_distmatrix(distances, seqs.names)
 
 
 def dists_to_distmatrix(
@@ -313,7 +305,7 @@ def get_kmer_hashes(
     num_states: int,
     *,
     mash_canonical: bool,
-) -> list[int]:
+) -> list[int]:  # pragma: no cover
     """Get the kmer hashes comprising a sequence.
 
     Parameters
@@ -353,7 +345,7 @@ def get_kmer_hashes(
 
 
 @numba.njit
-def murmurhash3_32(data: np.ndarray, seed: int = 0x9747B28C) -> int:
+def murmurhash3_32(data: np.ndarray, seed: int = 0x9747B28C) -> int:  # pragma: no cover
     """MurmurHash3 32-bit implementation for an array of integers.
 
     Parameters
@@ -393,7 +385,7 @@ def murmurhash3_32(data: np.ndarray, seed: int = 0x9747B28C) -> int:
 
 
 @numba.njit
-def hash_kmer(kmer: np.ndarray, mash_canonical: bool) -> int:
+def hash_kmer(kmer: np.ndarray, mash_canonical: bool) -> int:  # pragma: no cover
     """Hash a kmer, optionally use the mash canonical representaiton.
 
     Parameters
@@ -426,7 +418,7 @@ def hash_kmer(kmer: np.ndarray, mash_canonical: bool) -> int:
 
 
 @numba.njit
-def reverse_complement(kmer: np.ndarray) -> np.ndarray:
+def reverse_complement(kmer: np.ndarray) -> np.ndarray:  # pragma: no cover
     """Take the reverse complement of a kmer.
 
     Assumes cogent3 DNA/RNA sequences (numerical
