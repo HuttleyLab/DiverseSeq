@@ -252,7 +252,7 @@ def mash_sketches(
             k,
             sketch_size,
             num_states,
-            mash_canonical=mash_canonical,
+            mash_canonical,
         )
 
         progress.update(sketch_task, advance=1)
@@ -260,12 +260,12 @@ def mash_sketches(
     return bottom_sketches
 
 
+@numba.njit
 def mash_sketch(
     seq_array: np.ndarray,
     k: int,
     sketch_size: int,
     num_states: int,
-    *,
     mash_canonical: bool,
 ) -> BottomSketch:
     """Find the mash sketch for a sequence array.
@@ -288,22 +288,19 @@ def mash_sketch(
     BottomSketch
         The bottom sketch for the given sequence seq_array.
     """
-    kmer_hashes = set(
-        get_kmer_hashes(
-            seq_array,
-            k,
-            num_states,
-            mash_canonical=mash_canonical,
-        ),
-    )
+    kmer_hashes = np.unique(get_kmer_hashes(seq_array, k, num_states, mash_canonical))
 
-    heap = []
+    heap = [0]
+    heap.pop()
+
     for kmer_hash in kmer_hashes:
         if len(heap) < sketch_size:
             heapq.heappush(heap, -kmer_hash)
         else:
             heapq.heappushpop(heap, -kmer_hash)
-    return sorted(-kmer_hash for kmer_hash in heap)
+    kmer_hashes = [-kmer_hash for kmer_hash in heap]
+    kmer_hashes.sort()
+    return kmer_hashes
 
 
 @numba.njit
@@ -313,7 +310,7 @@ def get_kmer_hashes(
     num_states: int,
     *,
     mash_canonical: bool,
-) -> list[int]:
+) -> np.ndarray:
     """Get the kmer hashes comprising a sequence.
 
     Parameters
@@ -334,22 +331,23 @@ def get_kmer_hashes(
     """
     seq = seq.astype(np.int64)
 
-    kmer_hashes = [0]
-    kmer_hashes.pop()  # numba requires list to be pre-populated to infer type
+    kmer_hashes = np.zeros(len(seq) - k + 1, dtype=np.int32)
 
     skip_until = 0
     for i in range(k):
         if seq[i] >= num_states:
             skip_until = i + 1
 
+    kmer_index = 0
     for i in range(len(seq) - k + 1):
         if seq[i + k - 1] >= num_states:
             skip_until = i + k
 
         if i < skip_until:
             continue
-        kmer_hashes.append(hash_kmer(seq[i : i + k], mash_canonical))
-    return kmer_hashes
+        kmer_hashes[kmer_index] = hash_kmer(seq[i : i + k], mash_canonical)
+        kmer_index += 1
+    return kmer_hashes[:kmer_index]
 
 
 @numba.njit
