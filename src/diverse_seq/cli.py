@@ -496,6 +496,7 @@ def ctree(
         show_progress=not hide_progress,
     )
     tree = app(seqids)  # pylint: disable=not-callable
+    print(tree)
     tree.write(outpath)
 
 
