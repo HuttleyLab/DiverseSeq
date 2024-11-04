@@ -592,7 +592,7 @@ class dvs_cli_par_ctree(ClusterTreeBase, DvsParCtreeMixin):
             self._mash_dist if distance_mode == "mash" else self._euclidean_dist
         )
 
-    def main(self, seq_names: Sequence[str]) -> PhyloNode:
+    def main(self, seq_names: list[str]) -> PhyloNode:
         """Construct a cluster tree for a collection of sequences.
 
         Parameters
