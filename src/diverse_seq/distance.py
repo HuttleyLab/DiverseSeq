@@ -302,7 +302,7 @@ def get_kmer_hashes(
     num_states: int,
     *,
     mash_canonical: bool,
-) -> np.ndarray:
+) -> np.ndarray:  # pragma: no cover
     """Get the kmer hashes comprising a sequence.
 
     Parameters
