@@ -253,9 +253,7 @@ def test_ctree(
 ):
     outpath = tmp_dir / "out.tre"
 
-    args = (
-        f"-s {processed_seq_path} -o {outpath} -d {distance} -k {k} -np {max_workers}"
-    )
+    args = f"-s {processed_seq_path} -o {outpath} -d {distance} -k {k} -np {max_workers} -hp"
     if sketch_size is not None:
         args += f" --sketch-size {sketch_size}"
     args = args.split()
