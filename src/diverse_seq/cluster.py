@@ -231,11 +231,10 @@ def make_cluster_tree(
             tree_dict.pop(right_index),
         )
         node_index += 1
-
-    tree = make_tree(str(tree_dict[node_index - 1]))
-
+    # use string representation and then remove quotes
+    treestring = str(tree_dict[node_index - 1]).replace("'", "")
+    tree = make_tree(treestring=treestring, underscore_unmunge=True)
     progress.update(tree_task, completed=1, total=1)
-
     return tree
 
 
@@ -297,7 +296,6 @@ class dvs_par_ctree(ClusterTreeBase):
             mash_canonical_kmers=mash_canonical_kmers,
             show_progress=show_progress,
         )
-
         if parallel:
             if max_workers is None:
                 max_workers = multiprocessing.cpu_count()
