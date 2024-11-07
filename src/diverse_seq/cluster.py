@@ -130,6 +130,8 @@ class dvs_ctree(ClusterTreeBase):
 
         Notes
         -----
+        This app is composable.
+
         If mash_canonical_kmers is enabled when using the mash distance,
         kmers are considered identical to their reverse complement.
 
@@ -275,7 +277,7 @@ class dvs_par_ctree(ClusterTreeBase):
 
         Notes
         -----
-        This is app is not composable but can run in parallel. It is
+        This app is not composable but can run in parallel. It is
         best suited to a single large sequence collection.
 
         If mash_canonical_kmers is enabled when using the mash distance,

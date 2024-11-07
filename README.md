@@ -149,11 +149,11 @@ named sequences are added to the final result.
 
 Input type
 ----------
-Alignment, SequenceCollection, ArrayAlignment
+ArrayAlignment, SequenceCollection, Alignment
 
 Output type
 -----------
-Alignment, SequenceCollection, ArrayAlignment
+ArrayAlignment, SequenceCollection, Alignment
 
 ```
 <!-- [[[end]]] -->
@@ -272,11 +272,11 @@ named sequences are added to the final result.
 
 Input type
 ----------
-Alignment, SequenceCollection, ArrayAlignment
+ArrayAlignment, SequenceCollection, Alignment
 
 Output type
 -----------
-Alignment, SequenceCollection, ArrayAlignment
+ArrayAlignment, SequenceCollection, Alignment
 
 ```
 <!-- [[[end]]] -->
@@ -386,6 +386,8 @@ show_progress
 
 Notes
 -----
+This app is composable.
+
 If mash_canonical_kmers is enabled when using the mash distance,
 kmers are considered identical to their reverse complement.
 
@@ -398,7 +400,7 @@ References
 
 Input type
 ----------
-Alignment, SequenceCollection, ArrayAlignment
+ArrayAlignment, SequenceCollection, Alignment
 
 Output type
 -----------
@@ -464,7 +466,7 @@ numprocs
 
 Notes
 -----
-This is app is not composable but can run in parallel. It is
+This app is not composable but can run in parallel. It is
 best suited to a single large sequence collection.
 
 If mash_canonical_kmers is enabled when using the mash distance,
@@ -479,7 +481,7 @@ References
 
 Input type
 ----------
-Alignment, SequenceCollection, ArrayAlignment
+ArrayAlignment, SequenceCollection, Alignment
 
 Output type
 -----------
