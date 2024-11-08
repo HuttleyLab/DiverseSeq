@@ -242,7 +242,6 @@ def make_cluster_tree(
     return tree
 
 
-
 class DvsParCtreeMixin:
     def _mash_dist(self, seq_arrays: Sequence[SeqArray]) -> numpy.ndarray:
         """Calculates pairwise mash distances between sequences in parallel.
@@ -624,7 +623,10 @@ class dvs_cli_par_ctree(ClusterTreeBase, DvsParCtreeMixin):
         seq_arrays = seq_arrays[: self._limit] if self._limit else seq_arrays
         seq_arrays = [
             SeqArray(
-                member.unique_id, member.read(), self._moltype, member.data_store.source
+                member.unique_id,
+                member.read(),
+                self._moltype,
+                member.data_store.source,
             )
             for member in seq_arrays
         ]

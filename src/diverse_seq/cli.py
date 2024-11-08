@@ -7,7 +7,6 @@ from pathlib import Path
 
 import click
 import rich.progress as rich_progress
-from cogent3 import make_unaligned_seqs
 from cogent3.app import data_store as c3_data_store
 from scitrack import CachingLogger
 
