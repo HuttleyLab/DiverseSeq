@@ -300,7 +300,6 @@ def get_kmer_hashes(
     seq: np.ndarray,
     k: int,
     num_states: int,
-    *,
     mash_canonical: bool,
 ) -> np.ndarray:  # pragma: no cover
     """Get the kmer hashes comprising a sequence.
