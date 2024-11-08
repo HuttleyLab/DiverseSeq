@@ -76,7 +76,8 @@ doc  = ["click",
         "nbsphinx",
         "numpydoc",
         "pandas",
-        "plotly"
+        "plotly",
+        "requests",
         ]
 
 [project.scripts]
