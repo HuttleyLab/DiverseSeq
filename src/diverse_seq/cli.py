@@ -478,20 +478,13 @@ def ctree(
         )
         sys.exit(1)
 
-    seqids = dvs_data_store.get_seqids_from_store(seqfile)[:limit]
-    records = dvs_data_store.get_ordered_records(
-        dvs_data_store.HDF5DataStore(seqfile),
-        seqids,
-    )
+    seqids = dvs_data_store.get_seqids_from_store(seqfile)
+    if limit is not None:
+        seqids = seqids[:limit]
 
-    arr2str_app = dvs_util.arr2str(moltype)
-
-    seqs = {}
-    for name, record in zip(seqids, records, strict=True):
-        seqs[name] = arr2str_app(record.read())  # pylint: disable=not-callable
-
-    seqs = make_unaligned_seqs(seqs, moltype=moltype)
-    app = dvs_cluster.dvs_par_ctree(
+    app = dvs_cluster.dvs_cli_par_ctree(
+        seq_store=seqfile,
+        limit=limit,
         k=k,
         sketch_size=sketch_size,
         moltype=moltype,
@@ -501,10 +494,11 @@ def ctree(
         parallel=numprocs > 1,
         show_progress=not hide_progress,
     )
-    tree = app(seqs)  # pylint: disable=not-callable
+    tree = app(seqids)  # pylint: disable=not-callable
     if not tree:
         dvs_util.print_colour(tree, "red")
         sys.exit(1)
+
     tree.write(outpath)
 
 
