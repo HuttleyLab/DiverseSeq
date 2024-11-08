@@ -37,8 +37,7 @@ Options:
   -o, --outpath PATH       write processed seqs to this filename  [required]
   -np, --numprocs INTEGER  number of processes  [default: 1]
   -F, --force_overwrite    Overwrite existing file if it exists
-  -m, --moltype [dna|rna]  Molecular type of sequences, defaults to DNA
-                           [default: dna]
+  -m, --moltype [dna|rna]  Molecular type of sequences  [default: dna]
   -L, --limit INTEGER      number of sequences to process
   -hp, --hide_progress     hide progress bars
   --help                   Show this message and exit.
@@ -75,7 +74,7 @@ Usage: dvs nmost [OPTIONS]
   Identify n seqs that maximise average delta JSD
 
 Options:
-  -s, --seqfile PATH       path to .dvtgseqs file  [required]
+  -s, --seqfile PATH       path to .dvseqs file  [required]
   -o, --outpath PATH       the input string will be cast to Path instance
   -n, --number INTEGER     number of seqs in divergent set  [required]
   -k INTEGER               k-mer size  [default: 6]
@@ -150,11 +149,11 @@ named sequences are added to the final result.
 
 Input type
 ----------
-SequenceCollection, ArrayAlignment, Alignment
+ArrayAlignment, SequenceCollection, Alignment
 
 Output type
 -----------
-SequenceCollection, ArrayAlignment, Alignment
+ArrayAlignment, SequenceCollection, Alignment
 
 ```
 <!-- [[[end]]] -->
@@ -188,7 +187,7 @@ Usage: dvs max [OPTIONS]
   Identify the seqs that maximise average delta JSD
 
 Options:
-  -s, --seqfile PATH       path to .dvtgseqs file  [required]
+  -s, --seqfile PATH       path to .dvseqs file  [required]
   -o, --outpath PATH       the input string will be cast to Path instance
   -z, --min_size INTEGER   minimum size of divergent set  [default: 7]
   -zp, --max_size INTEGER  maximum size of divergent set
@@ -273,12 +272,222 @@ named sequences are added to the final result.
 
 Input type
 ----------
-SequenceCollection, ArrayAlignment, Alignment
+ArrayAlignment, SequenceCollection, Alignment
 
 Output type
 -----------
-SequenceCollection, ArrayAlignment, Alignment
+ArrayAlignment, SequenceCollection, Alignment
 
 ```
 <!-- [[[end]]] -->
+</details>
+
+### `dvs ctree`: build a phylogeny using k-mers
+
+The result of the `ctree` command is a newick formatted tree string without distances.
+
+> **Note**
+> A fuller explanation is coming soon!
+
+<details>
+    <summary>Options for command line dvs ctree</summary>
+
+<!-- [[[cog
+import cog
+from diverse_seq.cli import main
+from click.testing import CliRunner
+runner = CliRunner()
+result = runner.invoke(main, ["ctree", "--help"])
+help = result.output.replace("Usage: main", "Usage: dvs")
+cog.out(
+    "```\n{}\n```".format(help)
+)
+]]] -->
+```
+Usage: dvs ctree [OPTIONS]
+
+  Quickly compute a cluster tree based on kmers for a collection of sequences.
+
+Options:
+  -s, --seqfile PATH              path to .dvseqs file  [required]
+  -o, --outpath PATH              the input string will be cast to Path instance
+  -m, --moltype [dna|rna]         Molecular type of sequences  [default: dna]
+  -k INTEGER                      k-mer size  [default: 6]
+  --sketch-size INTEGER           sketch size for mash distance
+  -d, --distance [mash|euclidean]
+                                  distance measure for tree construction
+                                  [default: mash]
+  -c, --canonical-kmers           consider kmers identical to their reverse
+                                  complement
+  -L, --limit INTEGER             number of sequences to process
+  -np, --numprocs INTEGER         number of processes  [default: 1]
+  -hp, --hide_progress            hide progress bars
+  --help                          Show this message and exit.
+
+```
+<!-- [[[end]]] -->
+
+</details>
+
+<details>
+    <summary>Options for cogent3 app dvs_ctree</summary>
+
+The `dvs ctree` is also available as the [cogent3 app](https://cogent3.org/doc/app/index.html) `dvs_ctree` or `dvs_par_ctree`. The latter is not composable, but can run the analysis for a single collection in parallel.
+
+<!-- [[[cog
+import cog
+import contextlib
+import io
+
+
+from cogent3 import app_help
+
+buffer = io.StringIO()
+
+with contextlib.redirect_stdout(buffer):
+  app_help("dvs_ctree")
+cog.out(
+    "```\n{}\n```".format(buffer.getvalue())
+)
+]]] -->
+```
+Overview
+--------
+Create a cluster tree from kmer distances.
+
+Options for making the app
+--------------------------
+dvs_ctree_app = get_app(
+    'dvs_ctree',
+    k=12,
+    sketch_size=3000,
+    moltype='dna',
+    distance_mode='mash',
+    mash_canonical_kmers=None,
+    show_progress=False,
+)
+
+Initialise parameters for generating a kmer cluster tree.
+
+Parameters
+----------
+k
+    kmer size
+sketch_size
+    size of sketches, only applies to mash distance
+moltype
+    seq collection molecular type
+distance_mode
+    mash distance or euclidean distance between kmer freqs
+mash_canonical_kmers
+    whether to use mash canonical kmers for mash distance
+show_progress
+    whether to show progress bars
+
+Notes
+-----
+This app is composable.
+
+If mash_canonical_kmers is enabled when using the mash distance,
+kmers are considered identical to their reverse complement.
+
+References
+----------
+.. [1] Ondov, B. D., Treangen, T. J., Melsted, P., Mallonee, A. B.,
+   Bergman, N. H., Koren, S., & Phillippy, A. M. (2016).
+   Mash: fast genome and metagenome distance estimation using MinHash.
+   Genome biology, 17, 1-14.
+
+Input type
+----------
+ArrayAlignment, SequenceCollection, Alignment
+
+Output type
+-----------
+PhyloNode
+
+```
+<!-- [[[end]]] -->
+
+
+<!-- [[[cog
+import cog
+import contextlib
+import io
+
+
+from cogent3 import app_help
+
+buffer = io.StringIO()
+
+with contextlib.redirect_stdout(buffer):
+  app_help("dvs_par_ctree")
+cog.out(
+    "```\n{}\n```".format(buffer.getvalue())
+)
+]]] -->
+```
+Overview
+--------
+Create a cluster tree from kmer distances in parallel.
+
+Options for making the app
+--------------------------
+dvs_par_ctree_app = get_app(
+    'dvs_par_ctree',
+    k=12,
+    sketch_size=3000,
+    moltype='dna',
+    distance_mode='mash',
+    mash_canonical_kmers=None,
+    show_progress=False,
+    max_workers=None,
+    parallel=True,
+)
+
+Initialise parameters for generating a kmer cluster tree.
+
+Parameters
+----------
+k
+    kmer size
+sketch_size
+    size of sketches, only applies to mash distance
+moltype
+    seq collection molecular type
+distance_mode
+    mash distance or euclidean distance between kmer freqs
+mash_canonical_kmers
+    whether to use mash canonical kmers for mash distance
+show_progress
+    whether to show progress bars
+numprocs
+    number of workers, defaults to running serial
+
+Notes
+-----
+This app is not composable but can run in parallel. It is
+best suited to a single large sequence collection.
+
+If mash_canonical_kmers is enabled when using the mash distance,
+kmers are considered identical to their reverse complement.
+
+References
+----------
+.. [1] Ondov, B. D., Treangen, T. J., Melsted, P., Mallonee, A. B.,
+   Bergman, N. H., Koren, S., & Phillippy, A. M. (2016).
+   Mash: fast genome and metagenome distance estimation using MinHash.
+   Genome biology, 17, 1-14.
+
+Input type
+----------
+ArrayAlignment, SequenceCollection, Alignment
+
+Output type
+-----------
+PhyloNode
+
+```
+<!-- [[[end]]] -->
+
 </details>

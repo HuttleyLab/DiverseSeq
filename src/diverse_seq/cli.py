@@ -457,7 +457,6 @@ def ctree(
     hide_progress: bool,
 ):
     """Quickly compute a cluster tree based on kmers for a collection of sequences."""
-
     if seqfile.suffix != ".dvseqs":
         dvs_util.print_colour(
             "Sequence data needs to be preprocessed, use 'dvs prep'",
@@ -479,7 +478,7 @@ def ctree(
         )
         sys.exit(1)
 
-    seqids = dvs_data_store.get_seqids_from_store(seqfile)[:limit]
+    seqids = dvs_data_store.get_seqids_from_store(seqfile)
     if limit is not None:
         seqids = seqids[:limit]
 
@@ -496,7 +495,11 @@ def ctree(
         show_progress=not hide_progress,
     )
     tree = app(seqids)  # pylint: disable=not-callable
-    tree.write(outpath)
+    if not tree:
+        dvs_util.print_colour(tree, "red")
+        sys.exit(1)
+
+      tree.write(outpath)
 
 
 if __name__ == "__main__":

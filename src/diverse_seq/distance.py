@@ -159,7 +159,6 @@ def mash_distances(
     numpy.ndarray
         Pairwise mash distances between sequences.
     """
-
     if progress is None:
         progress = Progress(disable=True)
 
