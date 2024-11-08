@@ -499,7 +499,7 @@ def ctree(
         dvs_util.print_colour(tree, "red")
         sys.exit(1)
 
-      tree.write(outpath)
+    tree.write(outpath)
 
 
 if __name__ == "__main__":
