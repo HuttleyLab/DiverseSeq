@@ -258,7 +258,7 @@ def mash_sketch(
     sketch_size: int,
     num_states: int,
     mash_canonical: bool,
-) -> BottomSketch:
+) -> BottomSketch:  # pragma: no cover
     """Find the mash sketch for a sequence array.
 
     Parameters

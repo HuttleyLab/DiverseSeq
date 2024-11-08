@@ -1,4 +1,5 @@
 import pathlib
+import pickle
 
 import pytest
 from cogent3 import load_unaligned_seqs, make_unaligned_seqs
@@ -45,6 +46,15 @@ def hdf5_dstore_path(tmp_path):
     return tmp_path / "hdf5_dstore"
 
 
+@pytest.fixture(scope="function")
+def brca1_hdf5_dstore(hdf5_dstore_path, brca1_5_dstore):
+    dstore = data_store.HDF5DataStore(source=hdf5_dstore_path, mode="w")
+    prep = dvs_io.dvs_load_seqs(moltype="dna") + dvs_io.dvs_write_seqs(
+        data_store=dstore,
+    )
+    return prep.apply_to(brca1_5_dstore)
+
+
 def test_dvs_file_to_dir(brca1_5_dstore, brca1_5):
     # directory contains the same number of sequences as the input file
     assert brca1_5.num_seqs == len(brca1_5_dstore.completed)
@@ -88,3 +98,11 @@ def test_in_memory(brca1_5):
     prep.apply_to(brca1_5.seqs, id_from_source=lambda x: x.name, logger=False)
     assert len(dstore) == brca1_5.num_seqs
     assert dstore.read("Cat").shape == (20,)
+
+
+def test_pickle_roundtrip(brca1_hdf5_dstore):
+    got = pickle.loads(pickle.dumps(brca1_hdf5_dstore))
+    assert str(got) == str(brca1_hdf5_dstore)
+    got_data = got.members[0].read()
+    expect_data = brca1_hdf5_dstore.members[0].read()
+    assert_array_equal(got_data, expect_data)
