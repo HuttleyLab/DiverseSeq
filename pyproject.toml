@@ -79,6 +79,7 @@ doc  = ["click",
         "pandas",
         "plotly",
         "requests",
+        "statsmodels",
         ]
 
 [project.scripts]
