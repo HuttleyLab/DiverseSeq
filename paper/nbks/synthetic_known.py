@@ -1,12 +1,13 @@
 from itertools import product
 
+import project_path
 from cogent3 import make_table, make_unaligned_seqs
 from cogent3.app import typing as c3_types
 from cogent3.app.composable import NotCompleted, define_app
 from numpy import array
 from numpy.random import choice, shuffle
 from rich.progress import track
-import project_path
+
 from diverse_seq import util as dvs_utils
 from diverse_seq.record import KmerSeq, SeqArray, seqarray_to_kmerseq
 from diverse_seq.records import max_divergent

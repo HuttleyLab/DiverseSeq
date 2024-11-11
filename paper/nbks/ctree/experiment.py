@@ -4,6 +4,7 @@ import time
 from pathlib import Path
 
 from cogent3 import load_aligned_seqs, make_aligned_seqs
+
 from diverse_seq.cluster import dvs_par_ctree
 
 MAMMALS_PATH = Path("data/mammals-aligned")
@@ -30,7 +31,8 @@ SKETCH_SIZES = [
 
 def load_alignment(directory: Path):
     fasta_files = filter(
-        lambda file_name: file_name.endswith(".fa"), os.listdir(directory)
+        lambda file_name: file_name.endswith(".fa"),
+        os.listdir(directory),
     )
 
     seqs = {}

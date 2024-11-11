@@ -10,6 +10,7 @@ from numpy import array, isnan
 from numpy.random import choice
 from rich.progress import track
 from scipy import special
+
 from diverse_seq import util as dvs_utils
 from diverse_seq.records import dvs_max, dvs_nmost
 

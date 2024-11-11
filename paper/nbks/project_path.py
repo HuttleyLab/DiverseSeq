@@ -1,5 +1,6 @@
 import pathlib
 import time
+
 from plotly.io import write_image
 
 PAPER_DIR = pathlib.Path(__file__).parent.parent

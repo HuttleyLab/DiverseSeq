@@ -1,9 +1,9 @@
 import os
-from pathlib import Path
 import time
-from piqtree2 import build_tree
+from pathlib import Path
 
 from cogent3 import load_aligned_seqs, make_aligned_seqs
+from piqtree2 import build_tree
 
 MAMMALS_PATH = Path("data/mammals-aligned")
 
@@ -13,7 +13,8 @@ OUT_FILE = Path("out/iqtree.tsv")
 
 def load_alignment(directory: Path):
     fasta_files = filter(
-        lambda file_name: file_name.endswith(".fa"), os.listdir(directory)
+        lambda file_name: file_name.endswith(".fa"),
+        os.listdir(directory),
     )
 
     seqs = {}

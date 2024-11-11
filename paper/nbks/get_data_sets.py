@@ -1,16 +1,17 @@
+import pathlib
 import re
 import sys
-import pathlib
+import zipfile
+
 import requests
 from rich import progress as rich_progress
-import zipfile
 
 DATA_DIR = pathlib.Path(__file__).parent.parent / "data"
 
 if not DATA_DIR.exists():
     if DATA_DIR.parent.name != "paper":
         print(
-            f"cannot find the data directory {DATA_DIR}, this file belongs in the `paper/nbks` directory"
+            f"cannot find the data directory {DATA_DIR}, this file belongs in the `paper/nbks` directory",
         )
         sys.exit(1)
     else:

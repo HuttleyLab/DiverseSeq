@@ -1,11 +1,13 @@
-from pathlib import Path
-import cogent3
 import itertools
+from pathlib import Path
+
+import cogent3
+from benchmark import TempWorkingDir, TimeIt
+from click.testing import CliRunner
+from rich import progress as rich_progress
+
 from diverse_seq import cli as dvs_cli
 from diverse_seq import util as dvs_util
-from click.testing import CliRunner
-from benchmark import TempWorkingDir, TimeIt
-from rich import progress as rich_progress
 
 RUNNER = CliRunner()
 
@@ -29,7 +31,8 @@ def main():
             repeats = progress.add_task("Doing reps", total=len(reps))
             for _ in reps:
                 combo = progress.add_task(
-                    "Doing k x num_seq", total=len(num_seqs) * len(kmer_sizes)
+                    "Doing k x num_seq",
+                    total=len(num_seqs) * len(kmer_sizes),
                 )
                 for k, num_seq in itertools.product(kmer_sizes, num_seqs):
                     with TempWorkingDir() as temp_dir:
@@ -37,7 +40,9 @@ def main():
                         args = f"-s {in_file} -o {out_tree_file} -k {k} --distance mash --sketch-size 3000 -hp --limit {num_seq}".split()
                         with TimeIt() as timer:
                             r = RUNNER.invoke(
-                                dvs_cli.ctree, args, catch_exceptions=False
+                                dvs_cli.ctree,
+                                args,
+                                catch_exceptions=False,
                             )
                             assert r.exit_code == 0, r.output
                         results["time(s)"].append(timer.get_elapsed_time())

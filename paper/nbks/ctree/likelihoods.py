@@ -1,8 +1,8 @@
 import os
 from pathlib import Path
-from piqtree2 import fit_tree
 
 from cogent3 import load_aligned_seqs, make_aligned_seqs, make_tree
+from piqtree2 import fit_tree
 
 MAMMALS_PATH = Path("data/mammals-aligned")
 
@@ -15,7 +15,8 @@ OUT_IQ_FILE = Path("out/iqtree_with_ls.tsv")
 
 def load_alignment(directory: Path):
     fasta_files = filter(
-        lambda file_name: file_name.endswith(".fa"), os.listdir(directory)
+        lambda file_name: file_name.endswith(".fa"),
+        os.listdir(directory),
     )
 
     seqs = {}
@@ -53,7 +54,7 @@ def do_likelihoods():
             likelihood = tree.params["lnL"]
             with OUT_FILE.open("a") as f:
                 f.write(
-                    "\t".join([k, ss, cpus, time, str(likelihood), str(tree)]) + "\n"
+                    "\t".join([k, ss, cpus, time, str(likelihood), str(tree)]) + "\n",
                 )
     with IQ_FILE.open() as f:
         for line in f:
