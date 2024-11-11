@@ -1,0 +1,47 @@
+\documentclass{article}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{minted}
+\usepackage[a4paper]{geometry}
+
+\geometry{
+    paperwidth=12cm,
+    paperheight=9.5cm,
+    left=0.1cm,   % Adjust margins as needed
+    right=0.1cm,
+    top=0.1cm,
+    bottom=0.1cm
+}
+\pagestyle{empty} % no page numbers
+
+\begin{document}
+
+\begin{figure}[h]
+    \centering
+        \begin{minted}{python}
+# A list of sequences converted into k-mer counts.
+records: list[KmerSeq]
+shuffle(records)
+
+# The minimum size of the divergent set.
+min_size: int
+# The maximum size of the divergent set.
+max_size: int
+
+sr = SummedRecords.from_records(records[:min_size])
+for r in records:
+    if sr.increases_jsd(r):
+        # Adding r to the N-1 set increased JSD over sr.jsd.
+        # We define a new SummedRecords instance of {N} & {r}.
+        nsr = sr + r
+        # Has adding r increased the standard deviation?
+        sr = nsr if nsr.std > sr.std else sr.replaced_lowest(r)
+        if sr.size > max_size:
+            # We stay within the user specified set size
+            # by dropping the record with lowest delta-JSD.
+            sr = sr.dropped_lowest()
+            \end{minted}
+
+\end{figure}
+
+\end{document}
