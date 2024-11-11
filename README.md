@@ -4,9 +4,11 @@
 [![CodeQL](https://github.com/HuttleyLab/DiverseSeq/actions/workflows/codeql.yml/badge.svg)](https://github.com/HuttleyLab/DiverseSeq/actions/workflows/codeql.yml)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
-# `diverse_seq` identifies the most diverse biological sequences from a collection
+# `diverse_seq` provides alignment-free algorithms to facilitate phylogenetic workflows
 
-`diverse_seq` provides tools for selecting a representative subset of sequences from a larger collection. It is an alignment-free method which scales linearly with the number of sequences. It identifies the subset of sequences that maximize diversity as measured using Jensen-Shannon divergence. `diverse_seq` provides a command-line tool (`dvs`) and plugins to the Cogent3 app system (prefixed by `dvs_`) allowing users to embed code in their own scripts. The command-line tools can be run in parallel.
+`diverse-seq` implements computationally efficient alignment-free algorithms that enable efficient prototyping for phylogenetic workflows. It can accelerate parameter selection searches for sequence alignment and phylogeny estimation by identifying a subset of sequences that are representative of the diversity in a collection. We show that selecting representative sequences with an entropy measure of *k*-mer frequencies correspond well to sampling via conventional genetic distances. The computational performance is linear with respect to the number of sequences and can be run in parallel. Applied to a collection of 10.5k whole microbial genomes on a laptop took ~8 minutes to prepare the data and 4 minutes to select 100 representatives. `diverse-seq` can further boost the performance of phylogenetic estimation by providing a seed phylogeny that can be further refined by a more sophisticated algorithm. For ~1k whole microbial genomes on a laptop, it takes ~1.8 minutes to estimate a bifurcating tree from mash distances.
+
+You can read more about the methods implemented in `diverse_seq` in the preprint [here](https://biorxiv.org/cgi/content/short/2024.11.10.622877v1).
 
 ### `dvs prep`: preparing the sequence data
 
