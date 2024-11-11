@@ -50,7 +50,7 @@ test = [
     "pytest",
     "pytest-cov",
     "pytest-xdist",
-    "ruff==0.7.2",
+    "ruff==0.7.3",
 ]
 dev = [
     "cogapp",
@@ -60,7 +60,7 @@ dev = [
     "pytest",
     "pytest-cov",
     "pytest-xdist",
-    "ruff==0.7.2",
+    "ruff==0.7.3",
 ]
 doc  = ["click",
         "ipykernel",
