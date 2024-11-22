@@ -4,4 +4,4 @@
 # found by h5py
 import hdf5plugin  # noqa
 
-__version__ = "2024.11.8a3"
+__version__ = "2024.11.22a1"
