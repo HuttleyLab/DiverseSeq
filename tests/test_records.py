@@ -1,5 +1,11 @@
 import pytest
-from cogent3 import load_unaligned_seqs, make_unaligned_seqs
+from cogent3 import (
+    get_app,
+    load_aligned_seqs,
+    load_unaligned_seqs,
+    make_unaligned_seqs,
+    open_data_store,
+)
 from cogent3.maths.measure import jsd
 from numpy.testing import assert_allclose
 
@@ -144,6 +150,11 @@ def brca1_coll(DATA_DIR):
     return load_unaligned_seqs(DATA_DIR / "brca1.fasta", moltype="dna").degap()
 
 
+@pytest.fixture(scope="session")
+def brca1_alignment(DATA_DIR):
+    return load_aligned_seqs(DATA_DIR / "brca1.fasta", moltype="dna")
+
+
 def test_merge_summed_records(DATA_DIR, brca1_coll):
     path = DATA_DIR / "brca1.dvseqs"
     names = brca1_coll.names
@@ -190,3 +201,23 @@ def test_dvs_select_nmost_keep(brca1_coll, include):
     got = app(brca1_coll)  # pylint: disable=not-callable
     include = {include} if isinstance(include, str) else set(include)
     assert include <= set(got.names)
+
+
+@pytest.mark.parametrize("app_name", ("dvs_nmost", "dvs_max"))
+def test_serialisable_nmost(brca1_coll, tmp_path, app_name):
+    brca1_coll.info.source = "blah.fa"
+    outstore = open_data_store(tmp_path / "data.sqlitedb", mode="w")
+    select = get_app(app_name, k=2)
+    writer = get_app("write_db", data_store=outstore)
+    app = select + writer
+    got = app(brca1_coll)  # pylint: disable=not-callable
+    assert len(outstore.completed) == 1
+
+
+@pytest.mark.parametrize("app_name", ("dvs_nmost", "dvs_max"))
+@pytest.mark.parametrize("aligned", (False, True))
+def test_select_return_type(brca1_alignment, app_name, aligned):
+    coll = brca1_alignment if aligned else brca1_alignment.degap()
+    select = get_app(app_name, k=2)
+    got = select(coll)  # pylint: disable=not-callable
+    assert isinstance(got, coll.__class__)

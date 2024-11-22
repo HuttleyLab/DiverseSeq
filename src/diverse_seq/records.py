@@ -47,6 +47,8 @@ from diverse_seq.record import (
 # seq records sorted by the latter; stored summed quantities for n and n-1 (with
 # the least contributor omitted)
 
+AppOutType = typing.Union[c3_types.SeqsCollectionType, c3_types.SerialisableType]
+
 
 @functools.singledispatch
 def _jsd(summed_freqs: vector | numpy.ndarray, summed_entropy: float, n: int) -> float:
@@ -670,6 +672,10 @@ class dvs_max:
         If called with an alignment, the ungapped sequences are used.
         The order of the sequences is randomised. If include is not None, the
         named sequences are added to the final result.
+
+        Returns
+        -------
+        The same type as the input sequence collection.
         """
         self._s2k = seq_to_seqarray(moltype=moltype) + seqarray_to_kmerseq(
             k=k,
@@ -681,9 +687,9 @@ class dvs_max:
         self._rng = numpy.random.default_rng(seed)
         self._include = [include] if isinstance(include, str) else include
 
-    def main(self, seqs: c3_types.SeqsCollectionType) -> c3_types.SeqsCollectionType:
-        seqs = seqs.degap()
-        records = [self._s2k(seqs.get_seq(name)) for name in seqs.names]
+    def main(self, seqs: c3_types.SeqsCollectionType) -> AppOutType:
+        degapped = seqs.degap()
+        records = [self._s2k(degapped.get_seq(name)) for name in degapped.names]
         self._rng.shuffle(records)
         for record in records:
             if not record:
@@ -730,6 +736,10 @@ class dvs_nmost:
         If called with an alignment, the ungapped sequences are used.
         The order of the sequences is randomised. If include is not None, the
         named sequences are added to the final result.
+
+        Returns
+        -------
+        The same type as the input sequence collection.
         """
         self._s2k = seq_to_seqarray(moltype=moltype) + seqarray_to_kmerseq(
             k=k,
@@ -740,9 +750,9 @@ class dvs_nmost:
         self._rng = numpy.random.default_rng(seed)
         self._include = [include] if isinstance(include, str) else include
 
-    def main(self, seqs: c3_types.SeqsCollectionType) -> c3_types.SeqsCollectionType:
-        seqs = seqs.degap()
-        records = [self._s2k(seqs.get_seq(name)) for name in seqs.names]
+    def main(self, seqs: c3_types.SeqsCollectionType) -> AppOutType:
+        degapped = seqs.degap()
+        records = [self._s2k(degapped.get_seq(name)) for name in degapped.names]
         self._rng.shuffle(records)
         result = most_divergent(
             records=records,
