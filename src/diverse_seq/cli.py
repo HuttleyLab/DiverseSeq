@@ -145,8 +145,7 @@ def prep(
     elif dvseqs_path.exists() and force_overwrite:
         dvseqs_path.unlink()
 
-    if suffix.startswith("."):
-        suffix = suffix[1:]
+    suffix = suffix.removeprefix(".")
 
     seq_format = dvs_util.get_seq_file_format(suffix)
     if seq_format is None:
