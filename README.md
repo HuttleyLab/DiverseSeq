@@ -493,3 +493,7 @@ PhyloNode
 <!-- [[[end]]] -->
 
 </details>
+
+## Project Information 
+
+`DiverseSeq` is released under the BSD-3 license. If you want to contribute to the `DiverseSeq` project (and we hope you do! :innocent:) the code of conduct and other useful developer information is avaiable on the [wiki](https://github.com/HuttleyLab/DiverseSeq/wiki). 
