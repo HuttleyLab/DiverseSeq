@@ -136,7 +136,11 @@ target-version = "py310"
 # Unlike Flake8, Ruff doesn't enable pycodestyle warnings (`W`) or
 # McCabe complexity (`C901`) by default.
 select = ["ALL"]
-ignore = ["EXE002", "FA100", "E501", "D"]
+# turn of warnings for:
+# - import numpy as np, we pefer explicit and 3 extra characters is no burden
+# - strict camel case class names, we name classes with a __call__ method like
+#   functions since their instance behaves like a function
+ignore = ["EXE002", "FA100", "E501", "D", "ICN001", "N801"]
 
 # Allow fix for all enabled rules (when `--fix`) is provided.
 fixable = ["ALL"]
