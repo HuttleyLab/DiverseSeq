@@ -10,7 +10,7 @@ authors = [
 keywords = ["biology", "genomics", "statistics", "phylogeny", "evolution", "bioinformatics"]
 readme = "README.md"
 license = { file = "LICENSE" }
-requires-python = ">=3.10,<3.13"
+requires-python = ">=3.10,<3.14"
 dependencies = [
     "attrs",
     "click",
@@ -32,6 +32,8 @@ classifiers = [
         "Operating System :: OS Independent",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
     ]
 # the following are inferred from the source code
 dynamic = ["version", "description"]
@@ -50,7 +52,7 @@ test = [
     "pytest",
     "pytest-cov",
     "pytest-xdist",
-    "ruff==0.9.1",
+    "ruff==0.9.3",
 ]
 dev = [
     "cogapp",
@@ -60,7 +62,7 @@ dev = [
     "pytest",
     "pytest-cov",
     "pytest-xdist",
-    "ruff==0.9.1",
+    "ruff==0.9.3",
 ]
 doc  = ["click",
         "ipykernel",
@@ -136,7 +138,11 @@ target-version = "py310"
 # Unlike Flake8, Ruff doesn't enable pycodestyle warnings (`W`) or
 # McCabe complexity (`C901`) by default.
 select = ["ALL"]
-ignore = ["EXE002", "FA100", "E501", "D"]
+# turn of warnings for:
+# - import numpy as np, we pefer explicit and 3 extra characters is no burden
+# - strict camel case class names, we name classes with a __call__ method like
+#   functions since their instance behaves like a function
+ignore = ["EXE002", "FA100", "E501", "D", "ICN001", "N801"]
 
 # Allow fix for all enabled rules (when `--fix`) is provided.
 fixable = ["ALL"]
