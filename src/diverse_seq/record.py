@@ -4,9 +4,9 @@ import dataclasses
 import functools
 from collections.abc import Iterator
 from math import fabs, isclose
-from typing import Union
 
 import numba
+import typing_extensions
 from attrs import asdict, define, field, validators
 from cogent3 import get_moltype
 from cogent3.app import composable
@@ -30,7 +30,7 @@ from numpy import divmod as np_divmod
 
 from diverse_seq import util as dvs_utils
 
-NumType = Union[float, int]
+NumType = float | int
 PosDictType = dict[int, NumType]
 
 
@@ -38,8 +38,9 @@ PosDictType = dict[int, NumType]
 def _gettype(name) -> type:
     try:
         return name.type
-    except AttributeError:
-        raise TypeError(f"type {type(name)} not supported")
+    except AttributeError as e:
+        msg = f"type {type(name)} not supported"
+        raise TypeError(msg) from e
 
 
 @_gettype.register
@@ -64,7 +65,7 @@ class lazy_kmers:
     num_states: int = dataclasses.field(init=False)
     moltype: dataclasses.InitVar[str] = dataclasses.field(default="dna")
 
-    def __post_init__(self, moltype: str):
+    def __post_init__(self, moltype: str) -> None:
         self.num_states = len(_get_canonical_states(moltype))
 
     def __array__(
@@ -125,7 +126,7 @@ class vector:
         dtype: type = float,
         source: str = None,
         name: str = None,
-    ):
+    ) -> None:
         """
         Parameters
         ----------
@@ -145,7 +146,7 @@ class vector:
         self.source = source
         self.name = name
 
-    def __setitem__(self, index: int, value: NumType):
+    def __setitem__(self, index: int, value: NumType) -> None:
         self.data[index] = value
 
     def __getitem__(self, index: int) -> NumType:
@@ -157,15 +158,15 @@ class vector:
     def __iter__(self) -> Iterator[NumType]:
         yield from self.data
 
-    def __getstate__(self):
+    def __getstate__(self) -> dict:
         return asdict(self)
 
-    def __setstate__(self, data):
+    def __setstate__(self, data: dict) -> typing_extensions.Self:
         for k, v in data.items():
             setattr(self, k, v)
         return self
 
-    def __sub__(self, other):
+    def __sub__(self, other: typing_extensions.Self) -> typing_extensions.Self:
         data = self.data - other
         return self.__class__(
             data=data,
@@ -173,11 +174,11 @@ class vector:
             dtype=self.dtype,
         )
 
-    def __isub__(self, other):
+    def __isub__(self, other: typing_extensions.Self) -> typing_extensions.Self:
         self.data -= other
         return self
 
-    def __add__(self, other):
+    def __add__(self, other: typing_extensions.Self) -> typing_extensions.Self:
         # we are creating a new instance
         data = self.data + other
         return self.__class__(
@@ -186,31 +187,31 @@ class vector:
             dtype=self.dtype,
         )
 
-    def __iadd__(self, other):
+    def __iadd__(self, other: typing_extensions.Self) -> typing_extensions.Self:
         self.data += other
         return self
 
-    def __truediv__(self, other):
+    def __truediv__(self, other: typing_extensions.Self) -> typing_extensions.Self:
         # we are creating a new instance
         with errstate(divide="ignore", invalid="ignore"):
             data = nan_to_num(self.data / other, nan=0.0, copy=False)
         return self.__class__(data=data, vector_length=self.vector_length, dtype=float)
 
-    def __itruediv__(self, other):
+    def __itruediv__(self, other: typing_extensions.Self) -> typing_extensions.Self:
         with errstate(divide="ignore", invalid="ignore"):
             data = nan_to_num(self.data / other, nan=0.0, copy=False)
         self.dtype = float
         self.data = data
         return self
 
-    def sum(self):
+    def sum(self) -> NumType:
         return self.data.sum()
 
     def iter_nonzero(self) -> Iterator[NumType]:
         yield from (v for v in self.data if v)
 
     @property
-    def entropy(self):
+    def entropy(self) -> float:
         non_zero = self.data[self.data > 0]
         kfreqs = non_zero if self.dtype == float else non_zero / non_zero.sum()
         # taking absolute value due to precision issues
@@ -301,7 +302,8 @@ def indices_to_bytes(
         coord = index_to_coord(index, coeffs)
         for j in range(k):
             if coord[j] >= num_states:
-                raise IndexError("index out of character range")
+                msg = "index out of character range"
+                raise IndexError(msg)
             result[i][j] = states[coord[j]]
 
     return result
@@ -312,7 +314,7 @@ def kmer_counts(
     seq: ndarray,
     num_states: int,
     k: int,
-    dtype=uint64,
+    dtype: dtype = uint64,
 ) -> ndarray:  # pragma: no cover
     """return freqs of valid k-mers using 1D indices
 
@@ -355,12 +357,14 @@ def kmer_counts(
 
 def _gt_zero(instance, attribute, value):
     if value <= 0:
-        raise ValueError(f"must be > 0, not {value}")
+        msg = f"must be > 0, not {value}"
+        raise ValueError(msg)
 
 
 @functools.singledispatch
 def _make_kcounts(data) -> vector:
-    raise TypeError(f"type {type(data)} not supported")
+    msg = f"type {type(data)} not supported"
+    raise TypeError(msg)
 
 
 @_make_kcounts.register
@@ -389,7 +393,7 @@ class SeqArray:
     moltype: str
     source: str = None
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.data)
 
 
@@ -407,15 +411,15 @@ class KmerSeq:
     )
 
     @property
-    def size(self):
+    def size(self) -> int:
         return self.kcounts.vector_length
 
     @functools.cached_property
-    def entropy(self):
+    def entropy(self) -> float:
         return self.kfreqs.entropy
 
     @functools.cached_property
-    def kfreqs(self):
+    def kfreqs(self) -> vector:
         kcounts = array(self.kcounts)
         kcounts = kcounts.astype(float)
         kfreqs = kcounts / kcounts.sum()
@@ -433,7 +437,7 @@ class seq_to_seqarray:
     def __init__(
         self,
         moltype: str = "dna",
-    ):
+    ) -> None:
         self.moltype = moltype
         self.str2arr = dvs_utils.str2arr(moltype=self.moltype)
 
@@ -447,25 +451,26 @@ class seq_to_seqarray:
 
 
 @functools.singledispatch
-def make_kmerseq(data, *, dtype, k, moltype) -> KmerSeq:
-    raise TypeError(f"type {type(data)} not supported")
+def make_kmerseq(data, *, dtype: dtype, k: int, moltype: str) -> KmerSeq:
+    msg = f"type {type(data)} not supported"
+    raise TypeError(msg)
 
 
 @make_kmerseq.register
-def _(data: SeqArray, *, dtype, k, moltype) -> KmerSeq:
+def _(data: SeqArray, *, dtype: dtype, k: int, moltype: str) -> KmerSeq:
     vec = lazy_kmers(
         data=data.data,
         k=k,
         moltype=moltype,
         dtype=dtype,
     )
-    kwargs = dict(
-        vector_length=vec.num_states,
-        dtype=dtype,
-        source=data.source,
-        name=data.seqid,
-        data=vec,
-    )
+    kwargs = {
+        "vector_length": vec.num_states,
+        "dtype": dtype,
+        "source": data.source,
+        "name": data.seqid,
+        "data": vec,
+    }
 
     return KmerSeq(
         kcounts=vector(**kwargs),
@@ -474,20 +479,20 @@ def _(data: SeqArray, *, dtype, k, moltype) -> KmerSeq:
 
 
 @make_kmerseq.register
-def _(data: c3_data_store.DataMember, *, dtype, k, moltype) -> KmerSeq:
+def _(data: c3_data_store.DataMember, *, dtype: dtype, k: int, moltype: str) -> KmerSeq:
     vec = lazy_kmers(
         data=data,
         k=k,
         moltype=moltype,
         dtype=dtype,
     )
-    kwargs = dict(
-        vector_length=vec.num_states,
-        dtype=dtype,
-        source=data.data_store.source,
-        name=data.unique_id,
-        data=vec,
-    )
+    kwargs = {
+        "vector_length": vec.num_states,
+        "dtype": dtype,
+        "source": data.data_store.source,
+        "name": data.unique_id,
+        "data": vec,
+    }
 
     return KmerSeq(
         kcounts=vector(**kwargs),
@@ -496,7 +501,7 @@ def _(data: c3_data_store.DataMember, *, dtype, k, moltype) -> KmerSeq:
 
 
 @make_kmerseq.register
-def _(data: c3_seq.Sequence, *, dtype, k, moltype) -> KmerSeq:
+def _(data: c3_seq.Sequence, *, dtype: dtype, k: int, moltype: str) -> KmerSeq:
     cnvrt = dvs_utils.str2arr(moltype=moltype)
     vec = lazy_kmers(
         data=cnvrt(str(data)),  # pylint: disable=not-callable
@@ -504,13 +509,13 @@ def _(data: c3_seq.Sequence, *, dtype, k, moltype) -> KmerSeq:
         moltype=moltype,
         dtype=dtype,
     )
-    kwargs = dict(
-        vector_length=vec.num_states,
-        dtype=dtype,
-        source=data.info.source,
-        name=data.name,
-        data=vec,
-    )
+    kwargs = {
+        "vector_length": vec.num_states,
+        "dtype": dtype,
+        "source": data.info.source,
+        "name": data.name,
+        "data": vec,
+    }
 
     return KmerSeq(
         kcounts=vector(**kwargs),
@@ -519,7 +524,7 @@ def _(data: c3_seq.Sequence, *, dtype, k, moltype) -> KmerSeq:
 
 
 @make_kmerseq.register
-def _(data: c3_new_seq.Sequence, *, dtype, k, moltype) -> KmerSeq:
+def _(data: c3_new_seq.Sequence, *, dtype: dtype, k: int, moltype: str) -> KmerSeq:
     cnvrt = dvs_utils.str2arr(moltype=moltype)
     vec = lazy_kmers(
         data=cnvrt(str(data)),  # pylint: disable=not-callable
@@ -527,13 +532,13 @@ def _(data: c3_new_seq.Sequence, *, dtype, k, moltype) -> KmerSeq:
         moltype=moltype,
         dtype=dtype,
     )
-    kwargs = dict(
-        vector_length=vec.num_states,
-        dtype=dtype,
-        source=data.info.source,
-        name=data.name,
-        data=vec,
-    )
+    kwargs = {
+        "vector_length": vec.num_states,
+        "dtype": dtype,
+        "source": data.info.source,
+        "name": data.name,
+        "data": vec,
+    }
 
     return KmerSeq(
         kcounts=vector(**kwargs),
@@ -542,7 +547,7 @@ def _(data: c3_new_seq.Sequence, *, dtype, k, moltype) -> KmerSeq:
 
 
 class _make_kmerseq_init:
-    def __init__(self, k: int, moltype: str):
+    def __init__(self, k: int, moltype: str) -> None:
         """
         Parameters
         ----------
@@ -579,5 +584,6 @@ def _get_canonical_states(moltype: str) -> bytes:
     canonical = list(moltype.alphabet)
     v = moltype.alphabet.to_indices(canonical)
     if not (0 <= min(v) < max(v) < len(canonical)):
-        raise ValueError(f"indices of canonical states {canonical} not sequential {v}")
+        msg = f"indices of canonical states {canonical} not sequential {v}"
+        raise ValueError(msg)
     return "".join(canonical).encode("utf8")
