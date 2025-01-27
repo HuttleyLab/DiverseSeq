@@ -97,6 +97,9 @@ dvs_par_ctree = "diverse_seq.cluster:dvs_par_ctree"
 addopts = ["--strict-config", "-ra"]
 testpaths = "tests"
 
+[tool.uv]
+reinstall-package = ["diverse_seq"]
+
 [tool.ruff]
 exclude = [
     ".bzr",
