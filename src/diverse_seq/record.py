@@ -16,6 +16,7 @@ from cogent3.core import new_sequence as c3_new_seq
 from cogent3.core import sequence as c3_seq
 from numpy import (
     array,
+    dtype,
     errstate,
     log2,
     min_scalar_type,
@@ -66,7 +67,11 @@ class lazy_kmers:
     def __post_init__(self, moltype: str):
         self.num_states = len(_get_canonical_states(moltype))
 
-    def __array__(self):
+    def __array__(
+        self,
+        dtype: dtype | None = None,
+        copy: bool | None = None,
+    ) -> ndarray[int]:
         data = self.data if isinstance(self.data, ndarray) else self.data.read()
         return kmer_counts(data, self.num_states, self.k, dtype=self.dtype)
 
@@ -211,7 +216,11 @@ class vector:
         # taking absolute value due to precision issues
         return fabs(-(kfreqs * log2(kfreqs)).sum())
 
-    def __array__(self):
+    def __array__(
+        self,
+        dtype: dtype | None = None,
+        copy: bool | None = None,
+    ) -> ndarray[int]:
         if not isinstance(self.data, ndarray):
             self.data = array(self.data)
         return self.data
