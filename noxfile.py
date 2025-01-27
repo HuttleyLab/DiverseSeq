@@ -1,6 +1,6 @@
 import nox
 
-_py_versions = range(10, 13)
+_py_versions = range(10, 14)
 
 nox.options.sessions = ["test", "testcov"]
 
@@ -16,7 +16,7 @@ def test(session):
     )
 
 
-@nox.session(python=["3.12"])
+@nox.session(python=["3.13"])
 def testcov(session):
     session.install(".[test]")
     session.chdir("tests")
