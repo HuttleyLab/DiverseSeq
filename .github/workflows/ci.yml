@@ -36,7 +36,7 @@ jobs:
           uv tool install -p venv nox
 
       - name: "Run nox for ${{ matrix.python-version }}"
-        run: "nox -db uv -test_coveralls-${{ matrix.python-version }} -- --cov-report lcov:lcov-${{matrix.os}}-${{matrix.python-version}}.lcov --cov-report term --cov-append --cov diverse_seq"
+        run: "nox -db uv -s test_coveralls-${{ matrix.python-version }} -- --cov-report lcov:lcov-${{matrix.os}}-${{matrix.python-version}}.lcov --cov-report term --cov-append --cov diverse_seq"
 
       - name: Coveralls Parallel
         uses: coverallsapp/github-action@v2
