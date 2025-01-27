@@ -10,7 +10,7 @@ authors = [
 keywords = ["biology", "genomics", "statistics", "phylogeny", "evolution", "bioinformatics"]
 readme = "README.md"
 license = { file = "LICENSE" }
-requires-python = ">=3.10,<3.13"
+requires-python = ">=3.10,<3.14"
 dependencies = [
     "attrs",
     "click",
@@ -32,6 +32,8 @@ classifiers = [
         "Operating System :: OS Independent",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
     ]
 # the following are inferred from the source code
 dynamic = ["version", "description"]
