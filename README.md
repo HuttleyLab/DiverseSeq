@@ -10,6 +10,14 @@
 
 You can read more about the methods implemented in `diverse-seq` in the preprint [here](https://biorxiv.org/cgi/content/short/2024.11.10.622877v1).
 
+### Installation
+
+`diverse-seq` can be installed from PyPI as follows
+
+```
+pip install diverse-seq
+```
+
 ### `dvs prep`: preparing the sequence data
 
 Convert sequence data into a more efficient format for the diversity assessment. This must be done before running either the `nmost` or `max` commands.
