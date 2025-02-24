@@ -4,11 +4,11 @@
 [![CodeQL](https://github.com/HuttleyLab/DiverseSeq/actions/workflows/codeql.yml/badge.svg)](https://github.com/HuttleyLab/DiverseSeq/actions/workflows/codeql.yml)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
-# `diverse_seq` provides alignment-free algorithms to facilitate phylogenetic workflows
+# `diverse-seq` provides alignment-free algorithms to facilitate phylogenetic workflows
 
 `diverse-seq` implements computationally efficient alignment-free algorithms that enable efficient prototyping for phylogenetic workflows. It can accelerate parameter selection searches for sequence alignment and phylogeny estimation by identifying a subset of sequences that are representative of the diversity in a collection. We show that selecting representative sequences with an entropy measure of *k*-mer frequencies correspond well to sampling via conventional genetic distances. The computational performance is linear with respect to the number of sequences and can be run in parallel. Applied to a collection of 10.5k whole microbial genomes on a laptop took ~8 minutes to prepare the data and 4 minutes to select 100 representatives. `diverse-seq` can further boost the performance of phylogenetic estimation by providing a seed phylogeny that can be further refined by a more sophisticated algorithm. For ~1k whole microbial genomes on a laptop, it takes ~1.8 minutes to estimate a bifurcating tree from mash distances.
 
-You can read more about the methods implemented in `diverse_seq` in the preprint [here](https://biorxiv.org/cgi/content/short/2024.11.10.622877v1).
+You can read more about the methods implemented in `diverse-seq` in the preprint [here](https://biorxiv.org/cgi/content/short/2024.11.10.622877v1).
 
 ### `dvs prep`: preparing the sequence data
 
