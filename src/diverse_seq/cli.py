@@ -20,12 +20,11 @@ from diverse_seq import util as dvs_util
 LOGGER = CachingLogger()
 
 
-class OrderedGroup(click.Group):
-    """custom group class to ensure help function returns commands in desired order.
-    class is adapted from Максим Стукало's answer to
-    https://stackoverflow.com/questions/47972638/how-can-i-define-the-order-of-click-sub-commands-in-help
-    """
+# custom group class to ensure help function returns commands in desired order.
+# class is adapted from Максим Стукало's answer to
+# https://stackoverflow.com/questions/47972638/how-can-i-define-the-order-of-click-sub-commands-in-help
 
+class OrderedGroup(click.Group):
     def __init__(
         self,
         name: str | None = None,
