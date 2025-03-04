@@ -24,6 +24,7 @@ LOGGER = CachingLogger()
 # class is adapted from Максим Стукало's answer to
 # https://stackoverflow.com/questions/47972638/how-can-i-define-the-order-of-click-sub-commands-in-help
 
+
 class OrderedGroup(click.Group):
     def __init__(
         self,
