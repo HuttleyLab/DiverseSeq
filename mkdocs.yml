@@ -1,0 +1,32 @@
+site_name: diverse-seq
+site_url: "https://github.com/HuttleyLab/DiverseSeq/"
+site_author: "Gavin Huttley"
+repo_url: "https://github.com/HuttleyLab/DiverseSeq/"
+repo_name: 'GitHub'
+theme:
+    name: material
+    highlightjs: true
+    hljs_languages:
+        - yaml
+        - python
+        - text
+        - bash
+
+plugins:
+    - mkdocs-jupyter:
+        remove_tag_config:
+            remove_input_tags:
+                - hide_code
+        include_requirejs: true
+        execute: true
+    - markdown-exec:
+        ansi: required
+
+markdown_extensions:
+- pymdownx.superfences
+
+nav:
+    - HOME:
+      - Introduction: index.md
+      - The command line interface: cli.md
+      - The Python API: apps.py
