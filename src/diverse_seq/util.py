@@ -3,6 +3,7 @@ import functools
 import math
 import pathlib
 import re
+import typing
 
 import numpy
 from cogent3 import get_moltype
@@ -18,6 +19,9 @@ try:
 
 except (NotImplementedError, ImportError):
     keep_running = contextlib.nullcontext
+
+if typing.TYPE_CHECKING:
+    from click.core import Context, Option
 
 
 @composable.define_app
@@ -134,8 +138,11 @@ class summary_stats:
         return self.std / self.mean
 
 
-def _comma_sep_or_file(*args):
-    include = args[-1]
+def _comma_sep_or_file(
+    ctx: "Context",  # noqa: ARG001
+    param: "Option",  # noqa: ARG001
+    include: str,
+) -> list[str] | None:
     if include is None:
         return None
     if pathlib.Path(include).is_file():
@@ -156,6 +163,20 @@ class _printer:
         msg = rich_text.Text(txt)
         msg.stylize(colour)
         self._console.print(msg)
+
+
+def get_sample_data_path() -> pathlib.Path:
+    """returns path to sample data file"""
+    from diverse_seq import data
+
+    path = pathlib.Path(data.__path__[0]) / "brca1.fa"
+
+    path = path.absolute()
+    if not path.exists():
+        msg = f"sample data file {str(path)!r} does not exist"
+        raise ValueError(msg)
+
+    return pathlib.Path(path)
 
 
 print_colour = _printer()

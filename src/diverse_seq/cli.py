@@ -1,11 +1,14 @@
 import random
 import sys
 import tempfile
+import time
+import typing
 from collections import OrderedDict
 from collections.abc import Mapping
 from pathlib import Path
 
 import click
+import numpy
 import rich.progress as rich_progress
 from cogent3.app import data_store as c3_data_store
 from scitrack import CachingLogger
@@ -17,7 +20,15 @@ from diverse_seq import io as dvs_io
 from diverse_seq import records as dvs_records
 from diverse_seq import util as dvs_util
 
+if typing.TYPE_CHECKING:
+    from click.core import Context, Option
+
 LOGGER = CachingLogger()
+
+
+def _get_seed(ctx: "Context", param: "Option", value: str | None) -> int:
+    value = time.time() if value is None else value
+    return int(value)
 
 
 # custom group class to ensure help function returns commands in desired order.
@@ -40,15 +51,15 @@ class OrderedGroup(click.Group):
         return self.commands
 
 
-_click_command_opts = dict(
-    no_args_is_help=True,
-    context_settings={"show_default": True},
-)
+_click_command_opts = {
+    "no_args_is_help": True,
+    "context_settings": {"show_default": True},
+}
 
 
 @click.group(cls=OrderedGroup)
 @click.version_option(__version__)  # add version option
-def main():
+def main() -> None:
     """dvs -- alignment free detection of the most diverse sequences using JSD"""
 
 
@@ -68,7 +79,8 @@ _outpath = click.option(
     "-o",
     "--outpath",
     type=Path,
-    help="the input string will be cast to Path instance",
+    help="path to write output file",
+    required=True,
 )
 _overwrite = click.option(
     "-F",
@@ -80,7 +92,7 @@ _overwrite = click.option(
 _include = click.option(
     "-i",
     "--include",
-    callback=dvs_util._comma_sep_or_file,
+    callback=dvs_util._comma_sep_or_file,  # noqa: SLF001
     help="seqnames to include in divergent set",
 )
 _suffix = click.option("-sf", "--suffix", default="fa", help="sequence file suffix")
@@ -101,6 +113,33 @@ _seqfile = click.option(
     help="path to .dvseqs file",
 )
 _k = click.option("-k", type=int, default=6, help="k-mer size")
+
+_seed = click.option(
+    "--seed",
+    type=int,
+    callback=_get_seed,
+    help="seed for random number generator, defaults to system clock",
+)
+
+_click_opts = _click_command_opts.copy()
+_click_opts.pop("no_args_is_help")
+
+
+@main.command(**_click_opts)
+@click.option(
+    "-o",
+    "--outpath",
+    type=Path,
+    default=Path("demo.fa"),
+    help="write a demo fasta file",
+)
+def demo_data(outpath: Path) -> None:
+    """Export a demo sequence file"""
+    from diverse_seq import load_sample_data
+
+    seqs = load_sample_data()
+    seqs.write(outpath, file_format="fasta")
+    dvs_util.print_colour(f"Wrote '{outpath!s}'", "green")
 
 
 @main.command(**_click_command_opts)
@@ -125,15 +164,15 @@ _k = click.option("-k", type=int, default=6, help="k-mer size")
 @_limit
 @_hide_progress
 def prep(
-    seqdir,
-    suffix,
-    outpath,
-    numprocs,
-    force_overwrite,
-    moltype,
-    limit,
-    hide_progress,
-):
+    seqdir: Path,
+    suffix: str,
+    outpath: Path,
+    numprocs: int,
+    force_overwrite: bool,
+    moltype: str,
+    limit: int | None,
+    hide_progress: bool,
+) -> None:
     """Writes processed sequences to a <HDF5 file>.dvseqs."""
     dvseqs_path = outpath.with_suffix(".dvseqs")
     if dvseqs_path.exists() and not force_overwrite:
@@ -196,17 +235,18 @@ def prep(
                 in_dstore,
                 show_progress=False,
                 parallel=numprocs > 1,
-                par_kw=dict(max_workers=numprocs),
+                par_kw={"max_workers": numprocs},
             ):
                 if not r:
-                    print(r)
+                    dvs_util.print_colour(str(r), "red")
+                    sys.exit(1)
                 writer(r)  # pylint: disable=not-callable
                 progress.update(convert, advance=1, refresh=True)
                 del r
 
     out_dstore.close()
     dvs_util.print_colour(
-        f"Successfully created {out_dstore.source!s}",
+        f"Successfully created '{out_dstore.source!s}'",
         "green",
     )
 
@@ -236,6 +276,7 @@ def prep(
     default="stdev",
     help="statistic to maximise",
 )
+@_seed
 @_include
 @_numprocs
 @_limit
@@ -247,20 +288,21 @@ def prep(
 )
 @_verbose
 @_hide_progress
-def max(
-    seqfile,
-    outpath,
-    min_size,
-    max_size,
-    stat,
-    include,
-    k,
-    numprocs,
-    limit,
-    test_run,
-    verbose,
-    hide_progress,
-):
+def max(  # noqa: A001
+    seqfile: Path,
+    outpath: Path,
+    min_size: int,
+    max_size: int | None,
+    stat: str,
+    seed: int,
+    include: list[str] | None,
+    k: int,
+    numprocs: int,
+    limit: int | None,
+    test_run: bool,
+    verbose: int,
+    hide_progress: bool,
+) -> None:
     """Identify the seqs that maximise average delta JSD"""
     if max_size is not None and min_size > max_size:
         dvs_util.print_colour(f"{min_size=} cannot be greater than {max_size=}", "red")
@@ -280,6 +322,12 @@ def max(
             "red",
         )
         sys.exit(1)
+
+    if verbose:
+        dvs_util.print_colour(f"Using random seed: {seed}", "blue")
+
+    rng = numpy.random.default_rng(seed=seed)
+    rng.shuffle(seqids)
 
     limit = 2 if test_run else limit
     if limit is not None:
@@ -325,7 +373,7 @@ def max(
     table = result.to_table()
     table.write(outpath)
     dvs_util.print_colour(
-        f"{table.shape[0]} divergent sequences IDs written to {outpath!s}",
+        f"{table.shape[0]} divergent sequences IDs written to '{outpath!s}'",
         "green",
     )
 
@@ -341,22 +389,24 @@ def max(
     required=True,
 )
 @_k
+@_seed
 @_include
 @_numprocs
 @_limit
 @_verbose
 @_hide_progress
 def nmost(
-    seqfile,
-    outpath,
-    number,
-    k,
-    include,
-    numprocs,
-    limit,
-    verbose,
-    hide_progress,
-):
+    seqfile: Path,
+    outpath: Path,
+    number: int,
+    k: int,
+    include: list[str] | None,
+    seed: int,
+    numprocs: int,
+    limit: int | None,
+    verbose: int,
+    hide_progress: bool,
+) -> None:
     """Identify n seqs that maximise average delta JSD"""
 
     if seqfile.suffix != ".dvseqs":
@@ -375,6 +425,11 @@ def nmost(
         )
         sys.exit(1)
 
+    if verbose:
+        dvs_util.print_colour(f"Using random seed: {seed}", "blue")
+
+    rng = numpy.random.default_rng(seed=seed)
+    rng.shuffle(seqids)
     if limit is not None:
         seqids = seqids[:limit]
 
@@ -409,7 +464,7 @@ def nmost(
     table = result.to_table()
     table.write(outpath)
     dvs_util.print_colour(
-        f"{table.shape[0]} divergent sequences IDs written to {outpath!s}",
+        f"{table.shape[0]} divergent sequences IDs written to '{outpath!s}'",
         "green",
     )
 
@@ -423,7 +478,7 @@ def nmost(
     "--sketch-size",
     type=int,
     default=None,
-    help="sketch size for mash distance",
+    help="sketch size for mash distance, e.g. 3000",
 )
 @click.option(
     "-d",
@@ -439,9 +494,11 @@ def nmost(
     default=False,
     help="consider kmers identical to their reverse complement",
 )
+@_seed
 @_limit
 @_numprocs
 @_hide_progress
+@_verbose
 def ctree(
     seqfile: Path,
     outpath: Path,
@@ -450,9 +507,11 @@ def ctree(
     sketch_size: int | None,
     distance: str,
     canonical_kmers: bool,
+    seed: int,
     limit: int | None,
     numprocs: int,
     hide_progress: bool,
+    verbose: int,
 ):
     """Quickly compute a cluster tree based on kmers for a collection of sequences."""
     if seqfile.suffix != ".dvseqs":
@@ -477,6 +536,11 @@ def ctree(
         sys.exit(1)
 
     seqids = dvs_data_store.get_seqids_from_store(seqfile)
+    if verbose:
+        dvs_util.print_colour(f"Using random seed: {seed}", "blue")
+
+    rng = numpy.random.default_rng(seed=seed)
+    rng.shuffle(seqids)
     if limit is not None:
         seqids = seqids[:limit]
 
@@ -498,6 +562,7 @@ def ctree(
         sys.exit(1)
 
     tree.write(outpath)
+    dvs_util.print_colour(f"Newick tree written to '{outpath!s}'", "green")
 
 
 if __name__ == "__main__":
