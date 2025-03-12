@@ -22,7 +22,8 @@ dependencies = [
     "rich",
     "scitrack",
     "scikit-learn",
-    ]
+    "mkdocs>=1.6.1",
+]
 classifiers = [
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Science/Research",
@@ -52,19 +53,9 @@ test = [
     "pytest",
     "pytest-cov",
     "pytest-xdist",
-    "ruff==0.9.9",
-]
-dev = [
-    "cogapp",
-    "docformatter",
-    "flit",
-    "nox",
-    "pytest",
-    "pytest-cov",
-    "pytest-xdist",
-    "ruff==0.9.9",
 ]
 doc  = ["click",
+        "cogent3[extra]",
         "ipykernel",
         "ipython",
         "ipywidgets",
@@ -73,6 +64,9 @@ doc  = ["click",
         "jupyterlab",
         "jupytext",
         "kaleido",
+        "markdown-exec[ansi]>=1.10.0",
+        "mkdocs-jupyter>=0.25.1",
+        "markdown>=3.7",
         "nbconvert>5.4",
         "nbformat",
         "nbsphinx",
@@ -83,6 +77,14 @@ doc  = ["click",
         "requests",
         "statsmodels",
         ]
+dev = [
+    "cogapp",
+    "docformatter",
+    "flit",
+    "ruff==0.9.9",
+    "diverse_seq[test]",
+    "diverse_seq[doc]",
+]
 
 [project.scripts]
 dvs = "diverse_seq.cli:main"
@@ -96,9 +98,6 @@ dvs_par_ctree = "diverse_seq.cluster:dvs_par_ctree"
 [tool.pytest.ini_options]
 addopts = ["--strict-config", "-ra"]
 testpaths = "tests"
-
-[tool.uv]
-reinstall-package = ["diverse_seq"]
 
 [tool.ruff]
 exclude = [
@@ -145,7 +144,10 @@ select = ["ALL"]
 # - import numpy as np, we pefer explicit and 3 extra characters is no burden
 # - strict camel case class names, we name classes with a __call__ method like
 #   functions since their instance behaves like a function
-ignore = ["EXE002", "FA100", "E501", "D", "ICN001", "N801"]
+# - too many args to function defn, number is too strict
+ignore = ["EXE002", "FA100", "E501", "D", "ICN001", "N801", "PLR0913",
+         "COM812"
+        ]
 
 # Allow fix for all enabled rules (when `--fix`) is provided.
 fixable = ["ALL"]
