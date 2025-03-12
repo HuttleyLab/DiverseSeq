@@ -22,7 +22,6 @@ dependencies = [
     "rich",
     "scitrack",
     "scikit-learn",
-    "mkdocs>=1.6.1",
 ]
 classifiers = [
         "Development Status :: 3 - Alpha",
@@ -64,6 +63,7 @@ doc  = ["click",
         "jupyterlab",
         "jupytext",
         "kaleido",
+        "mkdocs>=1.6.1",
         "markdown-exec[ansi]>=1.10.0",
         "mkdocs-jupyter>=0.25.1",
         "markdown>=3.7",
