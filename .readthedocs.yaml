@@ -11,7 +11,7 @@ build:
   tools:
     python: "3.13"
   commands:
-    - echo "Documentation downloaded and extracted"
+    - mkdocs build --clean
 
 mkdocs:
   configuration: mkdocs.yml
