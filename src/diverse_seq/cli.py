@@ -102,6 +102,26 @@ _seqfile = click.option(
 )
 _k = click.option("-k", type=int, default=6, help="k-mer size")
 
+_click_opts = _click_command_opts.copy()
+_click_opts.pop("no_args_is_help")
+
+
+@main.command(**_click_opts)
+@click.option(
+    "-o",
+    "--outpath",
+    type=Path,
+    default=Path("demo.fa"),
+    help="write a demo fasta file",
+)
+def demo_data(outpath: Path) -> None:
+    """Export a demo sequence file"""
+    from diverse_seq import load_sample_data
+
+    seqs = load_sample_data()
+    seqs.write(outpath, file_format="fasta")
+    dvs_util.print_colour(f"Wrote '{outpath!s}'", "green")
+
 
 @main.command(**_click_command_opts)
 @click.option(

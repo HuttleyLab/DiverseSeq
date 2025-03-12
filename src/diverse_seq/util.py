@@ -158,4 +158,18 @@ class _printer:
         self._console.print(msg)
 
 
+def get_sample_data_path() -> pathlib.Path:
+    """returns path to sample data file"""
+    from diverse_seq import data
+
+    path = pathlib.Path(data.__path__[0]) / "brca1.fa"
+
+    path = path.absolute()
+    if not path.exists():
+        msg = f"sample data file {str(path)!r} does not exist"
+        raise ValueError(msg)
+
+    return pathlib.Path(path)
+
+
 print_colour = _printer()

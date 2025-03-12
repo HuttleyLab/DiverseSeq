@@ -82,3 +82,9 @@ def test_print_colour(capsys):
     dvs_util.print_colour("hello", "red")
     got = capsys.readouterr().out
     assert "hello" in got
+
+
+def test_export_demo(tmp_dir):
+    got = dvs_util.get_sample_data_path()
+    assert got.exists()
+    assert got.name == "brca1.fa"
