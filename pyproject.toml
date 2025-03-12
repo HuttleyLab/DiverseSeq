@@ -39,7 +39,7 @@ classifiers = [
 dynamic = ["version", "description"]
 
 [project.urls]
-Documentation = "https://github.com/HuttleyLab/DiverseSeq"
+Documentation = "https://diverse-seq.readthedocs.io/"
 "Bug Tracker" = "https://github.com/HuttleyLab/DiverseSeq/issues"
 "Source Code" = "https://github.com/HuttleyLab/DiverseSeq/"
 
