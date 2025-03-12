@@ -11,6 +11,8 @@ build:
   tools:
     python: "3.13"
   commands:
+    - pip install ".[doc]"
+    - mkdocs --version
     - mkdocs build --clean
 
 mkdocs:
