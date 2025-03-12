@@ -12,8 +12,9 @@ build:
     python: "3.13"
   commands:
     - pip install ".[doc]"
+    - mkdir -p $READTHEDOCS_OUTPUT/html
     - mkdocs --version
-    - mkdocs build --clean
+    - mkdocs build --clean --site-dir $READTHEDOCS_OUTPUT/html
 
 mkdocs:
   configuration: mkdocs.yml
