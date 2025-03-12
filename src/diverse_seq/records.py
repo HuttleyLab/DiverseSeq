@@ -463,8 +463,6 @@ class select_max:
             limit=self._limit,
             k=self._k,
         )
-        # TODO: add ability to set random number seed
-        numpy.random.shuffle(records)
         return max_divergent(
             records=records,
             min_size=self._min_size,
@@ -559,8 +557,6 @@ class select_nmost:
             limit=self._limit,
             k=self._k,
         )
-        # TODO: add ability to set random number seed
-        numpy.random.shuffle(records)
         return most_divergent(records, size=self._max_size, verbose=self._verbose > 0)
 
 

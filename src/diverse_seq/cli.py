@@ -1,11 +1,14 @@
 import random
 import sys
 import tempfile
+import time
+import typing
 from collections import OrderedDict
 from collections.abc import Mapping
 from pathlib import Path
 
 import click
+import numpy
 import rich.progress as rich_progress
 from cogent3.app import data_store as c3_data_store
 from scitrack import CachingLogger
@@ -17,7 +20,15 @@ from diverse_seq import io as dvs_io
 from diverse_seq import records as dvs_records
 from diverse_seq import util as dvs_util
 
+if typing.TYPE_CHECKING:
+    from click.core import Context, Option
+
 LOGGER = CachingLogger()
+
+
+def _get_seed(ctx: "Context", param: "Option", value: str | None) -> int:
+    value = value or time.time()
+    return int(value)
 
 
 # custom group class to ensure help function returns commands in desired order.
@@ -101,6 +112,13 @@ _seqfile = click.option(
     help="path to .dvseqs file",
 )
 _k = click.option("-k", type=int, default=6, help="k-mer size")
+
+_seed = click.option(
+    "--seed",
+    type=int,
+    callback=_get_seed,
+    help="seed for random number generator, defaults to system clock",
+)
 
 _click_opts = _click_command_opts.copy()
 _click_opts.pop("no_args_is_help")
@@ -256,6 +274,7 @@ def prep(
     default="stdev",
     help="statistic to maximise",
 )
+@_seed
 @_include
 @_numprocs
 @_limit
@@ -267,20 +286,21 @@ def prep(
 )
 @_verbose
 @_hide_progress
-def max(
-    seqfile,
-    outpath,
-    min_size,
-    max_size,
-    stat,
-    include,
-    k,
-    numprocs,
-    limit,
-    test_run,
-    verbose,
-    hide_progress,
-):
+def max(  # noqa: A001
+    seqfile: Path,
+    outpath: Path,
+    min_size: int,
+    max_size: int | None,
+    stat: str,
+    seed: int,
+    include: list[str] | None,
+    k: int,
+    numprocs: int,
+    limit: int | None,
+    test_run: bool,
+    verbose: int,
+    hide_progress: bool,
+) -> None:
     """Identify the seqs that maximise average delta JSD"""
     if max_size is not None and min_size > max_size:
         dvs_util.print_colour(f"{min_size=} cannot be greater than {max_size=}", "red")
@@ -300,6 +320,12 @@ def max(
             "red",
         )
         sys.exit(1)
+
+    if verbose:
+        dvs_util.print_colour(f"Using random seed: {seed}", "blue")
+
+    rng = numpy.random.default_rng(seed=seed)
+    rng.shuffle(seqids)
 
     limit = 2 if test_run else limit
     if limit is not None:
@@ -361,22 +387,24 @@ def max(
     required=True,
 )
 @_k
+@_seed
 @_include
 @_numprocs
 @_limit
 @_verbose
 @_hide_progress
 def nmost(
-    seqfile,
-    outpath,
-    number,
-    k,
-    include,
-    numprocs,
-    limit,
-    verbose,
-    hide_progress,
-):
+    seqfile: Path,
+    outpath: Path,
+    number: int,
+    k: int,
+    include: list[str] | None,
+    seed: int,
+    numprocs: int,
+    limit: int | None,
+    verbose: int,
+    hide_progress: bool,
+) -> None:
     """Identify n seqs that maximise average delta JSD"""
 
     if seqfile.suffix != ".dvseqs":
@@ -395,6 +423,11 @@ def nmost(
         )
         sys.exit(1)
 
+    if verbose:
+        dvs_util.print_colour(f"Using random seed: {seed}", "blue")
+
+    rng = numpy.random.default_rng(seed=seed)
+    rng.shuffle(seqids)
     if limit is not None:
         seqids = seqids[:limit]
 
@@ -459,9 +492,11 @@ def nmost(
     default=False,
     help="consider kmers identical to their reverse complement",
 )
+@_seed
 @_limit
 @_numprocs
 @_hide_progress
+@_verbose
 def ctree(
     seqfile: Path,
     outpath: Path,
@@ -470,9 +505,11 @@ def ctree(
     sketch_size: int | None,
     distance: str,
     canonical_kmers: bool,
+    seed: int,
     limit: int | None,
     numprocs: int,
     hide_progress: bool,
+    verbose: int,
 ):
     """Quickly compute a cluster tree based on kmers for a collection of sequences."""
     if seqfile.suffix != ".dvseqs":
@@ -497,6 +534,11 @@ def ctree(
         sys.exit(1)
 
     seqids = dvs_data_store.get_seqids_from_store(seqfile)
+    if verbose:
+        dvs_util.print_colour(f"Using random seed: {seed}", "blue")
+
+    rng = numpy.random.default_rng(seed=seed)
+    rng.shuffle(seqids)
     if limit is not None:
         seqids = seqids[:limit]
 
