@@ -498,7 +498,8 @@ def records_from_seq_store(
 
     Returns
     -------
-        sequences are converted into vector of k-mer counts
+    sequences are converted into vector of k-mer counts,
+    returned in the order of seq_names
     """
     dstore = dvs_data_store.HDF5DataStore(seq_store, mode="r")
     make_record = member_to_kmerseq(k=k, moltype=moltype)
@@ -584,6 +585,14 @@ def apply_app(
     finalise: typing.Callable[[list[SummedRecords]], SummedRecords],
 ) -> SummedRecords:
     """applies the app to seqids, polishing the selected set with finalise"""
+    if verbose and not hide_progress:
+        dvs_util.print_colour(
+            "Cannot show progress bar and verbose. "
+            "Either hide_progress or disable verbose.",
+            "red",
+        )
+        sys.exit(1)
+
     app_name = app.__class__.__name__
     with dvs_util.keep_running():
         if numprocs > 1 and len(seqids) > numprocs:
@@ -607,15 +616,16 @@ def apply_app(
             for r in app.as_completed(
                 seqids,
                 parallel=numprocs > 1,
-                par_kw=dict(max_workers=numprocs),
-                show_progress=True,
+                par_kw={"max_workers": numprocs},
+                show_progress=False,
             ):
                 if not r:
-                    dvs_util.print_colour(r, "red")
+                    dvs_util.print_colour(str(r), "red")
                 result.append(r.obj)
                 progress.update(select, advance=1, refresh=True)
 
-        dvs_util.print_colour(f"Merging results from {len(seqids)} runs...", "blue")
+        if len(seqids) > 1:
+            dvs_util.print_colour(f"Merging results from {len(seqids)} runs...", "blue")
 
         result = finalise(result)
 

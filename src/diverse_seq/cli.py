@@ -51,15 +51,15 @@ class OrderedGroup(click.Group):
         return self.commands
 
 
-_click_command_opts = dict(
-    no_args_is_help=True,
-    context_settings={"show_default": True},
-)
+_click_command_opts = {
+    "no_args_is_help": True,
+    "context_settings": {"show_default": True},
+}
 
 
 @click.group(cls=OrderedGroup)
 @click.version_option(__version__)  # add version option
-def main():
+def main() -> None:
     """dvs -- alignment free detection of the most diverse sequences using JSD"""
 
 
@@ -79,7 +79,8 @@ _outpath = click.option(
     "-o",
     "--outpath",
     type=Path,
-    help="the input string will be cast to Path instance",
+    help="path to write output file",
+    required=True,
 )
 _overwrite = click.option(
     "-F",
@@ -91,7 +92,7 @@ _overwrite = click.option(
 _include = click.option(
     "-i",
     "--include",
-    callback=dvs_util._comma_sep_or_file,
+    callback=dvs_util._comma_sep_or_file,  # noqa: SLF001
     help="seqnames to include in divergent set",
 )
 _suffix = click.option("-sf", "--suffix", default="fa", help="sequence file suffix")
@@ -163,15 +164,15 @@ def demo_data(outpath: Path) -> None:
 @_limit
 @_hide_progress
 def prep(
-    seqdir,
-    suffix,
-    outpath,
-    numprocs,
-    force_overwrite,
-    moltype,
-    limit,
-    hide_progress,
-):
+    seqdir: Path,
+    suffix: str,
+    outpath: Path,
+    numprocs: int,
+    force_overwrite: bool,
+    moltype: str,
+    limit: int | None,
+    hide_progress: bool,
+) -> None:
     """Writes processed sequences to a <HDF5 file>.dvseqs."""
     dvseqs_path = outpath.with_suffix(".dvseqs")
     if dvseqs_path.exists() and not force_overwrite:
@@ -234,17 +235,18 @@ def prep(
                 in_dstore,
                 show_progress=False,
                 parallel=numprocs > 1,
-                par_kw=dict(max_workers=numprocs),
+                par_kw={"max_workers": numprocs},
             ):
                 if not r:
-                    print(r)
+                    dvs_util.print_colour(str(r), "red")
+                    sys.exit(1)
                 writer(r)  # pylint: disable=not-callable
                 progress.update(convert, advance=1, refresh=True)
                 del r
 
     out_dstore.close()
     dvs_util.print_colour(
-        f"Successfully created {out_dstore.source!s}",
+        f"Successfully created '{out_dstore.source!s}'",
         "green",
     )
 
@@ -371,7 +373,7 @@ def max(  # noqa: A001
     table = result.to_table()
     table.write(outpath)
     dvs_util.print_colour(
-        f"{table.shape[0]} divergent sequences IDs written to {outpath!s}",
+        f"{table.shape[0]} divergent sequences IDs written to '{outpath!s}'",
         "green",
     )
 
@@ -462,7 +464,7 @@ def nmost(
     table = result.to_table()
     table.write(outpath)
     dvs_util.print_colour(
-        f"{table.shape[0]} divergent sequences IDs written to {outpath!s}",
+        f"{table.shape[0]} divergent sequences IDs written to '{outpath!s}'",
         "green",
     )
 
@@ -476,7 +478,7 @@ def nmost(
     "--sketch-size",
     type=int,
     default=None,
-    help="sketch size for mash distance",
+    help="sketch size for mash distance, e.g. 3000",
 )
 @click.option(
     "-d",
@@ -560,6 +562,7 @@ def ctree(
         sys.exit(1)
 
     tree.write(outpath)
+    dvs_util.print_colour(f"Newick tree written to '{outpath!s}'", "green")
 
 
 if __name__ == "__main__":

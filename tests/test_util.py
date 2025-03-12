@@ -70,7 +70,7 @@ def includes(request, tmp_path):
 
 
 def test_parse_include_arg(includes):
-    got = dvs_util._comma_sep_or_file(includes)
+    got = dvs_util._comma_sep_or_file(None, None, includes)
     assert got == ["a", "b", "c"]
 
 
