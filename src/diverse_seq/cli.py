@@ -27,7 +27,7 @@ LOGGER = CachingLogger()
 
 
 def _get_seed(ctx: "Context", param: "Option", value: str | None) -> int:
-    value = value or time.time()
+    value = time.time() if value is None else value
     return int(value)
 
 
