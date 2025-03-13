@@ -34,8 +34,6 @@ header-includes:
 summary for non specialists
 --->
 
-The algorithms required for phylogenetics — multiple sequence alignment and phylogeny estimation — are both compute intensive. As the size of DNA sequence datasets continues to increase, there is a need for a tool that can effectively lessen the computational burden associated with this widely used analysis.
-
 `diverse-seq` implements computationally efficient alignment-free algorithms that enable efficient prototyping for phylogenetic workflows. It can accelerate parameter selection searches for sequence alignment and phylogeny estimation by identifying a subset of sequences that are representative of the diversity in a collection. We show that selecting representative sequences with an entropy measure of $k$-mer frequencies correspond well to sampling via conventional genetic distances. The computational performance is linear with respect to the number of sequences and can be run in parallel. Applied to a collection of 10.5k whole microbial genomes on a laptop took ~8 minutes to prepare the data and 4 minutes to select 100 representatives. `diverse-seq` can further boost the performance of phylogenetic estimation by providing a seed phylogeny that can be further refined by a more sophisticated algorithm. For ~1k whole microbial genomes on a laptop, it takes ~1.8 minutes to estimate a bifurcating tree from mash distances.
 
 The `diverse-seq` algorithms are not limited to homologous sequences. As such, they can improve the performance of other workflows. For instance, machine learning projects that involve non-homologous sequences can benefit as representative sampling can mitigate biases from imbalanced groups. 
@@ -43,6 +41,8 @@ The `diverse-seq` algorithms are not limited to homologous sequences. As such, t
 `diverse-seq` is a BSD-3 licensed Python package that provides both a command-line interface and `cogent3` plugins. The latter simplifies integration by users into their own analyses. It is available via the Python Package Index and GitHub.
 
 # Statement of need
+
+The algorithms required for phylogenetics — multiple sequence alignment and phylogeny estimation — are both compute intensive. As the size of DNA sequence datasets continues to increase, there is a need for a tool that can effectively lessen the computational burden associated with this widely used analysis.
 
 Accurately selecting a representative subset of biological sequences can improve the statistical accuracy and computational performance of data sampling workflows. In many cases, the reliability of such analyses is contingent on the sample capturing the full diversity of the original collection [e.g. estimating large phylogenies @parks.2018.natbiotechnol; @zhu.2019.nat.commun].  Additionally, the computation time of algorithms reliant on numerical optimisation, such as phylogenetic estimation, can be markedly reduced by having a good initial estimate.
 
@@ -135,7 +135,7 @@ For selecting representative sequences for large-scale analyses, we recommend us
 
 # Availability
 
-`diverse-seq` can be installed from the Python Package Index. The GitHub repository for `diverse-seq` contains all the scripts used to generate the results in this work. A script for downloading the data sets used in this work, which are available from Zenodo **10.5281/zenodo.14052787**, is also included. 
+`diverse-seq` can be installed from the Python Package Index. The GitHub repository for `diverse-seq` contains [all the scripts](https://github.com/HuttleyLab/DiverseSeq/tree/JOSS/paper/nbks) used to generate the results in this work. A script for downloading the data sets used in this work, which are available from [Zenodo 10.5281/zenodo.14052787](https://zenodo.org/records/14052787), is also included.
 
 # Figures
 
