@@ -8,7 +8,7 @@ import typing
 if typing.TYPE_CHECKING:
     from cogent3.core.new_alignment import SequenceCollection
 
-__version__ = "2024.12.26a2"
+__version__ = "2025.3.13"
 
 
 def load_sample_data() -> "SequenceCollection":
