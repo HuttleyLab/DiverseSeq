@@ -1,0 +1,27 @@
+# .readthedocs.yaml
+# Read the Docs configuration file for MkDocs projects
+# See https://docs.readthedocs.io/en/stable/config-file/v2.html for details
+
+# Required
+version: 2
+
+# Set the version of Python and other tools you might need
+build:
+  os: ubuntu-22.04
+  tools:
+    python: "3.13"
+  commands:
+    - pip install ".[doc]"
+    - mkdir -p $READTHEDOCS_OUTPUT/html
+    - mkdocs --version
+    - mkdocs build --clean --site-dir $READTHEDOCS_OUTPUT/html
+
+mkdocs:
+  configuration: mkdocs.yml
+
+python:
+  install:
+    - method: pip
+      path: .
+      extra_requirements:
+        - doc

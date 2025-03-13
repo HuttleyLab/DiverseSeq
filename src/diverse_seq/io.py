@@ -164,7 +164,7 @@ class dvs_file_to_dir:
         )
 
         parser = get_format_parser(seq_path, self.seq_format)
-        seqs = {n: seq for n, seq, *_ in parser}
+        seqs = {n: seq.replace(b"-", b"") for n, seq, *_ in parser}
 
         for seq_id, seq_data in seqs.items():
             fasta_seq_data = format_fasta.seqs_to_fasta(
