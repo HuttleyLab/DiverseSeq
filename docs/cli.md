@@ -18,7 +18,7 @@ $ head demo.fa
 
 ## The `prep` command
 
-This command converts either a the sequences in a single file, or a directory of files, into a HDF5 file format. This is more efficient for analysis.
+This command converts either the sequences in a single file, or a directory of files, into a HDF5 file format. This is more efficient for analysis.
 
 ```console exec="1" source="console" result="ansi" workdir="./demo"
 $ dvs prep -s demo.fa -o demo.dvseqs -hp
@@ -32,7 +32,7 @@ This command selects the *n* most diverse sequences, outputting them to a `.tsv`
 $ dvs nmost -s demo.dvseqs -o demo-nmost.tsv -k 6 -n 10 -hp
 ```
 
-The output file has two coilumns, the first is the name of the file the sequence came from, and the second is the delta_jsd value, the contribution of this sequence to the Jensen-Shannon Divergence of the final collection.
+The output file has two columns, the first is the name of the file the sequence came from, and the second is the delta_jsd value, the contribution of this sequence to the Jensen-Shannon Divergence of the final collection.
 
 ```console exec="1" source="console" result="ansi" workdir="./demo"
 $ head demo-nmost.tsv
