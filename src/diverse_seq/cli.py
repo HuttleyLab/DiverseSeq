@@ -67,6 +67,7 @@ _hide_progress = click.option(
     "-hp",
     "--hide_progress",
     is_flag=True,
+    callback=dvs_util._hide_progress,
     help="hide progress bars",
 )
 _verbose = click.option(
@@ -181,7 +182,9 @@ def prep(
             "Use the -F flag if you want to overwrite the existing file.",
             "blue",
         )
-    elif dvseqs_path.exists() and force_overwrite:
+        sys.exit(1)
+
+    if dvseqs_path.exists() and force_overwrite:
         dvseqs_path.unlink()
 
     suffix = suffix.removeprefix(".")
