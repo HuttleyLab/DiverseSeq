@@ -182,7 +182,9 @@ def prep(
             "Use the -F flag if you want to overwrite the existing file.",
             "blue",
         )
-    elif dvseqs_path.exists() and force_overwrite:
+        sys.exit(1)
+
+    if dvseqs_path.exists() and force_overwrite:
         dvseqs_path.unlink()
 
     suffix = suffix.removeprefix(".")

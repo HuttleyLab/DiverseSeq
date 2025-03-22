@@ -264,3 +264,28 @@ def test_ctree(
     tree = load_tree(outpath)
     expected_tips = 55
     assert len(tree.tips()) == expected_tips
+
+
+def test_prep_force(runner, tmp_path):
+    import diverse_seq
+
+    data = diverse_seq.load_sample_data()
+    one = data.take_seqs(data.names[:20])
+    two = data.take_seqs(data.names[20:])
+    one_path = tmp_path / "one.fasta"
+    two_path = tmp_path / "two.fasta"
+    one.write(one_path)
+    two.write(two_path)
+    outpath = tmp_path / "test_prep_force.dvseqs"
+    args = f"-s {one_path} -o {outpath}".split()
+
+    r = runner.invoke(dvs_prep, args)
+    assert r.exit_code == 0, r.output
+    # we try again but the file already exists, so
+    # exit code should be 1
+    r = runner.invoke(dvs_prep, args)
+    assert r.exit_code == 1, "did not fail when file already exists"
+
+    args = f"-s {one_path} -o {outpath} -F".split()
+    r = runner.invoke(dvs_prep, args)
+    assert r.exit_code == 0, r.output
