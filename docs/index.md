@@ -15,3 +15,10 @@ pip install diverse-seq
 > **NOTE**
 > If you experience any errors during installation, we recommend using [uv pip](https://docs.astral.sh/uv/). This command provides much better error messages than the standard `pip` command. If you cannot resolve the installation problem, please [open an issue](https://github.com/HuttleyLab/DiverseSeq/issues).
 
+#### Install to replicate the documentation
+
+To reproduce the examples presented in this documentation, you need extra components. You can install these as follows
+
+```
+pip install "diverse-seq[doc]"
+```
