@@ -67,6 +67,7 @@ _hide_progress = click.option(
     "-hp",
     "--hide_progress",
     is_flag=True,
+    callback=dvs_util._hide_progress,
     help="hide progress bars",
 )
 _verbose = click.option(

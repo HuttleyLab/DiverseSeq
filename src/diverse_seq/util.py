@@ -1,6 +1,7 @@
 import contextlib
 import functools
 import math
+import os
 import pathlib
 import re
 import typing
@@ -150,6 +151,14 @@ def _comma_sep_or_file(
         names = path.read_text().splitlines()
         return [name.strip() for name in names]
     return [n.strip() for n in include.split(",") if n.strip()]
+
+
+def _hide_progress(
+    ctx: "Context",  # noqa: ARG001
+    param: "Option",  # noqa: ARG001
+    hide_progress: str,
+) -> bool:
+    return True if "DVS_HIDE_PROGRESS" in os.environ else hide_progress
 
 
 class _printer:

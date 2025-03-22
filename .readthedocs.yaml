@@ -14,7 +14,7 @@ build:
     - pip install ".[doc]"
     - mkdir -p $READTHEDOCS_OUTPUT/html
     - mkdocs --version
-    - mkdocs build --clean --site-dir $READTHEDOCS_OUTPUT/html
+    - DVS_HIDE_PROGRESS=1 mkdocs build --clean --site-dir $READTHEDOCS_OUTPUT/html
 
 mkdocs:
   configuration: mkdocs.yml
