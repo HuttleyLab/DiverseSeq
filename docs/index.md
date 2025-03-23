@@ -25,3 +25,19 @@ pip install "diverse-seq[extra]"
 
 > **Note**
 > The first usage of `diverse-seq` is slow because both `cogent3` and `diverse-seq` are compiling some functions. This is a one-time cost.
+
+#### Installation and usage with `uv`
+
+Speaking of `uv`, it provides a simplified approach to install `dvs` as a command-line only tool as
+
+```
+uv tool install diverse-seq
+```
+
+For the examples in this documentation, you can access the `dvs` command as
+
+```
+uvx --from diverse-seq dvs
+```
+
+without having to activate a virtual environment.
