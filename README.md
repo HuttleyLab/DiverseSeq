@@ -15,7 +15,15 @@ The user documentation [is here](https://diverse-seq.readthedocs.io).
 
 ### Installation
 
-`diverse-seq` can be installed from PyPI as follows
+We recommend installing `diverse-seq` from PyPI as follows
+
+```
+pip install "diverse-seq[extra]"
+```
+
+for the full jupyter experience.
+
+For command line only usage, install as follows
 
 ```
 pip install diverse-seq
@@ -23,6 +31,20 @@ pip install diverse-seq
 
 > **NOTE**
 > If you experience any errors during installation, we recommend using [uv pip](https://docs.astral.sh/uv/). This command provides much better error messages than the standard `pip` command. If you cannot resolve the installation problem, please open an issue on the [GitHub repository](https://github.com/HuttleyLab/DiverseSeq/issues).
+
+#### Using `uv`
+
+Speaking of `uv`, it provides a simplified approach to install `dvs` as a command-line only tool as
+
+```
+uv tool install diverse-seq
+```
+
+Usage in this case is then
+
+```
+uvx --from diverse-seq dvs
+```
 
 #### Dependencies
 
@@ -73,4 +95,4 @@ We make comparable capabilities available as [cogent3 apps](https://cogent3.org/
 
 ## Project Information 
 
-`diverse-seq` is released under the BSD-3 license. If you want to contribute to the `diverse-seq` project (and we hope you do! :innocent:) the code of conduct and other useful developer information is avaiable on the [wiki](https://github.com/HuttleyLab/DiverseSeq/wiki). 
+`diverse-seq` is released under the BSD-3 license. If you want to contribute to the `diverse-seq` project (and we hope you do! :innocent:) the code of conduct and other useful developer information is avaiable on the [wiki](https://github.com/HuttleyLab/DiverseSeq/wiki).
