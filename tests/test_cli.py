@@ -289,13 +289,40 @@ def test_prep_force(runner, tmp_path):
     args = f"-s {one_path} -o {outpath} -F".split()
     r = runner.invoke(dvs_prep, args)
     assert r.exit_code == 0, r.output
-@pytest.fixture(params=[3, 7])
-def too_few_seqs(request, tmp_path):
-    num_seqs = request.param
+
+
+@pytest.fixture(params=[True, False])
+def prep_too_few(request, tmp_path):
+    import diverse_seq
+
+    data_path = tmp_path / "sample.fasta"
+    return_dir = request.param
+    # when processing a directory of files, prep
+    # extracts a single seq from each file
+    data = diverse_seq.load_sample_data()
+    if not return_dir:
+        ret_path = data_path
+        data = data.take_seqs(data.names[:3])
+    else:
+        ret_path = data_path.parent
+
+    data.write(data_path)
+    return ret_path
+
+
+def test_prep_too_few_seqs(prep_too_few, runner, tmp_path):
+    out_path = tmp_path / "too_few.dvseqs"
+    args = f"-s {prep_too_few} -sf fasta -o {out_path}".split()
+    r = runner.invoke(dvs_prep, args)
+    assert r.exit_code == 1, r.output
+
+
+@pytest.fixture
+def too_few_seqs(tmp_path):
     import diverse_seq
 
     data = diverse_seq.load_sample_data()
-    data = data.take_seqs(data.names[:num_seqs])
+    data = data.take_seqs(data.names[:7])
     data_path = tmp_path / "sample.fasta"
     data.write(data_path)
     return data_path

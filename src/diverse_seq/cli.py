@@ -204,12 +204,13 @@ def prep(
             in_dstore = convert2dstore(seqdir)  # pylint: disable=not-callable
         else:
             in_dstore = c3_data_store.DataStoreDirectory(source=seqdir, suffix=suffix)
-            if not len(in_dstore):
-                dvs_util.print_colour(
-                    f"{seqdir} contains no files matching '*.{suffix}'",
-                    "red",
-                )
-                sys.exit(1)
+
+        if len(in_dstore) < 5:
+            msg = f"Num files matching '{seqdir}/*.{suffix}' = {len(in_dstore)} < 5."
+            if seqdir.is_dir():
+                msg = f"{msg} Did you mean to pass a file path instead?"
+            dvs_util.print_colour(msg, "red")
+            sys.exit(1)
 
         if limit is not None:
             members = in_dstore.completed[:]
