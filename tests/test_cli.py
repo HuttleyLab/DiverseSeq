@@ -289,3 +289,67 @@ def test_prep_force(runner, tmp_path):
     args = f"-s {one_path} -o {outpath} -F".split()
     r = runner.invoke(dvs_prep, args)
     assert r.exit_code == 0, r.output
+
+
+@pytest.fixture(params=[True, False])
+def prep_too_few(request, tmp_path):
+    import diverse_seq
+
+    data_path = tmp_path / "sample.fasta"
+    return_dir = request.param
+    # when processing a directory of files, prep
+    # extracts a single seq from each file
+    data = diverse_seq.load_sample_data()
+    if not return_dir:
+        ret_path = data_path
+        data = data.take_seqs(data.names[:3])
+    else:
+        ret_path = data_path.parent
+
+    data.write(data_path)
+    return ret_path
+
+
+def test_prep_too_few_seqs(prep_too_few, runner, tmp_path):
+    out_path = tmp_path / "too_few.dvseqs"
+    args = f"-s {prep_too_few} -sf fasta -o {out_path}".split()
+    r = runner.invoke(dvs_prep, args)
+    assert r.exit_code == 1, r.output
+
+
+@pytest.fixture
+def too_few_seqs(tmp_path):
+    import diverse_seq
+
+    data = diverse_seq.load_sample_data()
+    data = data.take_seqs(data.names[:7])
+    data_path = tmp_path / "sample.fasta"
+    data.write(data_path)
+    return data_path
+
+
+def test_nmost_too_few_seqs(runner, too_few_seqs):
+    outpath = too_few_seqs.parent / "too_few.dvseqs"
+    args = f"-s {too_few_seqs} -o {outpath}".split()
+    r = runner.invoke(dvs_prep, args)
+    assert r.exit_code == 0, r.output
+    args = f"-n 8 -s {outpath} -o demo.tsv".split()
+    # there are too few sequences
+    # either as the minimum number for analysis, or below user set n
+    # exit code should be 1
+    r = runner.invoke(dvs_nmost, args)
+    assert r.exit_code == 1, r.output
+
+
+def test_max_too_few_seqs(runner, too_few_seqs):
+    outpath = too_few_seqs.parent / "too_few.dvseqs"
+    args = f"-s {too_few_seqs} -o {outpath}".split()
+
+    r = runner.invoke(dvs_prep, args)
+    assert r.exit_code == 0, r.output
+    args = f"--min_size 8 -s {outpath} -o demo.tsv".split()
+    # there are too few sequences
+    # either as the minimum number for analysis, or below user set n
+    # exit code should be 1
+    r = runner.invoke(dvs_max, args)
+    assert r.exit_code == 1, r.output

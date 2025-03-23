@@ -4,6 +4,7 @@ import math
 import os
 import pathlib
 import re
+import sys
 import typing
 
 import numpy
@@ -159,6 +160,24 @@ def _hide_progress(
     hide_progress: str,
 ) -> bool:
     return True if "DVS_HIDE_PROGRESS" in os.environ else hide_progress
+
+
+def _check_h5_dstore(
+    ctx: "Context",  # noqa: ARG001
+    param: "Option",  # noqa: ARG001
+    path: pathlib.Path,
+) -> pathlib.Path:
+    """makes sure minimum number of sequences are in the store"""
+    from diverse_seq import data_store
+
+    seqids = data_store.get_seqids_from_store(path)
+    min_num = 5
+    if len(seqids) >= min_num:
+        return path
+
+    msg = f"SKIPPING: '{path}' does not have ≥{min_num} sequences!"
+    print_colour(msg, "red")
+    sys.exit(1)
 
 
 class _printer:
