@@ -150,7 +150,7 @@ def demo_data(outpath: Path) -> None:
     "--seqdir",
     required=True,
     type=Path,
-    help="directory containing sequence files",
+    help="one sequence file, or a directory containing multiple sequence files",
 )
 @_suffix
 @click.option(
