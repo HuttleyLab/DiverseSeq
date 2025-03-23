@@ -67,6 +67,7 @@ _hide_progress = click.option(
     "-hp",
     "--hide_progress",
     is_flag=True,
+    callback=dvs_util._hide_progress,
     help="hide progress bars",
 )
 _verbose = click.option(
@@ -110,6 +111,7 @@ _seqfile = click.option(
     "--seqfile",
     required=True,
     type=Path,
+    callback=dvs_util._check_h5_dstore,
     help="path to .dvseqs file",
 )
 _k = click.option("-k", type=int, default=6, help="k-mer size")
@@ -148,7 +150,7 @@ def demo_data(outpath: Path) -> None:
     "--seqdir",
     required=True,
     type=Path,
-    help="directory containing sequence files",
+    help="one sequence file, or a directory containing multiple sequence files",
 )
 @_suffix
 @click.option(
@@ -181,7 +183,9 @@ def prep(
             "Use the -F flag if you want to overwrite the existing file.",
             "blue",
         )
-    elif dvseqs_path.exists() and force_overwrite:
+        sys.exit(1)
+
+    if dvseqs_path.exists() and force_overwrite:
         dvseqs_path.unlink()
 
     suffix = suffix.removeprefix(".")
@@ -200,12 +204,13 @@ def prep(
             in_dstore = convert2dstore(seqdir)  # pylint: disable=not-callable
         else:
             in_dstore = c3_data_store.DataStoreDirectory(source=seqdir, suffix=suffix)
-            if not len(in_dstore):
-                dvs_util.print_colour(
-                    f"{seqdir} contains no files matching '*.{suffix}'",
-                    "red",
-                )
-                sys.exit(1)
+
+        if len(in_dstore) < 5:
+            msg = f"Num files matching '{seqdir}/*.{suffix}' = {len(in_dstore)} < 5."
+            if seqdir.is_dir():
+                msg = f"{msg} Did you mean to pass a file path instead?"
+            dvs_util.print_colour(msg, "red")
+            sys.exit(1)
 
         if limit is not None:
             members = in_dstore.completed[:]
@@ -316,6 +321,11 @@ def max(  # noqa: A001
         sys.exit(1)
 
     seqids = dvs_data_store.get_seqids_from_store(seqfile)
+    if len(seqids) < min_size:
+        msg = f"Num seqs in {seqfile}={len(seqids)} < {min_size=}. Nothing to do!"
+        dvs_util.print_colour(msg, "red")
+        sys.exit(1)
+
     if include and not set(include) <= set(seqids):
         dvs_util.print_colour(
             f"provided {include=} not in the sequence data",
@@ -329,7 +339,7 @@ def max(  # noqa: A001
     rng = numpy.random.default_rng(seed=seed)
     rng.shuffle(seqids)
 
-    limit = 2 if test_run else limit
+    limit = min_size + 1 if test_run else limit
     if limit is not None:
         seqids = seqids[:limit]
 
@@ -417,6 +427,10 @@ def nmost(
         sys.exit(1)
 
     seqids = dvs_data_store.get_seqids_from_store(seqfile)
+    if len(seqids) < number:
+        msg = f"Num seqs in {seqfile}={len(seqids)} < {number=}. Nothing to do!"
+        dvs_util.print_colour(msg, "red")
+        sys.exit(1)
 
     if include and not set(include) <= set(seqids):
         dvs_util.print_colour(

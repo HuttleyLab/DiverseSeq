@@ -1,8 +1,10 @@
 import contextlib
 import functools
 import math
+import os
 import pathlib
 import re
+import sys
 import typing
 
 import numpy
@@ -150,6 +152,32 @@ def _comma_sep_or_file(
         names = path.read_text().splitlines()
         return [name.strip() for name in names]
     return [n.strip() for n in include.split(",") if n.strip()]
+
+
+def _hide_progress(
+    ctx: "Context",  # noqa: ARG001
+    param: "Option",  # noqa: ARG001
+    hide_progress: str,
+) -> bool:
+    return True if "DVS_HIDE_PROGRESS" in os.environ else hide_progress
+
+
+def _check_h5_dstore(
+    ctx: "Context",  # noqa: ARG001
+    param: "Option",  # noqa: ARG001
+    path: pathlib.Path,
+) -> pathlib.Path:
+    """makes sure minimum number of sequences are in the store"""
+    from diverse_seq import data_store
+
+    seqids = data_store.get_seqids_from_store(path)
+    min_num = 5
+    if len(seqids) >= min_num:
+        return path
+
+    msg = f"SKIPPING: '{path}' does not have ≥{min_num} sequences!"
+    print_colour(msg, "red")
+    sys.exit(1)
 
 
 class _printer:

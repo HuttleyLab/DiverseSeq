@@ -1,6 +1,6 @@
 # %% [markdown]
 #
-# We provide programmatic access to `diverse_seq` functions as [cogent3 apps](https://cogent3.org/doc/app/index.html). The `dvs` apps mirror the capabilities of their command line counterparts with two key differences: the input and outputs. The is no data transformation step. Just use `cogent3` to [load the sequence collection](https://cogent3.org/doc/cookbook/loading_sequences.html) (aligned or otherwise) and pass it to an app instance. The `dvs_nmost` and `dvs_max` will identify the sequences to keep and return the same input data type that contains just those sequences.
+# We provide programmatic access to `diverse_seq` functions as [cogent3 apps](https://cogent3.org/doc/app/index.html). The `dvs` apps mirror the capabilities of their command line counterparts with two key differences: the input and outputs. There is no data transformation step. Just use `cogent3` to [load the sequence collection](https://cogent3.org/doc/cookbook/loading_sequences.html) (aligned or otherwise) and pass it to an app instance. The `dvs_nmost` and `dvs_max` will identify the sequences to keep and return the same input data type that contains just those sequences.
 
 # ## What apps are available?
 # We use the `cogent3` capabilities for displaying the installed apps and getting help on them.

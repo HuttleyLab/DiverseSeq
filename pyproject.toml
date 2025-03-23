@@ -53,31 +53,34 @@ test = [
     "pytest-cov",
     "pytest-xdist",
 ]
-doc  = ["click",
-        "cogent3[extra]",
-        "ipykernel",
-        "ipython",
-        "ipywidgets",
-        "jupyter_client",
-        "jupyterlab",
-        "jupytext",
-        "kaleido",
-        "mkdocs>=1.6.1",
-        "markdown-exec[ansi]>=1.10.0",
-        "mkdocs-jupyter>=0.25.1",
-        "markdown>=3.7",
-        "nbconvert>5.4",
-        "nbformat",
-        "numpydoc",
-        "plotly",
-        ]
+doc  = [
+    "diverse_seq[extra]",
+    "mkdocs>=1.6.1",
+    "markdown-exec[ansi]>=1.10.0",
+    "mkdocs-jupyter>=0.25.1",
+    "markdown>=3.7",
+    "numpydoc",
+]
 dev = [
     "cogapp",
     "docformatter",
     "flit",
-    "ruff==0.9.9",
+    "ruff==0.11.0",
     "diverse_seq[test]",
     "diverse_seq[doc]",
+]
+extra = [
+    "cogent3[extra]",
+    "ipykernel",
+    "ipython",
+    "ipywidgets",
+    "jupyter_client",
+    "jupyterlab",
+    "jupytext",
+    "kaleido",
+    "nbconvert>5.4",
+    "nbformat",
+    "plotly",
 ]
 
 [project.scripts]
