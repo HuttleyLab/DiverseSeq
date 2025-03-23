@@ -111,6 +111,7 @@ _seqfile = click.option(
     "--seqfile",
     required=True,
     type=Path,
+    callback=dvs_util._check_h5_dstore,
     help="path to .dvseqs file",
 )
 _k = click.option("-k", type=int, default=6, help="k-mer size")
@@ -319,6 +320,11 @@ def max(  # noqa: A001
         sys.exit(1)
 
     seqids = dvs_data_store.get_seqids_from_store(seqfile)
+    if len(seqids) < min_size:
+        msg = f"Num seqs in {seqfile}={len(seqids)} < {min_size=}. Nothing to do!"
+        dvs_util.print_colour(msg, "red")
+        sys.exit(1)
+
     if include and not set(include) <= set(seqids):
         dvs_util.print_colour(
             f"provided {include=} not in the sequence data",
@@ -332,7 +338,7 @@ def max(  # noqa: A001
     rng = numpy.random.default_rng(seed=seed)
     rng.shuffle(seqids)
 
-    limit = 2 if test_run else limit
+    limit = min_size + 1 if test_run else limit
     if limit is not None:
         seqids = seqids[:limit]
 
@@ -420,6 +426,10 @@ def nmost(
         sys.exit(1)
 
     seqids = dvs_data_store.get_seqids_from_store(seqfile)
+    if len(seqids) < number:
+        msg = f"Num seqs in {seqfile}={len(seqids)} < {number=}. Nothing to do!"
+        dvs_util.print_colour(msg, "red")
+        sys.exit(1)
 
     if include and not set(include) <= set(seqids):
         dvs_util.print_colour(

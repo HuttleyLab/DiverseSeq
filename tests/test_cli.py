@@ -289,3 +289,40 @@ def test_prep_force(runner, tmp_path):
     args = f"-s {one_path} -o {outpath} -F".split()
     r = runner.invoke(dvs_prep, args)
     assert r.exit_code == 0, r.output
+@pytest.fixture(params=[3, 7])
+def too_few_seqs(request, tmp_path):
+    num_seqs = request.param
+    import diverse_seq
+
+    data = diverse_seq.load_sample_data()
+    data = data.take_seqs(data.names[:num_seqs])
+    data_path = tmp_path / "sample.fasta"
+    data.write(data_path)
+    return data_path
+
+
+def test_nmost_too_few_seqs(runner, too_few_seqs):
+    outpath = too_few_seqs.parent / "too_few.dvseqs"
+    args = f"-s {too_few_seqs} -o {outpath}".split()
+    r = runner.invoke(dvs_prep, args)
+    assert r.exit_code == 0, r.output
+    args = f"-n 8 -s {outpath} -o demo.tsv".split()
+    # there are too few sequences
+    # either as the minimum number for analysis, or below user set n
+    # exit code should be 1
+    r = runner.invoke(dvs_nmost, args)
+    assert r.exit_code == 1, r.output
+
+
+def test_max_too_few_seqs(runner, too_few_seqs):
+    outpath = too_few_seqs.parent / "too_few.dvseqs"
+    args = f"-s {too_few_seqs} -o {outpath}".split()
+
+    r = runner.invoke(dvs_prep, args)
+    assert r.exit_code == 0, r.output
+    args = f"--min_size 8 -s {outpath} -o demo.tsv".split()
+    # there are too few sequences
+    # either as the minimum number for analysis, or below user set n
+    # exit code should be 1
+    r = runner.invoke(dvs_max, args)
+    assert r.exit_code == 1, r.output
