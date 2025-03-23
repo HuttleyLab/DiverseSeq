@@ -95,4 +95,4 @@ We make comparable capabilities available as [cogent3 apps](https://cogent3.org/
 
 ## Project Information 
 
-`diverse-seq` is released under the BSD-3 license. If you want to contribute to the `diverse-seq` project (and we hope you do! :innocent:) the code of conduct and other useful developer information is avaiable on the [wiki](https://github.com/HuttleyLab/DiverseSeq/wiki).
+`diverse-seq` is released under the BSD-3 license. If you want to contribute to the `diverse-seq` project (and we hope you do! :innocent:) the code of conduct and other useful developer information is available on the [wiki](https://github.com/HuttleyLab/DiverseSeq/wiki).
