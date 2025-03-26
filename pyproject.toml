@@ -60,6 +60,7 @@ doc  = [
     "mkdocs-jupyter>=0.25.1",
     "markdown>=3.7",
     "numpydoc",
+    "statsmodels",
 ]
 dev = [
     "cogapp",
