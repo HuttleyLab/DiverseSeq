@@ -2,7 +2,7 @@ from itertools import product
 from pathlib import Path
 from warnings import filterwarnings
 
-filterwarnings("ignore", message="A worker stopped while some jobs.*") # noqa
+filterwarnings("ignore", message="A worker stopped while some jobs.*")
 
 import click
 import numpy
@@ -42,7 +42,9 @@ class min_dist:
 
     def __call__(self, names: list[str]) -> float:
         dists = self.dists.take_dists(names)
-        values = numpy.array([v for v in dists.to_dict().values() if not numpy.isnan(v)])
+        values = numpy.array(
+            [v for v in dists.to_dict().values() if not numpy.isnan(v)]
+        )
         return values.min()
 
 
@@ -174,7 +176,7 @@ def main():
     "-os",
     "--outpath_stats",
     type=Path,
-    default=Path("jsd_v_dist-stats.tsv"),
+    default=Path("jsd_v_dist-max.tsv"),
     help="writes stat output to this file",
 )
 @click.option(
