@@ -37,3 +37,5 @@ working/*
 .ruff_cache/*
 jats/*
 .venv/*
+data/*
+site/*
