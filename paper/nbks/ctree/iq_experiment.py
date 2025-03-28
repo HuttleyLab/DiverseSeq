@@ -3,7 +3,7 @@ import time
 from pathlib import Path
 
 from cogent3 import load_aligned_seqs, make_aligned_seqs
-from piqtree2 import build_tree
+from piqtree import build_tree
 
 MAMMALS_PATH = Path("data/mammals-aligned")
 

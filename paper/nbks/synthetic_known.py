@@ -12,28 +12,28 @@ from diverse_seq import util as dvs_utils
 from diverse_seq.record import KmerSeq, SeqArray, seqarray_to_kmerseq
 from diverse_seq.records import max_divergent
 
-POOL = {"a": "ACGGGGGT", "b": "ACCCCCGT", "c": "AAAAACGT", "d": "ACGTTTTT"}
+SEQ_COMPOSITION = {"a": "ACGGGGGT", "b": "ACCCCCGT", "c": "AAAAACGT", "d": "ACGTTTTT"}
 STATS = "stdev", "cov"
 
 
-def seqs_from_pool(pool: str, num_seqs: int, seq_len: int) -> dict:
-    """generate synthetic sequences from a pool"""
+def seqs_from_label(label: str, num_seqs: int, seq_len: int) -> dict:
+    """generate synthetic sequences from a composition based on its label"""
     return {
-        f"{pool}-{i}": "".join(choice(list(POOL[pool]), size=seq_len))
+        f"{label}-{i}": "".join(choice(list(SEQ_COMPOSITION[label]), size=seq_len))
         for i in range(num_seqs)
     }
 
 
 @define_app
 class make_sample:
-    def __init__(self, pool_sizes: dict, seq_len: int):
-        self.pool_sizes = pool_sizes
+    def __init__(self, label_sizes: dict, seq_len: int):
+        self.label_sizes = label_sizes
         self.seq_len = seq_len
 
     def main(self, num: int) -> c3_types.UnalignedSeqsType:
         seqs = {}
-        for pool, num_seqs in self.pool_sizes.items():
-            seqs |= seqs_from_pool(pool, num_seqs, self.seq_len)
+        for label, num_seqs in self.label_sizes.items():
+            seqs |= seqs_from_label(label, num_seqs, self.seq_len)
         return make_unaligned_seqs(seqs, moltype="dna", source=f"rep-{num}")
 
 
@@ -84,12 +84,12 @@ class true_positive:
                 f"number of records {len(result.record_names)} != {len(self.expected)}",
             )
 
-        found_pools = {self.label2pool(n) for n in result.record_names}
-        if self.expected != found_pools:
+        found_labels = {self.label2pool(n) for n in result.record_names}
+        if self.expected != found_labels:
             return NotCompleted(
                 "FAIL",
                 self,
-                f"found pool {found_pools} != {self.expected}",
+                f"found label {found_labels} != {self.expected}",
             )
         return True
 
@@ -97,7 +97,7 @@ class true_positive:
 def do_run(pool, num_reps, seq_len, k=3, stat="stdev"):
     make_seqs = make_sample(pool, seq_len=seq_len)
     s2r = seqcoll_to_records(k=k)
-    finds_true = true_positive(set(POOL), stat=stat, size=2)
+    finds_true = true_positive(set(SEQ_COMPOSITION), stat=stat, size=2)
     app = make_seqs + s2r + finds_true
     return list(map(app, range(num_reps)))
 
@@ -142,14 +142,16 @@ class eval_condition:
 
 
 def main():
-    BALANCED = dict(a=25, b=25, c=25, d=25)
-    IMBALANCED = dict(a=1, b=49, c=25, d=25)
-    config = dict(
-        num_reps=50,
-        k=1,
-        repeats=5,
-        pools=dict(balanced=BALANCED, imbalanced=IMBALANCED),
-    )
+    # there are two pools (balanced, imbalanced), each with 100 sequences
+    # with the mixture from the different seq composition labels
+    BALANCED = {"a": 25, "b": 25, "c": 25, "d": 25}
+    IMBALANCED = {"a": 1, "b": 49, "c": 25, "d": 25}
+    config = {
+        "num_reps": 50,  # replicates of a each condition
+        "k": 1,
+        "repeats": 5,
+        "pools": {"balanced": BALANCED, "imbalanced": IMBALANCED},
+    }
     app = eval_condition(**config)
     pools = "balanced", "imbalanced"
     seq_len = 200, 1000
