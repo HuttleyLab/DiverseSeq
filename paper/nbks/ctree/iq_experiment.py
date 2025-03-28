@@ -3,7 +3,7 @@ import time
 from pathlib import Path
 
 from cogent3 import load_aligned_seqs, make_aligned_seqs
-from piqtree import build_tree
+from piqtree import build_tree, model
 
 MAMMALS_PATH = Path("data/mammals-aligned")
 
@@ -42,7 +42,7 @@ def do_iqtree():
 
     print("Running IQ-TREE")
     start = time.time()
-    tree = build_tree(aln, "GTR", rand_seed=1)
+    tree = build_tree(aln, model.make_model("GTR"), rand_seed=1)
     end = time.time()
 
     print("Saving results")
