@@ -61,6 +61,7 @@ doc  = [
     "markdown>=3.7",
     "numpydoc",
     "statsmodels",
+    "piqtree",  # only required for the manuscript
 ]
 dev = [
     "cogapp",
