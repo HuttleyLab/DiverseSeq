@@ -1,12 +1,15 @@
 from itertools import product
 from pathlib import Path
+from warnings import filterwarnings
+
+filterwarnings("ignore", message="A worker stopped while some jobs.*")
 
 import click
+import numpy
 from cogent3 import make_table
 from cogent3.app import io
 from cogent3.app import typing as c3_types
 from cogent3.app.composable import define_app
-from numpy import array, isnan
 from numpy.random import choice
 from rich.progress import track
 from scipy import special
@@ -39,7 +42,9 @@ class min_dist:
 
     def __call__(self, names: list[str]) -> float:
         dists = self.dists.take_dists(names)
-        values = array([v for v in dists.to_dict().values() if not isnan(v)])
+        values = numpy.array(
+            [v for v in dists.to_dict().values() if not numpy.isnan(v)]
+        )
         return values.min()
 
 
@@ -171,7 +176,7 @@ def main():
     "-os",
     "--outpath_stats",
     type=Path,
-    default=Path("jsd_v_dist-stats.tsv"),
+    default=Path("jsd_v_dist-max.tsv"),
     help="writes stat output to this file",
 )
 @click.option(
@@ -213,7 +218,6 @@ def max(data_path, outpath_stats, outpath_sizes, dry_run, max_k, serial, repeats
         setting = dict(zip(order, config, strict=False))
         result = run_max(data_path, dist_size=1000, serial=serial, **setting)
         size_results.extend([list(config) + [r["num_divergent"]] for r in result])
-
         stat_results.append(
             list(config) + [100 * sum(r["pval"] < 0.05 for r in result) / len(result)],
         )

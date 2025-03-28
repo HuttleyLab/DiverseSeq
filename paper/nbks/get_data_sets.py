@@ -35,15 +35,15 @@ def extract_zip(zip_file_path, extract_dir):
 def fetch_data_sets():
     urls = [
         # the following two are required for checking the dvs prep command
-        # "https://zenodo.org/records/14052787/files/refsoil.zip?download=1",
-        # "https://zenodo.org/records/14052787/files/wol.zip?download=1",
+        # "https://zenodo.org/records/15098583/files/refsoil.zip?download=1",
+        # "https://zenodo.org/records/15098583/files/wol.zip?download=1",
         # the following is required for the tree-based comparisons
-        "https://zenodo.org/records/14052787/files/mammals-aligned.zip?download=1",
+        "https://zenodo.org/records/15098583/files/mammal_orths_31_aligned.zip?download=1",
         # the following files are required for checking performance against large
         # data set sizes. They are around(1GB and 9GB) and can take some time to download!
         # you can grab them directly from zenodo and place into the paper/data directory
-        # "https://zenodo.org/records/14052787/files/soil.dvseqs?download=1",
-        # "https://zenodo.org/records/14052787/files/wol.dvseqs?download=1",
+        # "https://zenodo.org/records/15098583/files/soil.dvseqs?download=1",
+        # "https://zenodo.org/records/15098583/files/wol.dvseqs?download=1",
     ]
     block_size = 4096
 
