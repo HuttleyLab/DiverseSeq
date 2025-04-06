@@ -103,7 +103,7 @@ We provide `dvs_nmost`, `dvs_max`, `dvs_ctree` and `dvs_par_ctree` as `cogent3` 
 ## Selection of representative sequences
 ### Recovery of representatives from synthetic knowns
 
-We evaluate the ability of `dvs max` to recover known divergent lineages using simulated data. The experimental design was intended to assess whether rare sequences can be recovered. We defined four sequence families that differ in nucleotide composition and two distinct "pools": *balanced*, in which there were 25 members from each sequence family, or *imbalanced*, where one sequence family occurred once, another 49 times and the remaining two families 25 times each. If `dvs max` identifies a set of precisely 4 sequences with one pool representative, this is counted as a success. Each scenario was repeated 50 times. As shown in \autoref{fig:synthetic-knowns}, the primary determinant of the success was the length of the simulated sequences.
+We evaluate the ability of `dvs max` to recover known divergent lineages using simulated data. The experimental design was intended to assess whether rare sequences can be recovered. We defined four sequence families that differ in nucleotide composition and two distinct "pools": *balanced*, in which there were 25 members from each sequence family, or *imbalanced*, where one sequence family occurred once, another 49 times and the remaining two families 25 times each. If `dvs max` identifies a set of precisely 4 sequences with each sequence family represented, this is counted as a success. Each scenario was repeated 50 times. As shown in \autoref{fig:synthetic-knowns}, the primary determinant of the success was the length of the simulated sequences.
 
 ### The selected sequences are phylogenetically diverse
 
