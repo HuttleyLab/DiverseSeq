@@ -1,14 +1,15 @@
 """diverse_seq: a tool for sampling diverse biological sequences"""
 
+import typing
+
 # need to import hdf5plugin here to make sure the plugin path can be
 # found by h5py
-import hdf5plugin  # noqa
-import typing
+import hdf5plugin  # noqa: F401
 
 if typing.TYPE_CHECKING:
     from cogent3.core.new_alignment import SequenceCollection
 
-__version__ = "2025.3.23"
+__version__ = "2025.3.24"
 
 
 def load_sample_data() -> "SequenceCollection":
