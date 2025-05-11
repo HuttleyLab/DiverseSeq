@@ -170,8 +170,7 @@ For selecting representative sequences for large-scale analyses, we recommend us
 |   No overlap | `AAAA` | `TTTT` | 1.0 |
 +--------------+--------+--------+-----+
 | Intermediate | `ATCG` | `ATCC` | 0.5 |
-+==============+========+========+=====+
-
++--------------+--------+--------+-----+
 
 # Acknowledgements
 
