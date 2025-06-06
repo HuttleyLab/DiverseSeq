@@ -39,7 +39,11 @@ jobs:
       - name: "Run nox for ${{ matrix.python-version }}"
         shell: bash
         run: |
-          source venv/bin/activate
+          if [ "${{ runner.os }}" == "Windows" ]; then
+            source venv/Scripts/activate
+          else
+            source venv/bin/activate
+          fi
           cov="--cov-report lcov:lcov-${{matrix.os}}-${{matrix.python-version}}.lcov --cov-report term --cov-append --cov diverse_seq"
           nox -db uv --force-python ${{ matrix.python-version }} -s test -- $cov
 
