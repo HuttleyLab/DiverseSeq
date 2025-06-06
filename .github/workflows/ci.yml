@@ -12,7 +12,10 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: ["3.10", "3.11", "3.12", "3.13.3"]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+      exclude:
+        - os: windows-latest
+          python-version: "3.13"
 
     steps:
       - uses: "actions/checkout@v4"
@@ -27,7 +30,6 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v6
         with:
-          python-version: ${{ matrix.python-version }}
           enable-cache: true
           cache-dependency-glob: "pyproject.toml"
 
@@ -37,11 +39,7 @@ jobs:
           uv tool install -p venv nox
 
       - name: "Run nox for ${{ matrix.python-version }}"
-        shell: bash
-        run: |
-          cov="--cov-report lcov:lcov-${{matrix.os}}-${{matrix.python-version}}.lcov --cov-report term --cov-append --cov diverse_seq"
-          uv python pin ${{ matrix.python-version }}
-          nox -db uv --force-python ${{ matrix.python-version }} -s test -- $cov
+        run: "nox -db uv -s test_coveralls-${{ matrix.python-version }} -- --cov-report lcov:lcov-${{matrix.os}}-${{matrix.python-version}}.lcov --cov-report term --cov-append --cov diverse_seq"
 
       - name: Coveralls Parallel
         uses: coverallsapp/github-action@v2
