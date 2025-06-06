@@ -40,8 +40,7 @@ jobs:
         shell: bash
         run: |
           cov="--cov-report lcov:lcov-${{matrix.os}}-${{matrix.python-version}}.lcov --cov-report term --cov-append --cov diverse_seq"
-          major_minor=$(echo "${{ matrix.python-version }}" | cut -d. -f1,2)
-          nox -db uv -s test-$major_minor -- $cov
+          nox -db uv --force-python ${{ matrix.python-version }} -s test -- $cov
 
       - name: Coveralls Parallel
         uses: coverallsapp/github-action@v2
