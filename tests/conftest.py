@@ -1,7 +1,8 @@
 from pathlib import Path
 
 import pytest
-from cogent3 import SequenceCollection, load_unaligned_seqs
+from cogent3 import load_unaligned_seqs
+from cogent3.core.new_alignment import SequenceCollection
 
 
 @pytest.fixture(scope="session")
@@ -16,7 +17,7 @@ def seq_path(DATA_DIR: Path) -> Path:
 
 @pytest.fixture
 def unaligned_seqs(seq_path: Path) -> SequenceCollection:
-    return load_unaligned_seqs(seq_path)
+    return load_unaligned_seqs(seq_path, moltype="dna")
 
 
 @pytest.fixture

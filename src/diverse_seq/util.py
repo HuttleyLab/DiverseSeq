@@ -30,44 +30,32 @@ if typing.TYPE_CHECKING:
 class str2arr:
     """convert string to array of uint8"""
 
-    def __init__(self, moltype: str = "dna", max_length=None):
-        moltype = get_moltype(moltype)
-        self.canonical = "".join(moltype)
+    def __init__(self, moltype: str = "dna", max_length: int | None = None) -> None:
         self.max_length = max_length
-        extended = "".join(list(moltype.alphabets.degen))
-        self.translation = b"".maketrans(
-            extended.encode("utf8"),
-            "".join(chr(i) for i in range(len(extended))).encode("utf8"),
-        )
+        mt = get_moltype(moltype)
+        self.alphabet = mt.most_degen_alphabet()
 
     def main(self, data: str) -> numpy.ndarray:
         if self.max_length:
             data = data[: self.max_length]
 
-        b = data.encode("utf8").translate(self.translation)
-        return numpy.frombuffer(bytearray(b), dtype=numpy.uint8)
+        return self.alphabet.to_indices(data)
 
 
 @composable.define_app
 class arr2str:
     """convert array of uint8 to str"""
 
-    def __init__(self, moltype: str = "dna", max_length: int = None):
-        moltype = get_moltype(moltype)
-        self.canonical = "".join(moltype)
+    def __init__(self, moltype: str = "dna", max_length: int | None = None) -> None:
         self.max_length = max_length
-        extended = "".join(list(moltype.alphabets.degen))
-        self.translation = b"".maketrans(
-            "".join(chr(i) for i in range(len(extended))).encode("utf8"),
-            extended.encode("utf8"),
-        )
+        mt = get_moltype(moltype)
+        self.alphabet = mt.most_degen_alphabet()
 
     def main(self, data: numpy.ndarray) -> str:
         if self.max_length:
             data = data[: self.max_length]
 
-        b = data.tobytes().translate(self.translation)
-        return bytearray(b).decode("utf8")
+        return self.alphabet.from_indices(data)
 
 
 # we allow for file suffixes to include compression extensions

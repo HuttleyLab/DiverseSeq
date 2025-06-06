@@ -1,6 +1,7 @@
 # pylint: disable=not-callable
 import pytest
-from cogent3 import SequenceCollection, make_tree
+from cogent3 import make_tree
+from cogent3.core.new_alignment import SequenceCollection
 
 from diverse_seq.cluster import dvs_ctree, dvs_par_ctree
 

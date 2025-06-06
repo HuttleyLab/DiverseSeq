@@ -580,10 +580,10 @@ class member_to_kmerseq(_make_kmerseq_init):
 
 @functools.cache
 def _get_canonical_states(moltype: str) -> bytes:
-    moltype = get_moltype(moltype)
-    canonical = list(moltype.alphabet)
-    v = moltype.alphabet.to_indices(canonical)
+    mt = get_moltype(moltype)
+    canonical = "".join(mt.alphabet)
+    v = mt.alphabet.to_indices(canonical)
     if not (0 <= min(v) < max(v) < len(canonical)):
         msg = f"indices of canonical states {canonical} not sequential {v}"
         raise ValueError(msg)
-    return "".join(canonical).encode("utf8")
+    return canonical.encode("utf8")

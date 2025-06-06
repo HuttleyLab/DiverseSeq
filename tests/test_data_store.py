@@ -81,7 +81,7 @@ def test_prep_pipeline(brca1_5, brca1_5_dstore, hdf5_dstore_path, parallel):
 
 def test_get_seqids(DATA_DIR):
     fasta_path = DATA_DIR / "brca1.fasta"
-    expect = set(load_unaligned_seqs(fasta_path).names)
+    expect = set(load_unaligned_seqs(fasta_path, moltype="dna").names)
     store_path = DATA_DIR / "brca1.dvseqs"
 
     got = data_store.get_seqids_from_store(store_path)
