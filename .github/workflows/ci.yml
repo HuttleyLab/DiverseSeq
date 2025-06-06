@@ -12,7 +12,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.10", "3.11", "3.12", "3.13.3"]
 
     steps:
       - uses: "actions/checkout@v4"
@@ -36,7 +36,11 @@ jobs:
           uv tool install -p venv nox
 
       - name: "Run nox for ${{ matrix.python-version }}"
-        run: "nox -db uv -s test_coveralls-${{ matrix.python-version }} -- --cov-report lcov:lcov-${{matrix.os}}-${{matrix.python-version}}.lcov --cov-report term --cov-append --cov diverse_seq"
+        shell: bash
+        run: |
+          cov="--cov-report lcov:lcov-${{matrix.os}}-${{matrix.python-version}}.lcov --cov-report term --cov-append --cov diverse_seq"
+          major_minor=$(echo "${{ matrix.python-version }}" | cut -d. -f1,2)
+          nox -db uv -s test-$major_minor -- $cov
 
       - name: Coveralls Parallel
         uses: coverallsapp/github-action@v2
