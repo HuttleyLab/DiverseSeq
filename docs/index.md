@@ -2,7 +2,7 @@
 
 `diverse-seq` implements computationally efficient alignment-free algorithms that enable efficient prototyping for phylogenetic workflows. It can accelerate parameter selection searches for sequence alignment and phylogeny estimation by identifying a subset of sequences that are representative of the diversity in a collection.
 
-You can read more about the methods implemented in `diverse-seq` in the preprint [here](https://biorxiv.org/cgi/content/short/2024.11.10.622877v1).
+You can read more about the methods implemented in `diverse-seq` in the [published article](https://joss.theoj.org/papers/10.21105/joss.07765).
 
 ### Installation
 
