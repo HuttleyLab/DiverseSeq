@@ -94,8 +94,14 @@ def test_in_memory(brca1_5):
     writer = dvs_io.dvs_write_seqs(
         data_store=dstore,
     )
+
+    def get_src(x):
+        if hasattr(x, "name"):
+            return x.name
+        return x.source
+
     prep = dvs_record.seq_to_seqarray(moltype="dna") + writer
-    prep.apply_to(brca1_5.seqs, id_from_source=lambda x: x.name, logger=False)
+    prep.apply_to(brca1_5.seqs, id_from_source=get_src, logger=False)
     assert len(dstore) == brca1_5.num_seqs
     assert dstore.read("Cat").shape == (20,)
 
