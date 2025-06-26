@@ -48,11 +48,11 @@ def hdf5_dstore_path(tmp_path):
 
 @pytest.fixture(scope="function")
 def brca1_hdf5_dstore(hdf5_dstore_path, brca1_5_dstore):
-    dstore = data_store.HDF5DataStore(source=hdf5_dstore_path, mode="w")
+    dstore = dvs_io.HDF5DataStore(source=hdf5_dstore_path, mode="w")
     prep = dvs_io.dvs_load_seqs(moltype="dna") + dvs_io.dvs_write_seqs(
         data_store=dstore,
     )
-    return prep.apply_to(brca1_5_dstore)
+    return prep.apply_to(brca1_5_dstore, id_from_source=dvs_io.get_unique_id)
 
 
 def test_dvs_file_to_dir(brca1_5_dstore, brca1_5):
@@ -67,7 +67,9 @@ def test_prep_pipeline(brca1_5, brca1_5_dstore, hdf5_dstore_path, parallel):
     prep = dvs_io.dvs_load_seqs(moltype="dna") + dvs_io.dvs_write_seqs(
         data_store=dstore,
     )
-    result = prep.apply_to(brca1_5_dstore, parallel=parallel)
+    result = prep.apply_to(
+        brca1_5_dstore, parallel=parallel, id_from_source=dvs_io.get_unique_id
+    )
 
     # output datastore contains same number of records as seqs in orig file
     assert brca1_5.num_seqs == len(result.completed)
@@ -94,8 +96,14 @@ def test_in_memory(brca1_5):
     writer = dvs_io.dvs_write_seqs(
         data_store=dstore,
     )
+
+    def get_src(x):
+        if hasattr(x, "name"):
+            return x.name
+        return x.source
+
     prep = dvs_record.seq_to_seqarray(moltype="dna") + writer
-    prep.apply_to(brca1_5.seqs, id_from_source=lambda x: x.name, logger=False)
+    prep.apply_to(brca1_5.seqs, id_from_source=get_src, logger=False)
     assert len(dstore) == brca1_5.num_seqs
     assert dstore.read("Cat").shape == (20,)
 
