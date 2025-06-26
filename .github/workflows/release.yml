@@ -9,7 +9,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: ["3.10", "3.11", "3.12"]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
     steps:
       - uses: "actions/checkout@v4"
         with:
@@ -31,7 +31,7 @@ jobs:
           uv tool install -p venv nox
 
       - name: "Run nox for Python ${{ matrix.python-version }}"
-        run: "nox -db uv -s test-${{ matrix.python-version }}"
+        run: "nox -db uv --force-python python -s test"
 
   build:
     name: Build wheel and sdist
