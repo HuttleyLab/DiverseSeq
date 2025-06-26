@@ -14,9 +14,10 @@ theme:
 
 plugins:
     - mkdocs-jupyter:
+        allow_errors: false
         remove_tag_config:
             remove_input_tags:
-                - hide_code
+              - hide_code
         include_requirejs: true
         execute: true
     - markdown-exec:
