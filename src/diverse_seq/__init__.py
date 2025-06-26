@@ -12,7 +12,7 @@ os.environ["COGENT3_NEW_TYPE"] = "1"
 if typing.TYPE_CHECKING:
     from cogent3.core.new_alignment import SequenceCollection
 
-__version__ = "2025.5.7"
+__version__ = "2025.6.26"
 
 
 def load_sample_data() -> "SequenceCollection":
