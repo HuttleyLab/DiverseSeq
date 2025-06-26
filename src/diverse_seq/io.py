@@ -1,4 +1,6 @@
+import functools
 import string
+import typing
 from pathlib import Path
 
 from attrs import define
@@ -96,8 +98,29 @@ class dvs_load_seqs:
         )
 
 
-def get_unique_id(data: SeqArray) -> str:
-    return data.seqid
+@functools.singledispatch
+def get_unique_id(val: typing.Any) -> str | None:
+    for attr in ("unique_id", "seqid", "name", "source"):
+        if result := getattr(val, attr, None):
+            return get_unique_id(result)
+    return None
+
+
+@get_unique_id.register
+def _(val: Path) -> str | None:
+    # have to intercept Path objects as they have a name attribute
+    return val.with_suffix("").name
+
+
+@get_unique_id.register
+def _(val: str) -> str | None:
+    # have to intercept Path objects as they have a name attribute
+    return get_unique_id(Path(val))
+
+
+@get_unique_id.register
+def _(val: SeqArray) -> str:
+    return get_unique_id(val.seqid)
 
 
 @define_app(app_type=WRITER)

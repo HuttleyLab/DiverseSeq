@@ -8,7 +8,12 @@ import h5py
 import hdf5plugin
 import numpy
 import numpy.typing
-from cogent3.app.data_store import DataMember, DataStoreABC, Mode, StrOrBytes
+from cogent3.app.data_store import (
+    DataMember,
+    DataStoreABC,
+    Mode,
+    StrOrBytes,
+)
 from scitrack import get_text_hexdigest
 
 _NOT_COMPLETED_TABLE = "not_completed"
