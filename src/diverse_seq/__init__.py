@@ -14,9 +14,9 @@ __version__ = "2025.7.10"
 
 def load_sample_data() -> "SequenceCollection":
     """load sample data"""
-    from cogent3 import load_aligned_seqs
+    from cogent3 import load_aligned_seqs  # noqa: PLC0415
 
-    from .util import get_sample_data_path
+    from .util import get_sample_data_path  # noqa: PLC0415
 
     path = get_sample_data_path()
-    return load_aligned_seqs(path, moltype="dna", new_type=True).degap()
+    return load_aligned_seqs(path, moltype="dna").degap()

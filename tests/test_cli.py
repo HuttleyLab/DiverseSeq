@@ -362,3 +362,5 @@ def test_demo_data(runner, tmp_path):
 
     r = runner.invoke(demo_data, args)
     assert r.exit_code == 0, r.output
+    result = load_unaligned_seqs(outpath, moltype="dna")
+    assert result.num_seqs > 0
