@@ -12,7 +12,6 @@ from cogent3 import get_moltype
 from cogent3.app import composable
 from cogent3.app import data_store as c3_data_store
 from cogent3.app import typing as c3_types
-from cogent3.core import new_sequence as c3_new_seq
 from cogent3.core import sequence as c3_seq
 from numpy import (
     array,
@@ -502,29 +501,6 @@ def _(data: c3_data_store.DataMember, *, dtype: dtype, k: int, moltype: str) -> 
 
 @make_kmerseq.register
 def _(data: c3_seq.Sequence, *, dtype: dtype, k: int, moltype: str) -> KmerSeq:
-    cnvrt = dvs_utils.str2arr(moltype=moltype)
-    vec = lazy_kmers(
-        data=cnvrt(str(data)),  # pylint: disable=not-callable
-        k=k,
-        moltype=moltype,
-        dtype=dtype,
-    )
-    kwargs = {
-        "vector_length": vec.num_states,
-        "dtype": dtype,
-        "source": data.info.source,
-        "name": data.name,
-        "data": vec,
-    }
-
-    return KmerSeq(
-        kcounts=vector(**kwargs),
-        name=kwargs["name"],
-    )
-
-
-@make_kmerseq.register
-def _(data: c3_new_seq.Sequence, *, dtype: dtype, k: int, moltype: str) -> KmerSeq:
     cnvrt = dvs_utils.str2arr(moltype=moltype)
     vec = lazy_kmers(
         data=cnvrt(str(data)),  # pylint: disable=not-callable

@@ -429,17 +429,16 @@ def test_member_to_kmerseq(dstore, seqarray):
     assert_allclose(got.kcounts, expect.kcounts)
 
 
-@pytest.mark.parametrize("new_seq", (True, False))
-def test_make_kmerseq(new_seq):
+def test_make_kmerseq():
     from numpy import min_scalar_type
 
     dtype = min_scalar_type(16)
     raw = "ACGT"
     name = "seq1"
-    seq = make_seq(seq=raw, name=name, moltype="dna", new_type=new_seq)
+    seq = make_seq(seq=raw, name=name, moltype="dna")
     seq.info.source = "source1"
     kseq = make_kmerseq(seq, dtype=dtype, k=2, moltype="dna")
-    alpha = get_moltype("dna", new_type=True).alphabet.get_kmer_alphabet(2)
+    alpha = get_moltype("dna").alphabet.get_kmer_alphabet(2)
     expect_kmers = alpha.to_indices(raw, independent_kmer=False)
     expect = zeros(len(alpha), dtype=dtype)
     expect[expect_kmers] = 1

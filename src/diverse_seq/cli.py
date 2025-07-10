@@ -140,7 +140,7 @@ def demo_data(outpath: Path) -> None:
     from diverse_seq import load_sample_data
 
     seqs = load_sample_data()
-    seqs.write(outpath, file_format="fasta")
+    seqs.write(outpath, format_name="fasta")
     dvs_util.print_colour(f"Wrote '{outpath!s}'", "green")
 
 
