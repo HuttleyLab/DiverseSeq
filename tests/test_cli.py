@@ -7,6 +7,7 @@ from click.testing import CliRunner
 from cogent3 import load_table, load_tree, load_unaligned_seqs
 
 from diverse_seq.cli import ctree as dvs_ctree
+from diverse_seq.cli import demo_data
 from diverse_seq.cli import max as dvs_max
 from diverse_seq.cli import nmost as dvs_nmost
 from diverse_seq.cli import prep as dvs_prep
@@ -353,3 +354,11 @@ def test_max_too_few_seqs(runner, too_few_seqs):
     # exit code should be 1
     r = runner.invoke(dvs_max, args)
     assert r.exit_code == 1, r.output
+
+
+def test_demo_data(runner, tmp_path):
+    outpath = tmp_path / "demo.fa"
+    args = f"-o {outpath}".split()
+
+    r = runner.invoke(demo_data, args)
+    assert r.exit_code == 0, r.output

@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 from cogent3 import load_unaligned_seqs
-from cogent3.core.new_alignment import SequenceCollection
+from cogent3.core.alignment import SequenceCollection
 
 
 @pytest.fixture(scope="session")

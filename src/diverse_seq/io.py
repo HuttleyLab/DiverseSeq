@@ -19,7 +19,7 @@ from cogent3.app.data_store import (
     DataStoreDirectory,
     Mode,
 )
-from cogent3.core import new_alphabet
+from cogent3.core import alphabet as c3_alpha
 from cogent3.format import fasta as format_fasta
 from cogent3.parse import fasta, genbank
 
@@ -27,13 +27,13 @@ from diverse_seq import util as dvs_utils
 from diverse_seq.data_store import HDF5DataStore
 from diverse_seq.record import SeqArray
 
-converter_fasta = new_alphabet.convert_alphabet(
+converter_fasta = c3_alpha.convert_alphabet(
     string.ascii_lowercase.encode("utf8"),
     string.ascii_uppercase.encode("utf8"),
     delete=b"\n\r\t- ",
 )
 
-converter_genbank = new_alphabet.convert_alphabet(
+converter_genbank = c3_alpha.convert_alphabet(
     string.ascii_lowercase.encode("utf8"),
     string.ascii_uppercase.encode("utf8"),
     delete=b"\n\r\t- 0123456789",
@@ -54,7 +54,7 @@ class filename_seqname:
     name: str
 
 
-def get_format_parser(seq_path, seq_format):
+def get_format_parser(seq_path: str | Path, seq_format: str) -> typing.Iterable:
     return (
         fasta.iter_fasta_records(seq_path, converter=converter_fasta)
         if seq_format == "fasta"
@@ -70,7 +70,7 @@ def get_format_parser(seq_path, seq_format):
 class dvs_load_seqs:
     """Load and proprocess sequences from seq datastore"""
 
-    def __init__(self, moltype: str = "dna", seq_format: str = "fasta"):
+    def __init__(self, moltype: str = "dna", seq_format: str = "fasta") -> None:
         """load fasta sequences from a data store
 
         Parameters
