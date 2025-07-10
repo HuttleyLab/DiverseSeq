@@ -22,7 +22,7 @@ def brca1_seqs():
 def brca1_5(brca1_seqs):
     seqs = brca1_seqs.take_seqs(["Cat", "Dog", "Wombat", "Horse", "Rat"])
     return make_unaligned_seqs(
-        data={s.name: str(s[:20]) for s in seqs.seqs},
+        {s.name: str(s[:20]) for s in seqs.seqs},
         moltype="dna",
     )
 
