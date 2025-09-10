@@ -308,7 +308,7 @@ def indices_to_bytes(
     return result
 
 
-@numba.jit(nopython=True)
+@numba.jit(cache=True)
 def kmer_counts(
     seq: ndarray,
     num_states: int,
@@ -340,16 +340,28 @@ def kmer_counts(
         if seq[i] >= num_states:
             skip_until = i + 1
 
+    idx = -1  # -1 is a flag, means an invalid index
+    biggest_coeff = coeffs[0]
+
     for i in range(len(seq) - k + 1):
-        if seq[i + k - 1] >= num_states:
+        gained_char = seq[i + k - 1]
+        if gained_char >= num_states:
+            # we reset the kmer index to invalid
+            # until we get a proper one
+            idx = -1
             skip_until = i + k
 
         if i < skip_until:
             continue
 
-        kmer = seq[i : i + k]
-        index = (kmer * coeffs).sum()
-        kfreqs[index] += 1
+        if idx < 0:
+            idx = (seq[i : i + k] * coeffs).sum()
+            kfreqs[idx] += 1
+            continue
+
+        dropped_char = seq[i - 1]
+        idx = (idx - dropped_char * biggest_coeff) * num_states + gained_char
+        kfreqs[idx] += 1
 
     return kfreqs
 
