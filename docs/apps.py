@@ -51,6 +51,44 @@ result = dvs_max(seqs)
 result
 
 # %% [markdown]
+# ## Using dvs_delta_jsd
+# The `dvs_delta_jsd` app computes the delta JSD values for a single sequence against a reference set of sequences. It returns a tuple of sequence name, delta JSD value.
+#
+# > **Note**
+# > There is no command line interface for this app.
+#
+# Say we have a reference group of sequences, `ref_seqs`. We want to evaluate each sequence in a set of query sequences to see what their delta JSD values are against the reference set. These values allow us, for example, to select a sequence that is highly diverged from all sequences in the reference set, or one which is very similar to a sequence in the reference set.
+#
+# For this example, we define `ref_seqs` as the first 10 sequences in our sample data.
+
+# %%
+ref_seqs = seqs.take_seqs(seqs.names[:10])
+ref_seqs
+
+# %% [markdown]
+# We define our query group as the remaining sequences.
+
+# %%
+query_seqs = seqs.take_seqs(seqs.names[:10], negate=True)
+query_seqs
+
+# %%
+dvs_djsd = cogent3.get_app("dvs_delta_jsd", seqs=ref_seqs, moltype="dna", k=8)
+dvs_djsd
+
+# %% [markdown]
+# We now compute the delta JSD values for each sequence in `query_seqs` against `ref_seqs` and make a table from the results. We just display the top few records.
+
+# %%
+name_deltas = [dvs_djsd(seq) for seq in query_seqs.seqs]
+table = cogent3.make_table(header=["seqname", "delta_jsd"], data=name_deltas, index_name="seqname")
+table = table.sorted(reverse="delta_jsd")
+table.head()
+
+# %% [markdown]
+# And the conclusion is that the `Bandicoot` (a marsupial) sequence is the most divergent from the reference set (which are all Eutherian, or "placental", mammals).
+
+# %% [markdown]
 # ## Using dvs_ctree
 
 # %%

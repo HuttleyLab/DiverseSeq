@@ -89,6 +89,7 @@ dvs = "diverse_seq.cli:main"
 [project.entry-points."cogent3.app"]
 dvs_nmost = "diverse_seq.records:dvs_nmost"
 dvs_max = "diverse_seq.records:dvs_max"
+dvs_delta_jsd = "diverse_seq.records:dvs_delta_jsd"
 dvs_ctree = "diverse_seq.cluster:dvs_ctree"
 dvs_par_ctree = "diverse_seq.cluster:dvs_par_ctree"
 

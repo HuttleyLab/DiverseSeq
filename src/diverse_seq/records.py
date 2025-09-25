@@ -206,13 +206,17 @@ class SummedRecords:
     def iter_record_names(self):
         yield from self.record_names
 
-    def increases_jsd(self, record: KmerSeq) -> bool:
-        # whether total JSD increases when record is used
-        j = _jsd(
+    def delta_jsd(self, record: KmerSeq) -> float:
+        """returns the delta JSD for record"""
+        return _jsd(
             self.summed_kfreqs + record.kfreqs,
             self.summed_entropies + record.entropy,
             self.size,
         )
+
+    def increases_jsd(self, record: KmerSeq) -> bool:
+        # whether total JSD increases when record is used
+        j = self.delta_jsd(record)
         return self.total_jsd < j
 
     @property
@@ -766,3 +770,47 @@ class dvs_nmost:
         )
         selected = set(result.record_names) | set(self._include or [])
         return seqs.take_seqs(selected)
+
+
+@define_app
+class dvs_delta_jsd:
+    """returns delta_jsd for a sequence"""
+
+    def __init__(
+        self,
+        seqs: c3_types.SeqsCollectionType,
+        moltype: str = "dna",
+        k: int = 6,
+    ) -> None:
+        """
+        Parameters
+        ----------
+        seqs
+            the sequence collection to use as the reference set
+        moltype
+            molecular type of the sequences
+        k
+            k-mer size
+
+        Notes
+        -----
+        If called with an alignment, the ungapped sequences are used.
+        The order of the sequences is randomised. If include is not None, the
+        named sequences are added to the final result.
+
+        Returns
+        -------
+        (sequence name, delta JSD)
+        """
+        self._s2k = seq_to_seqarray(moltype=moltype) + seqarray_to_kmerseq(
+            k=k,
+            moltype=moltype,
+        )
+        degapped = seqs.degap()
+        records = [self._s2k(degapped.get_seq(name)) for name in degapped.names]
+        self._sr = SummedRecords.from_records(records)
+
+    def main(self, seq: c3_types.SeqType) -> tuple[str, float]:
+        record = self._s2k(seq.degap())
+        delta = self._sr.delta_jsd(record)
+        return seq.name, delta
