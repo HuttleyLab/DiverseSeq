@@ -241,3 +241,14 @@ def test_dvs_delta_jsd_zero_length_query():
     name, delta = app(query)  # pylint: disable=not-callable
     assert name == "s3"
     assert numpy.isnan(delta)
+
+
+def test_dvs_delta_jsd_moltype():
+    data = {"s1": "ACGTA", "s2": "ACGTA"}
+    seqs = make_unaligned_seqs(data, moltype="dna")
+    app = dvs_records.dvs_delta_jsd(seqs=seqs, k=1, moltype="dna")
+    query = make_seq("ACAAA", name="s3", moltype="dna")
+    _, expect = app(query)  # pylint: disable=not-callable
+    query = make_seq("ACAAA", name="s3", moltype="text")
+    _, got = app(query)  # pylint: disable=not-callable
+    assert expect == got

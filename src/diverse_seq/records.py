@@ -816,9 +816,12 @@ class dvs_delta_jsd:
 
         records = [self._s2k(degapped.get_seq(name)) for name in degapped.names]
         self._sr = SummedRecords.from_records(records)
+        self.moltype = moltype
 
     def main(self, seq: c3_types.SeqType) -> tuple[str, float]:
-        record = self._s2k(seq.degap())
+        if seq.moltype.name != self.moltype:
+            seq = seq.to_moltype(self.moltype)
+
         seq = seq.degap()
         if len(seq) == 0:
             return seq.name, numpy.nan
