@@ -81,7 +81,9 @@ dvs_djsd
 
 # %%
 name_deltas = [dvs_djsd(seq) for seq in query_seqs.seqs]
-table = cogent3.make_table(header=["seqname", "delta_jsd"], data=name_deltas, index_name="seqname")
+table = cogent3.make_table(
+    header=["seqname", "delta_jsd"], data=name_deltas, index_name="seqname"
+)
 table = table.sorted(reverse="delta_jsd")
 table.head()
 

@@ -213,7 +213,7 @@ def test_serialisable_nmost(brca1_coll, tmp_path, app_name):
     select = get_app(app_name, k=2)
     writer = get_app("write_db", data_store=outstore)
     app = select + writer
-    got = app(brca1_coll)  # pylint: disable=not-callable
+    _ = app(brca1_coll)  # pylint: disable=not-callable
     assert len(outstore.completed) == 1
 
 

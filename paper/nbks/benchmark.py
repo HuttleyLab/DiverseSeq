@@ -85,44 +85,46 @@ def run(seqdir, suffix, outpath, command):
     num_seqs = [50, 100, 150, 200]
     results = []
     run_func = run_max if command == "max" else run_nmost
-    with dvs_util.keep_running():
-        with rich_progress.Progress(
+    with (
+        dvs_util.keep_running(),
+        rich_progress.Progress(
             rich_progress.TextColumn("[progress.description]{task.description}"),
             rich_progress.BarColumn(),
             rich_progress.TaskProgressColumn(),
             rich_progress.TimeRemainingColumn(),
             rich_progress.TimeElapsedColumn(),
-        ) as progress:
-            repeats = progress.add_task("Doing reps", total=len(reps))
-            for _ in reps:
-                seqnum = progress.add_task("Doing num seqs", total=len(num_seqs))
-                for num in num_seqs:
-                    with TempWorkingDir() as temp_dir:
-                        dvs_file = temp_dir / f"dvs_L{num}.dvseqs"
-                        elapsed_time = run_prep(
-                            temp_dir,
-                            seqdir,
-                            dvs_file,
-                            suffix,
-                            num,
-                        )
-                        results.append(("prep", num, None, elapsed_time))
+        ) as progress,
+    ):
+        repeats = progress.add_task("Doing reps", total=len(reps))
+        for _ in reps:
+            seqnum = progress.add_task("Doing num seqs", total=len(num_seqs))
+            for num in num_seqs:
+                with TempWorkingDir() as temp_dir:
+                    dvs_file = temp_dir / f"dvs_L{num}.dvseqs"
+                    elapsed_time = run_prep(
+                        temp_dir,
+                        seqdir,
+                        dvs_file,
+                        suffix,
+                        num,
+                    )
+                    results.append(("prep", num, None, elapsed_time))
 
-                        kmers = progress.add_task(
-                            "Doing kmers",
-                            total=len(kmer_sizes),
-                            transient=True,
-                        )
-                        for k in kmer_sizes:
-                            kout = temp_dir / f"selected-{k}.tsv"
-                            elapsed_time = run_func(dvs_file, kout, k)
-                            results.append((command, num, k, elapsed_time))
-                            progress.update(kmers, advance=1, refresh=True)
-                        progress.remove_task(kmers)
+                    kmers = progress.add_task(
+                        "Doing kmers",
+                        total=len(kmer_sizes),
+                        transient=True,
+                    )
+                    for k in kmer_sizes:
+                        kout = temp_dir / f"selected-{k}.tsv"
+                        elapsed_time = run_func(dvs_file, kout, k)
+                        results.append((command, num, k, elapsed_time))
+                        progress.update(kmers, advance=1, refresh=True)
+                    progress.remove_task(kmers)
 
-                        progress.update(seqnum, advance=1, refresh=True)
-                progress.remove_task(seqnum)
-                progress.update(repeats, advance=1, refresh=True)
+                    progress.update(seqnum, advance=1, refresh=True)
+            progress.remove_task(seqnum)
+            progress.update(repeats, advance=1, refresh=True)
 
     table = make_table(header=("command", "numseqs", "k", "time(s)"), data=results)
     print(table)
