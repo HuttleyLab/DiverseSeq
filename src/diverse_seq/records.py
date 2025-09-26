@@ -798,6 +798,8 @@ class dvs_delta_jsd:
         The order of the sequences is randomised. If include is not None, the
         named sequences are added to the final result.
 
+        If the query sequence has zero length, returns nan.
+
         Returns
         -------
         (sequence name, delta JSD)
@@ -807,10 +809,20 @@ class dvs_delta_jsd:
             moltype=moltype,
         )
         degapped = seqs.degap()
+        if (lengths := degapped.get_lengths()).array.min() == 0:
+            zero_len = ", ".join([k for k, c in lengths.items() if c == 0])
+            msg = f"cannot compute delta_jsd with zero-length sequences: {zero_len}"
+            raise ValueError(msg)
+
         records = [self._s2k(degapped.get_seq(name)) for name in degapped.names]
         self._sr = SummedRecords.from_records(records)
 
     def main(self, seq: c3_types.SeqType) -> tuple[str, float]:
         record = self._s2k(seq.degap())
+        seq = seq.degap()
+        if len(seq) == 0:
+            return seq.name, numpy.nan
+
+        record = self._s2k(seq)
         delta = self._sr.delta_jsd(record)
         return seq.name, delta

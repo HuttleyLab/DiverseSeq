@@ -1,8 +1,11 @@
+import numpy
 import pytest
 from cogent3 import (
     get_app,
     load_aligned_seqs,
     load_unaligned_seqs,
+    make_aligned_seqs,
+    make_seq,
     make_unaligned_seqs,
     open_data_store,
 )
@@ -221,3 +224,20 @@ def test_select_return_type(brca1_alignment, app_name, aligned):
     select = get_app(app_name, k=2)
     got = select(coll)  # pylint: disable=not-callable
     assert isinstance(got, coll.__class__)
+
+
+def test_dvs_delta_jsd_zero_length_in_ref():
+    data = {"s1": "ACGT-A", "s2": "------"}
+    seqs = make_aligned_seqs(data, moltype="dna")
+    with pytest.raises(ValueError):
+        dvs_records.dvs_delta_jsd(seqs=seqs, k=1)
+
+
+def test_dvs_delta_jsd_zero_length_query():
+    data = {"s1": "ACGTA", "s2": "ACGTA"}
+    seqs = make_unaligned_seqs(data, moltype="dna")
+    app = dvs_records.dvs_delta_jsd(seqs=seqs, k=1, moltype="dna")
+    query = make_seq("", name="s3", moltype="dna")
+    name, delta = app(query)  # pylint: disable=not-callable
+    assert name == "s3"
+    assert numpy.isnan(delta)
