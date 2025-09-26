@@ -37,3 +37,6 @@ working/*
 .ruff_cache/*
 jats/*
 .venv/*
+.mypy_cache/*
+paper/*
+site/*
