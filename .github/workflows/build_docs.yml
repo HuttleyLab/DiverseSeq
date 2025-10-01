@@ -1,0 +1,59 @@
+name: Build Docs
+
+concurrency:
+  group: docs-build-${{ github.ref }}
+  cancel-in-progress: true
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - develop
+    paths:
+      - 'docs/**'
+      - '.readthedocs.yaml'
+      - 'mkdocs.yml'
+      - 'rtd_get_docs.py'
+
+permissions:
+  contents: read
+
+jobs:
+  build-docs:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - uses: "actions/setup-python@v5"
+        with:
+            python-version: "3.13"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
+
+      - name: Install Docs Dependencies
+        run: |
+          uv venv venv -p python
+          source venv/bin/activate
+          uv pip install ".[doc]"
+          plotly_get_chrome
+
+      - name: Build Documentation
+        run: |
+          source venv/bin/activate
+          # this dir needs to be in place for mkdocs to start
+          mkdocs build
+        working-directory: ${{ github.workspace }}
+
+      - name: Upload Documentation Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: diverse_seq-docs-html
+          path: site
