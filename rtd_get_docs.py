@@ -88,7 +88,7 @@ def wait_for_run_completion(run: dict, headers: dict) -> dict:
 
 
 def download_and_extract_artifact(run: dict, headers: dict) -> None:
-    artifact_name = "ensembl_tui-docs-html"
+    artifact_name = "diverse_seq-docs-html"
     artifacts_url = run["artifacts_url"]
 
     response = requests.get(artifacts_url, headers=headers, timeout=10)
@@ -122,6 +122,8 @@ def download_and_extract_artifact(run: dict, headers: dict) -> None:
 
     with zipfile.ZipFile(out, "r") as zip_ref:
         zip_ref.extractall("_readthedocs/html/")
+
+    out.unlink()
 
 
 def download_and_extract_docs() -> None:
