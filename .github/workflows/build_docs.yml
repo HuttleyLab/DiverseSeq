@@ -60,7 +60,7 @@ jobs:
         run: |
           source venv/bin/activate
           # this dir needs to be in place for mkdocs to start
-          mkdocs build
+          DVS_HIDE_PROGRESS=1 mkdocs build --clean
         working-directory: ${{ github.workspace }}
 
       - name: Upload Documentation Artifact
