@@ -4,13 +4,18 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "diverse_seq"
-authors = [
-    { name = "Gavin Huttley", email = "Gavin.Huttley@anu.edu.au"},
+authors = [{ name = "Gavin Huttley", email = "Gavin.Huttley@anu.edu.au" }]
+keywords = [
+    "biology",
+    "genomics",
+    "statistics",
+    "phylogeny",
+    "evolution",
+    "bioinformatics",
 ]
-keywords = ["biology", "genomics", "statistics", "phylogeny", "evolution", "bioinformatics"]
 readme = "README.md"
 license = { file = "LICENSE" }
-requires-python = ">=3.10,<3.14"
+requires-python = ">=3.11,<3.15"
 dependencies = [
     "attrs",
     "click",
@@ -24,17 +29,17 @@ dependencies = [
     "scikit-learn",
 ]
 classifiers = [
-        "Development Status :: 3 - Alpha",
-        "Intended Audience :: Science/Research",
-        "License :: OSI Approved :: BSD License",
-        "Topic :: Scientific/Engineering :: Bio-Informatics",
-        "Topic :: Software Development :: Libraries :: Python Modules",
-        "Operating System :: OS Independent",
-        "Programming Language :: Python :: 3.10",
-        "Programming Language :: Python :: 3.11",
-        "Programming Language :: Python :: 3.12",
-        "Programming Language :: Python :: 3.13",
-    ]
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: BSD License",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+]
 # the following are inferred from the source code
 dynamic = ["version", "description"]
 
@@ -47,13 +52,8 @@ Documentation = "https://diverse-seq.readthedocs.io/"
 include = ["tests/*"]
 
 [project.optional-dependencies]
-test = [
-    "nox",
-    "pytest",
-    "pytest-cov",
-    "pytest-xdist",
-]
-doc  = [
+test = ["nox", "pytest", "pytest-cov", "pytest-xdist"]
+doc = [
     "diverse_seq[extra]",
     "mkdocs>=1.6.1",
     "markdown-exec[ansi]>=1.10.0",
