@@ -27,11 +27,15 @@ jobs:
 
       - name: Install the cogent3 dev branch
         run: |
-          uv pip install "cogent3 @ git+https://github.com/cogent3/cogent3.git@develop" --system
+          uv venv venv -p python${{ matrix.python-version }}
+          uv pip install -p ./venv/bin/python "cogent3 @ git+https://github.com/cogent3/cogent3.git@develop"
 
       - name: Install the project
         run: |
-          uv pip install ".[test]" --system
+          uv pip install -p ./venv/bin/python ".[test]"
+          uv pip list -p ./venv/bin/python
 
       - name: Run tests
-        run: uv run pytest tests
+        run: |
+          source venv/bin/activate
+          pytest tests
