@@ -4,7 +4,7 @@ from pathlib import Path
 
 import numpy
 import pytest
-from cogent3 import get_moltype, make_seq
+from cogent3 import get_dataset, get_moltype, make_seq
 from numpy import (
     array,
     nextafter,
@@ -323,8 +323,25 @@ def test_coord2index_fail():
         coord_to_index(coord, coeffs)
 
 
-_seqs = ("ACGGCGGTGCA", "ACGGNGGTGCA", "ANGGCGGTGNA")
+_seqcoll = get_dataset("brca1").degap()
+_seqs = (
+    str(_seqcoll.seqs["Human"]),
+    str(_seqcoll.seqs["Mouse"]),
+    str(_seqcoll.seqs["Wombat"]),
+)
 _ks = (1, 2, 3)
+
+
+def test_kmerseqs_kcounts():
+    seq = make_seq(_seqs[0], moltype="dna")
+    arr = numpy.array(seq)
+    seqarray = SeqArray(seqid="blah", data=arr, moltype="dna")
+    sa2km = seqarray_to_kmerseq(k=1, moltype="dna")
+    kseq = sa2km(seqarray)  # pylint: disable=not-callable
+    counts = Counter(arr[arr < 4])
+    expect = numpy.array([counts[i] for i in range(4)], dtype=int)
+    got = numpy.array(kseq.kcounts)
+    assert_allclose(got, expect)
 
 
 def test_indices_to_seqs():

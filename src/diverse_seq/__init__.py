@@ -9,7 +9,7 @@ import hdf5plugin  # noqa: F401
 if typing.TYPE_CHECKING:
     from cogent3.core.alignment import SequenceCollection
 
-__version__ = "2025.12.11"
+__version__ = "2025.12.17"
 
 
 def load_sample_data() -> "SequenceCollection":

@@ -18,10 +18,10 @@ from numpy import (
     dtype,
     errstate,
     log2,
-    min_scalar_type,
     nan_to_num,
     ndarray,
     uint8,
+    uint32,
     uint64,
     zeros,
 )
@@ -547,7 +547,7 @@ class _make_kmerseq_init:
         self.moltype = moltype
         self.k = k
         self.num_states = len(_get_canonical_states(moltype))
-        self.dtype = min_scalar_type(self.num_states**k)
+        self.dtype = uint32
 
 
 @composable.define_app
