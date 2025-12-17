@@ -21,6 +21,7 @@ from numpy import (
     nan_to_num,
     ndarray,
     uint8,
+    uint32,
     uint64,
     zeros,
 )
@@ -546,7 +547,7 @@ class _make_kmerseq_init:
         self.moltype = moltype
         self.k = k
         self.num_states = len(_get_canonical_states(moltype))
-        self.dtype = uint64
+        self.dtype = uint32
 
 
 @composable.define_app

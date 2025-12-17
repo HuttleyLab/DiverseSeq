@@ -337,7 +337,7 @@ def test_kmerseqs_kcounts():
     arr = numpy.array(seq)
     seqarray = SeqArray(seqid="blah", data=arr, moltype="dna")
     sa2km = seqarray_to_kmerseq(k=1, moltype="dna")
-    kseq = sa2km(seqarray)
+    kseq = sa2km(seqarray)  # pylint: disable=not-callable
     counts = Counter(arr[arr < 4])
     expect = numpy.array([counts[i] for i in range(4)], dtype=int)
     got = numpy.array(kseq.kcounts)
