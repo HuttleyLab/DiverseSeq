@@ -1,12 +1,17 @@
 #[cfg(feature = "python")]
+use pyo3::exceptions::PyValueError;
+#[cfg(feature = "python")]
 use pyo3::prelude::{Bound, PyModule, PyResult, pyfunction, pymodule};
 use pyo3::types::PyModuleMethods;
 use pyo3::wrap_pyfunction;
 mod record;
 use record::{KmerSeq, SeqRecord};
 mod records;
-use records::SummedRecords;
+use records::{SummedRecords, select_nmost_divergent};
+mod records_py;
+use records_py::{SummedRecordsResult, SummedRecordsWrapper};
 mod zarr_io;
+use zarr_io::ZarrStore;
 use zarr_py::ZarrStoreWrapper;
 pub mod zarr_py;
 
@@ -26,11 +31,15 @@ fn proc_seqs(
         .map(|(id, seq)| SeqRecord::new(id.as_str(), seq.as_slice(), num_states))
         .collect();
     // now make them kmer seqs
-    let kmer_seqs: Vec<KmerSeq<'_>> = seq_records.iter().map(|sr| sr.to_kmerseq(k)).collect();
+    let kmer_seqs: Vec<KmerSeq> = seq_records
+        .iter()
+        .map(|sr| sr.to_kmerseq(k))
+        .collect::<Result<_, _>>()
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
     // and now create the SummedRecords container
     let selected = SummedRecords::new(kmer_seqs);
 
-    let lowest: &KmerSeq<'_> = &selected.records[selected.lowest_index as usize];
+    let lowest: &KmerSeq = &selected.records[selected.lowest_index as usize];
     println!(
         "Lowest seq {:?} has delta_jsd {:.4}",
         lowest.seqid,
@@ -41,21 +50,11 @@ fn proc_seqs(
 
 #[pyfunction]
 #[pyo3(signature = (seqid, seq, num_states=4, k=2))]
-fn play(seqid: &str, seq: &[u8], num_states: usize, k: usize) -> PyResult<Vec<f64>> {
-    let sr = SeqRecord::new(seqid, seq, num_states);
-    let r = sr.to_kmerseq(k);
-    println!(
-        "Playing with '{}', which has entropy={:.4}",
-        r.seqid, r.entropy
-    );
-    Ok(r.kfreqs)
-}
-
-#[pyfunction]
-#[pyo3(signature = (seqid, seq, num_states=4, k=2))]
 fn get_entropy(seqid: &str, seq: &[u8], num_states: usize, k: usize) -> PyResult<f64> {
     let sr = SeqRecord::new(seqid, seq, num_states);
-    let r = sr.to_kmerseq(k);
+    let r = sr
+        .to_kmerseq(k)
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
     println!(
         "Playing with '{}', which has entropy={:.4}",
         r.seqid, r.entropy
@@ -76,6 +75,20 @@ fn get_seqids_from_store(path: &str) -> PyResult<Vec<String>> {
     Ok(store.get_seqids().unwrap())
 }
 
+#[pyfunction]
+#[pyo3(signature = (path, n, k, num_states=4, seqids=None))]
+fn nmost_divergent(
+    path: &str,
+    n: usize,
+    k: usize,
+    num_states: usize,
+    seqids: Option<Vec<String>>,
+) -> PyResult<Vec<(String, f64)>> {
+    let store = ZarrStore::new(path.to_string()).unwrap();
+    let result = select_nmost_divergent(&store, n, k, num_states, seqids);
+    Ok(result.record_deltas())
+}
+
 /// A Python module implemented in Rust.
 #[cfg(feature = "python")]
 #[pymodule]
@@ -86,5 +99,6 @@ fn _dvs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(make_zarr_store, m)?)?;
     m.add_function(wrap_pyfunction!(make_zarr_store, m)?)?;
     m.add_function(wrap_pyfunction!(get_seqids_from_store, m)?)?;
+    m.add_function(wrap_pyfunction!(nmost_divergent, m)?)?;
     Ok(())
 }

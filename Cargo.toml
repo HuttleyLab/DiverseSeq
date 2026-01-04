@@ -12,7 +12,7 @@ rustc-hash = "2.0"
 xxhash-rust = { version = "0.8", features = ["xxh3"] }
 serde = { version = "1.0", features = ["derive"] }
 postcard = { version = "1.0", features = ["alloc"] }
-serde_json = "1.0"
+serde_json = "1.0.148"
 
 [features]
 default = ["python"]
@@ -21,4 +21,4 @@ rust-only = []       # this allows testing rust-only code
 
 [dev-dependencies]
 rstest = "0.26.1"
-tempfile = "3"
+tempfile = "3.24.0"

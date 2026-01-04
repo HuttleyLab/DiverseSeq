@@ -257,6 +257,14 @@ class SummedRecords:
         """returns all records in order of delta_jsd"""
         return [self.lowest] + self.records
 
+    def get_by_seqid(self, seqid: str) -> KmerSeq:
+        """returns the KmerSeq with the given seqid"""
+        for r in self.all_records():
+            if r.name == seqid:
+                return r
+        msg = f"seqid {seqid!r} not found in SummedRecords"
+        raise KeyError(msg)
+
 
 def _get_stat_attribute(stat: str) -> str:
     if stat not in ("stdev", "cov"):

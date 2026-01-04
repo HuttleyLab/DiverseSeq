@@ -1,11 +1,13 @@
+use crate::zarr_io::ZarrStore;
+use core::panic;
 use std::collections::HashSet;
 
-use crate::record::{entropy, KmerSeq};
+use crate::record::{KmerSeq, LazySeqRecord, entropy};
 
 #[derive(Debug)]
 /// Container of most divergent sequences
-pub struct SummedRecords<'b> {
-    pub records: Vec<KmerSeq<'b>>,
+pub struct SummedRecords {
+    pub records: Vec<KmerSeq>,
     pub size: u32,
     /* summed_kfreqs will be the sum of
     the kfreqs for all members in records aside
@@ -20,8 +22,8 @@ pub struct SummedRecords<'b> {
     pub seqids: HashSet<String>,
 }
 
-impl<'b> SummedRecords<'b> {
-    pub fn new(records: Vec<KmerSeq<'b>>) -> Self {
+impl SummedRecords {
+    pub fn new(records: Vec<KmerSeq>) -> Self {
         if records.is_empty() {
             panic!("records cannot be empty");
         }
@@ -52,9 +54,7 @@ impl<'b> SummedRecords<'b> {
             &summed_kfreqs,
             summed_entropies,
             total_jsd,
-            size as f64 - 1.0,
         );
-
         Self {
             records,
             size,
@@ -66,9 +66,9 @@ impl<'b> SummedRecords<'b> {
         }
     }
 
-    pub fn increases_jsd(&self, rec: &KmerSeq<'b>) -> bool {
-        if self.seqids.contains(rec.seqid) {
-            return false;
+    pub fn delta_jsd(&self, rec: &KmerSeq) -> f64 {
+        if self.seqids.contains(&rec.seqid) {
+            return 0.0;
         }
         let lowest_rec = &self.records[self.lowest_index as usize];
         let mut mean_kfreqs = vec![0f64; lowest_rec.kfreqs.len()];
@@ -79,65 +79,59 @@ impl<'b> SummedRecords<'b> {
                 (self.summed_kfreqs[i] - lowest_rec.kfreqs[i] + rec.kfreqs[i]) / self.size as f64;
         }
         let entropy_of_mean = entropy(&mean_kfreqs);
-        let jsd = entropy_of_mean - mean_entropy;
-        jsd > self.total_jsd
+        entropy_of_mean - mean_entropy
     }
 
-    pub fn replace_lowest(&mut self, rec: KmerSeq<'b>) {
-        if self.seqids.contains(rec.seqid) {
+    pub fn increases_jsd(&self, rec: &KmerSeq) -> bool {
+        if self.seqids.contains(&rec.seqid) {
+            return false;
+        }
+        let jsd = self.delta_jsd(rec);
+        jsd > self.total_jsd + f64::EPSILON
+    }
+
+    pub fn drop_lowest(&mut self) {
+        let old_rec = self.records.remove(self.lowest_index as usize);
+        // remove from hashset
+        self.seqids.remove(&old_rec.seqid);
+
+        // remove lowest from total entropies
+        let num_kmers: usize = old_rec.kfreqs.len();
+        self.summed_entropies -= old_rec.entropy;
+        // and remove from summed_kfreqs
+        for i in 0..num_kmers {
+            self.summed_kfreqs[i] -= old_rec.kfreqs[i];
+            if self.summed_kfreqs[i] <= f64::EPSILON {
+                self.summed_kfreqs[i] = 0.0;
+            }
+        }
+    }
+
+    pub fn replace_lowest(&mut self, rec: KmerSeq) {
+        if self.seqids.contains(&rec.seqid) {
             return;
         }
-
-        let old_rec = self.records.remove(self.lowest_index as usize);
-        self.seqids.remove(old_rec.seqid);
-        let seqid = rec.seqid.to_string();
-        self.seqids.insert(seqid);
-        // now modify total entropies etc ...
-        let num_kmers: usize = old_rec.kfreqs.len();
-        self.summed_entropies -= old_rec.entropy + rec.entropy;
-        for i in 0..num_kmers {
-            self.summed_kfreqs[i] -= old_rec.kfreqs[i] + rec.kfreqs[i];
-        }
-        self.records.push(rec);
-        let mean_kfreqs = div_vector(&self.summed_kfreqs, self.size as f64);
-        let mean_entropy = entropy(&mean_kfreqs);
-        self.total_jsd = mean_entropy - self.summed_entropies / self.size as f64;
-        let lowest_index: u32 = get_lowest_record_index(
-            &self.records,
-            num_kmers,
-            &self.summed_kfreqs,
-            self.summed_entropies,
-            self.total_jsd,
-            self.size as f64 - 1.0,
-        );
-        self.lowest_index = lowest_index;
+        self.drop_lowest();
+        // add the new record
+        self.push(rec);
     }
 
-    pub fn push(&mut self, rec: KmerSeq<'b>) {
-        if self.seqids.contains(rec.seqid) {
+    pub fn push(&mut self, rec: KmerSeq) {
+        if self.seqids.contains(&rec.seqid) {
             return;
         }
         let num_kmers: usize = self.records[0].kfreqs.len();
-        if rec.kfreqs.is_empty() {
-            panic!("kfreqs cannot be empty");
-        } else if rec.kfreqs.len() != num_kmers {
-            panic!(
-                "kfreqs length {} does not match num_kmers {}",
-                rec.kfreqs.len(),
-                num_kmers
-            );
-        }
-
         let seqid = rec.seqid.to_string();
         self.seqids.insert(seqid);
-        // now modify total entropies etc ...
 
+        // add to total entropies
         self.summed_entropies += rec.entropy;
+        // and summed_kfreqs
         for i in 0..num_kmers {
             self.summed_kfreqs[i] += &rec.kfreqs[i];
         }
         self.records.push(rec);
-        self.size += 1;
+        self.size = self.records.len() as u32;
         let mean_kfreqs = div_vector(&self.summed_kfreqs, self.size as f64);
         let mean_entropy = entropy(&mean_kfreqs);
         self.total_jsd = mean_entropy - self.summed_entropies / self.size as f64;
@@ -147,10 +141,14 @@ impl<'b> SummedRecords<'b> {
             &self.summed_kfreqs,
             self.summed_entropies,
             self.total_jsd,
-            self.size as f64,
         );
         self.lowest_index = lowest_index;
     }
+
+    pub fn get_by_seqid(&self, seqid: &str) -> Option<&KmerSeq> {
+        self.records.iter().find(|r| r.seqid == seqid)
+    }
+
     pub fn mean_jsd(&self) -> f64 {
         self.total_jsd / self.size as f64
     }
@@ -171,25 +169,56 @@ impl<'b> SummedRecords<'b> {
     pub fn cov_delta_jsd(&self) -> f64 {
         self.std_delta_jsd() / self.mean_delta_jsd()
     }
+
+    pub fn record_deltas(&self) -> Vec<(String, f64)> {
+        self.records
+            .iter()
+            .map(|r| (r.seqid.clone(), r.delta_jsd.get()))
+            .collect::<Vec<(String, f64)>>()
+    }
+
+    pub fn clone(&self) -> Self {
+        let records = self
+            .records
+            .iter()
+            .map(|r| r.clone())
+            .collect::<Vec<KmerSeq>>();
+        Self::new(records)
+    }
+
+    pub fn for_display(&self, title: String) -> String {
+        let record_deltas = self
+            .record_deltas()
+            .iter()
+            .map(|(s, d)| format!("{}\t{}", s, d))
+            .collect::<Vec<String>>()
+            .join("\n");
+
+        format!(
+            "# {}\n# seqid\tdelta_jsd\n{}\ntotal_jsd={}",
+            title, record_deltas, self.total_jsd
+        )
+    }
 }
 
 /// update delta_jsd on records and return index for lowest delta_jsd
-fn get_lowest_record_index<'b>(
-    records: &[KmerSeq<'b>],
+fn get_lowest_record_index(
+    records: &[KmerSeq],
     num_kmers: usize,
     summed_kfreqs: &[f64],
     summed_entropies: f64,
     total_jsd: f64,
-    div: f64,
 ) -> u32 {
+    let div = records.len() as f64 - 1.0;
     let mut min_delta_jsd: f64 = 1e6;
     let mut lowest_index: u32 = 0;
     let mut mean_kfreqs = vec![0f64; num_kmers];
     for (i, record) in records.iter().enumerate() {
         // calculating the mean entropy of records but this one
         let mean_entropy = (summed_entropies - record.entropy) / div;
+
         // calculate the mean kfreqs of records but this one
-        mean_freqs(&mut mean_kfreqs, summed_kfreqs, &record.kfreqs, div);
+        updated_mean_freqs(&mut mean_kfreqs, summed_kfreqs, &record.kfreqs, div);
         let entropy_of_mean = entropy(&mean_kfreqs);
 
         // JSD for all records but this one
@@ -216,23 +245,78 @@ fn iadd_vectors(summed_freqs: &mut [f64], freqs: &[f64]) {
     }
 }
 
-/// divide f64 vector by a scalar
-fn div_vector(summed_val: &[f64], div: f64) -> Vec<f64> {
+/// return vector<f64> divided by a scalar
+fn div_vector(vector: &[f64], div: f64) -> Vec<f64> {
     if div == 0.0 {
         panic!("division by zero");
     }
 
-    summed_val.iter().map(|x| *x / div).collect()
+    vector.iter().map(|x| *x / div).collect()
+}
+
+/// inplace division of vector<f64> elements by a scalar
+fn idiv_vector(vector: &mut [f64], div: f64) {
+    if div == 0.0 {
+        panic!("division by zero");
+    }
+    for j in 0..vector.len() {
+        vector[j] /= div;
+    }
 }
 
 /// update vector
-fn mean_freqs(dest: &mut [f64], total_freqs: &[f64], record_kfreqs: &[f64], div: f64) {
+fn updated_mean_freqs(dest: &mut [f64], total_freqs: &[f64], record_kfreqs: &[f64], div: f64) {
     if dest.len() != total_freqs.len() || dest.len() != record_kfreqs.len() {
         panic!("length mismatch for mean_freqs")
     };
     for i in 0..dest.len() {
         dest[i] = (total_freqs[i] - record_kfreqs[i]) / div;
+        if dest[i] <= f64::EPSILON {
+            dest[i] = 0.0;
+        }
     }
+}
+
+/// returns the SummedRecords object containing nmost divergent sequences
+pub fn select_nmost_divergent(
+    store: &ZarrStore,
+    n: usize,
+    k: usize,
+    num_states: usize,
+    seqids: Option<Vec<String>>,
+) -> SummedRecords {
+    let seqids = match seqids {
+        Some(seqids) => seqids,
+        None => store.list_unique_seqids().unwrap(),
+    };
+
+    if seqids.len() < n {
+        panic!("The number of sequences {} is < n {}", seqids.len(), n);
+    }
+    let records: Vec<LazySeqRecord> = seqids
+        .iter()
+        .map(|seqid| LazySeqRecord::new(&seqid, num_states, &store))
+        .collect();
+    let mut init: Vec<KmerSeq> = Vec::new();
+    for i in 0..n {
+        let kseq = records[i].to_kmerseq(k);
+        if kseq.is_ok() {
+            init.push(kseq.unwrap());
+        }
+    }
+    let mut summed = SummedRecords::new(init);
+    // now iterate over the rest
+    for i in n..records.len() {
+        let rec = records[i].to_kmerseq(k);
+        if !rec.is_ok() {
+            continue;
+        }
+        let rec = rec.unwrap();
+        if summed.increases_jsd(&rec) {
+            summed.replace_lowest(rec);
+        }
+    }
+    return summed;
 }
 
 #[cfg(test)]
@@ -241,7 +325,13 @@ mod tests {
     use rstest::{fixture, rstest};
 
     use super::*;
-    use std::panic::{catch_unwind, AssertUnwindSafe};
+    use std::panic::{AssertUnwindSafe, catch_unwind};
+    use tempfile::TempDir;
+
+    #[fixture]
+    fn temp_dir() -> TempDir {
+        tempfile::tempdir().expect("failed to create temp dir")
+    }
 
     #[test]
     fn add_vectors() {
@@ -272,12 +362,31 @@ mod tests {
     }
 
     #[test]
+    fn idivide_vector() {
+        let mut v1 = vec![1.0, 2.0, 3.0];
+        let div: f64 = 2.0;
+        let expect = vec![1.0 / div, 2.0 / div, 3.0 / div];
+
+        idiv_vector(&mut v1, div);
+        assert_eq!(v1, expect);
+    }
+
+    #[test]
+    fn idivide_vector_divide_by_zero() {
+        let mut v1 = vec![1.0, 2.0, 3.0];
+        let result = catch_unwind(AssertUnwindSafe(|| idiv_vector(&mut v1, 0.0)));
+        assert!(result.is_err());
+    }
+
+    #[test]
     fn invalid_mean_freqs() {
         let mut wrk = vec![0.0, 0.1, 0.2, 0.1];
         let tots = vec![0.0, 0.1, 0.2, 0.1];
         let rec = vec![0.0, 0.1, 0.2];
 
-        let result = catch_unwind(AssertUnwindSafe(|| mean_freqs(&mut wrk, &tots, &rec, 4.0)));
+        let result = catch_unwind(AssertUnwindSafe(|| {
+            updated_mean_freqs(&mut wrk, &tots, &rec, 4.0)
+        }));
         assert!(result.is_err());
     }
 
@@ -290,7 +399,7 @@ mod tests {
     }
 
     #[fixture]
-    fn summed() -> SummedRecords<'static> {
+    fn summed() -> SummedRecords {
         SummedRecords::new(
             [
                 SeqRecord::new("seq1", &[0, 1, 2, 3], 4),
@@ -298,13 +407,13 @@ mod tests {
                 SeqRecord::new("seq3", &[3, 0, 0], 4),
             ]
             .iter()
-            .map(|sr| sr.to_kmerseq(1))
+            .map(|sr| sr.to_kmerseq(1).unwrap())
             .collect(),
         )
     }
 
     #[rstest]
-    fn construct_summed_records(summed: SummedRecords<'static>) {
+    fn construct_summed_records(summed: SummedRecords) {
         // values from python version of diverse-seq
         assert_eq!(summed.size, 3);
         assert_eq!(summed.total_jsd, 0.31174344844038515);
@@ -331,29 +440,29 @@ mod tests {
     }
 
     #[rstest]
-    fn check_increases_jsd(summed: SummedRecords<'static>) {
+    fn check_increases_jsd(summed: SummedRecords) {
         let better = SeqRecord::new("seq4", &[0, 1, 2, 1], 4);
-        assert!(summed.increases_jsd(&better.to_kmerseq(1)));
+        assert!(summed.increases_jsd(&better.to_kmerseq(1).unwrap()));
     }
 
     #[rstest]
-    fn check_increases_jsd_same(summed: SummedRecords<'static>) {
+    fn check_increases_jsd_same(summed: SummedRecords) {
         assert!(!summed.increases_jsd(&summed.records[0]));
     }
     #[rstest]
-    fn check_replace_lowest(mut summed: SummedRecords<'static>) {
+    fn check_replace_lowest(mut summed: SummedRecords) {
         let better = SeqRecord::new("seq4", &[0, 1, 2, 1], 4);
-        summed.replace_lowest(better.to_kmerseq(1));
+        summed.replace_lowest(better.to_kmerseq(1).unwrap());
         assert!(summed.seqids.contains("seq4"));
     }
 
     #[rstest]
-    fn check_push(mut summed: SummedRecords<'static>) {
+    fn check_push(mut summed: SummedRecords) {
         let better = SeqRecord::new("seq4", &[0, 1, 2, 1], 4);
         let orig_jsd = summed.total_jsd;
         let orig_size = summed.size;
 
-        summed.push(better.to_kmerseq(1));
+        summed.push(better.to_kmerseq(1).unwrap());
         assert_eq!(summed.size, orig_size + 1);
         assert_eq!(summed.records.len() as u32, orig_size + 1);
         assert!(summed.seqids.contains("seq4"));
@@ -361,25 +470,165 @@ mod tests {
     }
 
     #[rstest]
-    fn check_mean_jsd(summed: SummedRecords<'static>) {
+    fn check_mean_jsd(summed: SummedRecords) {
         assert_eq!(summed.mean_jsd(), summed.total_jsd / summed.size as f64);
     }
 
     #[rstest]
-    fn check_mean_delta_jsd(summed: SummedRecords<'static>) {
+    fn check_mean_delta_jsd(summed: SummedRecords) {
         // value from python version of diverse-seq
         assert_eq!(summed.mean_delta_jsd(), 0.061217766049574594);
     }
 
     #[rstest]
-    fn check_std_delta_jsd(summed: SummedRecords<'static>) {
+    fn check_std_delta_jsd(summed: SummedRecords) {
         assert_eq!(summed.std_delta_jsd(), 0.20503487410866827);
     }
     #[rstest]
-    fn check_cov_delta_jsd(summed: SummedRecords<'static>) {
+    fn check_cov_delta_jsd(summed: SummedRecords) {
         assert_eq!(
             summed.cov_delta_jsd(),
             summed.std_delta_jsd() / summed.mean_delta_jsd()
         );
+    }
+
+    fn make_zstore(path: std::path::PathBuf, add_invalid: bool) -> ZarrStore {
+        let mut store = ZarrStore::new(path).unwrap();
+        let sequences = vec![
+            vec![0, 0, 1, 1],       // seq1
+            vec![1, 1, 1, 3],       // seq2
+            vec![0, 0, 0, 2, 2, 2], // seq3
+            vec![1, 1, 1, 1, 3],    // seq4
+            vec![1, 2],             // seq5
+        ];
+        for (i, data) in sequences.into_iter().enumerate() {
+            let seqid = format!("seq{}", i + 1);
+            let _ = store.add_uint8_array(&seqid, &data, None);
+        }
+        if add_invalid {
+            let _ = store.add_uint8_array("seq-invalid", &vec![4, 4, 4, 4], None);
+        }
+        store
+    }
+
+    fn summed234() -> SummedRecords {
+        SummedRecords::new(
+            [
+                SeqRecord::new("seq3", &[0, 0, 0, 2, 2, 2], 4),
+                SeqRecord::new("seq4", &[1, 1, 1, 1, 3], 4),
+                SeqRecord::new("seq2", &[1, 1, 1, 3], 4),
+            ]
+            .iter()
+            .map(|sr| sr.to_kmerseq(1).unwrap())
+            .collect(),
+        )
+    }
+
+    #[rstest]
+    fn checked_most_divergent(temp_dir: TempDir) {
+        let size = 3;
+        let path = temp_dir.path().join("zarrs.dvseqz");
+        let zstore = make_zstore(path, false);
+        let rs = select_nmost_divergent(&zstore, size, 1, 4, None);
+        assert_eq!(rs.size, size as u32);
+        let expect = summed234();
+        let gs4 = rs.get_by_seqid("seq4").unwrap();
+        let es4 = expect.get_by_seqid("seq4").unwrap();
+        assert_eq!(gs4.delta_jsd.get(), es4.delta_jsd.get());
+        let gs3 = rs.get_by_seqid("seq3").unwrap();
+        let es3 = expect.get_by_seqid("seq3").unwrap();
+        assert_eq!(gs3.delta_jsd.get(), es3.delta_jsd.get());
+    }
+
+    #[rstest]
+    fn checked_summed_records_add_duplicate(temp_dir: TempDir) {
+        let size = 3;
+        let path = temp_dir.path().join("zarrs.dvseqz");
+        let zstore = make_zstore(path, false);
+        let mut rs = select_nmost_divergent(&zstore, size, 1, 4, None);
+        let one = rs.records[1].clone();
+        rs.push(one);
+        assert_eq!(rs.size, size as u32);
+    }
+
+    #[rstest]
+    fn checked_summed_records_replace_lowest_duplicate(temp_dir: TempDir) {
+        let size = 3;
+        let path = temp_dir.path().join("zarrs.dvseqz");
+        let zstore = make_zstore(path, false);
+        let mut rs = select_nmost_divergent(&zstore, size, 1, 4, None);
+        let one = rs.records[1].clone();
+        rs.replace_lowest(one);
+        assert_eq!(rs.size, size as u32);
+    }
+
+    #[rstest]
+    fn checked_summed_records_record_deltas(temp_dir: TempDir) {
+        let size = 3;
+        let path = temp_dir.path().join("zarrs.dvseqz");
+        let zstore = make_zstore(path, false);
+        let rs = select_nmost_divergent(&zstore, size, 1, 4, None);
+        let result = rs.record_deltas();
+        assert_eq!(result.len(), size);
+        let seqids = result
+            .iter()
+            .map(|r| r.0.to_string())
+            .collect::<HashSet<String>>();
+        assert_eq!(seqids, rs.seqids);
+        assert!(result.iter().all(|v| !v.1.is_nan()));
+    }
+
+    #[rstest]
+    fn checked_summed_records_with_invalid(temp_dir: TempDir) {
+        let size = 3;
+        let path = temp_dir.path().join("zarrs.dvseqz");
+        let zstore = make_zstore(path, true);
+        let mut rs = select_nmost_divergent(&zstore, size, 1, 4, None);
+        let one = rs.records[1].clone();
+        rs.replace_lowest(one);
+        assert_eq!(rs.size, size as u32);
+    }
+
+    #[rstest]
+    fn checked_most_divergent_invalid_n(temp_dir: TempDir) {
+        let path = temp_dir.path().join("zarrs.dvseqz");
+        let zstore = make_zstore(path, false);
+
+        let result = catch_unwind(AssertUnwindSafe(|| {
+            select_nmost_divergent(&zstore, 20, 1, 4, None)
+        }));
+        assert!(result.is_err());
+    }
+
+    #[rstest]
+    fn checked_most_divergent_with_seqids(temp_dir: TempDir) {
+        let size = 3;
+        let path = temp_dir.path().join("zarrs.dvseqz");
+        let zstore = make_zstore(path, false);
+        let seqids = vec!["seq1".to_string(), "seq3".to_string(), "seq5".to_string()];
+        let rs = select_nmost_divergent(&zstore, size, 1, 4, Some(seqids.clone()));
+        assert_eq!(rs.size, size as u32);
+        let expect = seqids.into_iter().collect::<HashSet<String>>();
+        assert_eq!(rs.seqids, expect);
+    }
+
+    #[test]
+    fn checked_clone() {
+        let orig = summed234();
+        let clone = orig.clone();
+        assert_eq!(orig.size, clone.size);
+        assert_eq!(orig.total_jsd, clone.total_jsd);
+        assert_eq!(orig.lowest_index, clone.lowest_index);
+        assert_eq!(orig.seqids, clone.seqids);
+        assert_eq!(orig.summed_entropies, clone.summed_entropies);
+        assert_eq!(orig.summed_kfreqs, clone.summed_kfreqs);
+    }
+
+    #[test]
+    fn exercise_display() {
+        // shouldn't panic
+        let sr = summed234();
+        let r = sr.for_display("test".to_string());
+        println!("{}", r);
     }
 }

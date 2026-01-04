@@ -9,6 +9,8 @@ use zarrs::array::codec::ZstdCodec;
 use zarrs::array::{Array, ArrayBuilder, DataType, FillValue};
 use zarrs::filesystem::FilesystemStore;
 /// A wrapper around a zarr directory store that manages uint8 array members with zstd compression
+
+#[derive(Debug)]
 pub struct ZarrStore {
     path: PathBuf,
     store: Arc<FilesystemStore>,
@@ -257,7 +259,7 @@ impl ZarrStore {
 
     /// Return seqids for unique hashes
     pub fn list_unique_seqids(&self) -> Result<Vec<String>, Box<dyn std::error::Error>> {
-        let mut hash2seqid: FxHashMap<[u8; 16], String> = self
+        let hash2seqid: FxHashMap<[u8; 16], String> = self
             .seqid_to_hash
             .iter()
             .map(|(k, v)| (*v, k.clone()))

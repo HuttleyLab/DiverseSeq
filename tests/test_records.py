@@ -252,3 +252,36 @@ def test_dvs_delta_jsd_moltype():
     query = make_seq("ACAAA", name="s3", moltype="text")
     _, got = app(query)  # pylint: disable=not-callable
     assert expect == got
+
+
+def test_dvs_nmost_small_case(): ...
+
+
+def test_small_case():
+    data = {
+        f"s{i + 1}": numpy.array(r, dtype=numpy.uint8)
+        for i, r in enumerate(
+            [
+                [0, 0, 1, 1],
+                [1, 1, 1, 3],
+                [0, 0, 0, 2, 2, 2],
+                [
+                    1,
+                    1,
+                    1,
+                    1,
+                    3,
+                ],
+                [1, 2],
+            ],
+        )
+    }
+    seqcoll = make_unaligned_seqs(data, moltype="dna")
+    k = 1
+    kcounts = _get_kfreqs_per_seq(seqcoll, k=k)
+    records = _make_records(kcounts, seqcoll)
+    sr = dvs_records.most_divergent(records, size=3)
+    print(sr.total_jsd)
+    # s4 = sr.get_by_seqid("s4")
+    # print(s4)
+    print(sr.to_table())

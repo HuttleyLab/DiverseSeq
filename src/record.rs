@@ -1,3 +1,4 @@
+use crate::zarr_io::ZarrStore;
 use std::cell::Cell;
 
 /// Coefficients for multi-dimensional coordinate conversion into 1D index.
@@ -112,7 +113,7 @@ impl<'a> SeqRecord<'a> {
         }
     }
 
-    pub fn to_kmerseq(&self, k: usize) -> KmerSeq<'a> {
+    pub fn to_kmerseq(&self, k: usize) -> Result<KmerSeq, Box<dyn std::error::Error>> {
         let kcounts = match k {
             0 => panic!("k cannot be 0"),
             1 => count_monomers(self.seq, self.num_states),
@@ -120,14 +121,17 @@ impl<'a> SeqRecord<'a> {
         };
 
         let total = kcounts.iter().sum::<usize>() as f64;
+        if total == 0.0 {
+            return Err(format!("No valid k-mers for '{}'", self.seqid).into());
+        }
         let kfreqs: Vec<f64> = kcounts.iter().map(|x| *x as f64 / total).collect();
-        KmerSeq::new(self.seqid, kfreqs, self.num_states, k)
+        Ok(KmerSeq::new(self.seqid, kfreqs, self.num_states, k))
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct KmerSeq<'a> {
-    pub seqid: &'a str,
+pub struct KmerSeq {
+    pub seqid: String,
     pub kfreqs: Vec<f64>,
     pub entropy: f64,
     // a Cell because they are mutable, even when
@@ -137,18 +141,51 @@ pub struct KmerSeq<'a> {
     pub k: usize,
 }
 
-impl<'a> KmerSeq<'a> {
-    pub fn new(seqid: &'a str, kfreqs: Vec<f64>, num_states: usize, k: usize) -> Self {
+impl KmerSeq {
+    pub fn new(seqid: &str, kfreqs: Vec<f64>, num_states: usize, k: usize) -> Self {
         let delta_jsd: Cell<f64> = Cell::new(0.0);
         let entropy: f64 = entropy(&kfreqs);
         Self {
-            seqid,
+            seqid: seqid.to_string(),
             kfreqs,
             entropy,
             delta_jsd,
             num_states,
             k,
         }
+    }
+
+    pub fn clone(&self) -> Self {
+        Self {
+            seqid: self.seqid.to_string(),
+            kfreqs: self.kfreqs.clone(),
+            entropy: self.entropy,
+            delta_jsd: 0.0.into(),
+            num_states: self.num_states,
+            k: self.k,
+        }
+    }
+}
+
+pub struct LazySeqRecord<'a> {
+    pub seqid: &'a String,
+    pub num_states: usize,
+    storage: &'a ZarrStore,
+}
+
+impl<'a> LazySeqRecord<'a> {
+    pub fn new(seqid: &'a String, num_states: usize, storage: &'a ZarrStore) -> Self {
+        Self {
+            seqid,
+            num_states,
+            storage,
+        }
+    }
+
+    pub fn to_kmerseq(&self, k: usize) -> Result<KmerSeq, Box<dyn std::error::Error>> {
+        let seq = self.storage.read_uint8_array(&self.seqid).unwrap();
+        let sr = SeqRecord::new(&self.seqid, &seq, self.num_states);
+        sr.to_kmerseq(k)
     }
 }
 
@@ -223,7 +260,7 @@ mod tests {
         let seqid = String::from("blah");
         let seq: [u8; 6] = [0, 1, 2, 0, 0, 1];
         let sr = SeqRecord::new(&seqid, &seq, 4);
-        let kseq = sr.to_kmerseq(1);
+        let kseq = sr.to_kmerseq(1).unwrap();
         assert_eq!(kseq.seqid, "blah");
         assert_eq!(kseq.num_states, 4);
         assert_eq!(kseq.k, 1);
@@ -236,7 +273,7 @@ mod tests {
         let seqid = String::from("blah");
         let seq: [u8; 6] = [0, 1, 2, 0, 0, 1];
         let sr = SeqRecord::new(&seqid, &seq, 4);
-        let kseq = sr.to_kmerseq(2);
+        let kseq = sr.to_kmerseq(2).unwrap();
         assert_eq!(kseq.seqid, "blah");
         assert_eq!(kseq.num_states, 4);
         assert_eq!(kseq.k, 2);
@@ -244,6 +281,16 @@ mod tests {
             0.2, 0.4, 0., 0., 0., 0., 0.2, 0., 0.2, 0., 0., 0., 0., 0., 0., 0.,
         ]);
         assert_eq!(kseq.kfreqs, expect);
+    }
+
+    #[test]
+    fn no_data_seq_record_to_kmerseq() {
+        let seqid = String::from("blah");
+        let num_states: u8 = 4;
+        let seq: [u8; 4] = [num_states, num_states, num_states, num_states];
+        let sr = SeqRecord::new(&seqid, &seq, num_states as usize);
+        let result = sr.to_kmerseq(1);
+        assert!(result.is_err());
     }
 
     #[test]
