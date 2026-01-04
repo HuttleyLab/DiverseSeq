@@ -7,14 +7,14 @@ use pyo3::wrap_pyfunction;
 mod record;
 use record::{KmerSeq, SeqRecord};
 mod records;
-use records::{SummedRecords, select_nmost_divergent};
+use records::{Stat, SummedRecords, select_max_divergent, select_nmost_divergent};
 mod records_py;
 use records_py::{SummedRecordsResult, SummedRecordsWrapper};
 mod zarr_io;
-use zarr_io::ZarrStore;
 use zarr_py::ZarrStoreWrapper;
 pub mod zarr_py;
 
+#[cfg(feature = "python")]
 #[pyfunction]
 #[pyo3(signature = (seqids, seqs, num_states=4, k=2, max_size=3))]
 fn proc_seqs(
@@ -40,11 +40,6 @@ fn proc_seqs(
     let selected = SummedRecords::new(kmer_seqs);
 
     let lowest: &KmerSeq = &selected.records[selected.lowest_index as usize];
-    println!(
-        "Lowest seq {:?} has delta_jsd {:.4}",
-        lowest.seqid,
-        lowest.delta_jsd.get()
-    );
     Ok(selected.total_jsd)
 }
 
@@ -55,38 +50,73 @@ fn get_entropy(seqid: &str, seq: &[u8], num_states: usize, k: usize) -> PyResult
     let r = sr
         .to_kmerseq(k)
         .map_err(|e| PyValueError::new_err(e.to_string()))?;
-    println!(
-        "Playing with '{}', which has entropy={:.4}",
-        r.seqid, r.entropy
-    );
     Ok(r.entropy)
 }
 
 #[pyfunction]
-#[pyo3(signature = (path,))]
-fn make_zarr_store(path: &str) -> PyResult<ZarrStoreWrapper> {
-    ZarrStoreWrapper::new(path.to_string())
+#[pyo3(signature = (path=None,))]
+fn make_zarr_store(path: Option<String>) -> PyResult<ZarrStoreWrapper> {
+    ZarrStoreWrapper::new(path)
 }
 
 #[pyfunction]
 #[pyo3(signature = (path,))]
 fn get_seqids_from_store(path: &str) -> PyResult<Vec<String>> {
-    let store = ZarrStoreWrapper::new(path.to_string())?;
+    let store = ZarrStoreWrapper::new(Some(path.to_string()))?;
     Ok(store.get_seqids().unwrap())
 }
 
 #[pyfunction]
-#[pyo3(signature = (path, n, k, num_states=4, seqids=None))]
+#[pyo3(signature = (store, n, k, num_states=4, seqids=None))]
 fn nmost_divergent(
-    path: &str,
+    store: &ZarrStoreWrapper,
     n: usize,
     k: usize,
     num_states: usize,
     seqids: Option<Vec<String>>,
-) -> PyResult<Vec<(String, f64)>> {
-    let store = ZarrStore::new(path.to_string()).unwrap();
-    let result = select_nmost_divergent(&store, n, k, num_states, seqids);
-    Ok(result.record_deltas())
+) -> PyResult<SummedRecordsResult> {
+    let result = select_nmost_divergent(&store.store, n, k, num_states, seqids);
+    Ok(result.get_result())
+}
+
+#[pyfunction]
+#[pyo3(signature = (store, min_size, max_size, k, num_states=4, seqids=None, stat="stdev".to_string()))]
+fn max_divergent(
+    store: &ZarrStoreWrapper,
+    min_size: usize,
+    max_size: usize,
+    k: usize,
+    num_states: usize,
+    seqids: Option<Vec<String>>,
+    stat: String,
+) -> PyResult<SummedRecordsResult> {
+    let stat = if stat == "stdev" {
+        Stat::Std
+    } else {
+        Stat::Cov
+    };
+
+    let result = select_max_divergent(
+        &store.store,
+        stat,
+        min_size,
+        max_size,
+        k,
+        num_states,
+        seqids,
+    );
+    Ok(result.get_result())
+}
+
+#[pyfunction]
+#[pyo3(signature = (seqids_seqs, k, num_states=4))]
+fn get_delta_jsd_calculator(
+    seqids_seqs: Vec<(String, Vec<u8>)>,
+    k: usize,
+    num_states: usize,
+) -> PyResult<SummedRecordsWrapper> {
+    let result = SummedRecordsWrapper::new(seqids_seqs, k, num_states);
+    Ok(result)
 }
 
 /// A Python module implemented in Rust.
@@ -94,11 +124,14 @@ fn nmost_divergent(
 #[pymodule]
 fn _dvs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<ZarrStoreWrapper>()?;
+    m.add_class::<SummedRecordsResult>()?;
     m.add_function(wrap_pyfunction!(get_entropy, m)?)?;
     m.add_function(wrap_pyfunction!(proc_seqs, m)?)?;
     m.add_function(wrap_pyfunction!(make_zarr_store, m)?)?;
     m.add_function(wrap_pyfunction!(make_zarr_store, m)?)?;
     m.add_function(wrap_pyfunction!(get_seqids_from_store, m)?)?;
     m.add_function(wrap_pyfunction!(nmost_divergent, m)?)?;
+    m.add_function(wrap_pyfunction!(max_divergent, m)?)?;
+    m.add_function(wrap_pyfunction!(get_delta_jsd_calculator, m)?)?;
     Ok(())
 }

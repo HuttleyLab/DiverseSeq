@@ -2,6 +2,7 @@ import numpy
 import pytest
 from cogent3 import (
     get_app,
+    get_dataset,
     load_aligned_seqs,
     load_unaligned_seqs,
     make_aligned_seqs,
@@ -12,6 +13,7 @@ from cogent3 import (
 from cogent3.maths.measure import jsd
 from numpy.testing import assert_allclose
 
+from diverse_seq import _dvs as dvs
 from diverse_seq import records as dvs_records
 from diverse_seq.record import KmerSeq, kmer_counts
 from diverse_seq.util import str2arr
@@ -130,22 +132,22 @@ def test_max_divergent(seqcoll):
     assert got.size == 2
 
 
-def test_most_divergent(seqcoll):
+@pytest.fixture
+def zstore(seqcoll):
+    store = dvs.make_zarr_store(None)
+    for seq in seqcoll.seqs:
+        arr = numpy.array(seq)
+        store.write(seq.name, arr.tobytes())
+    return store
+
+
+def test_most_divergent(zstore):
     k = 1
-    kcounts = _get_kfreqs_per_seq(seqcoll, k=k)
-    records = _make_records(kcounts, seqcoll)
-    got = dvs_records.most_divergent(records, size=3)
+    got = dvs.nmost_divergent(zstore, n=3, k=k)
     assert got.size == 3
-    assert got.to_table().shape == (3, 2)
-
-
-def test_all_records(seqcoll):
-    k = 1
-    kcounts = _get_kfreqs_per_seq(seqcoll, k=k)
-    records = _make_records(kcounts, seqcoll)
-    got = dvs_records.most_divergent(records, size=3).all_records()
-    assert len(got) == 3
-    assert isinstance(got[0], KmerSeq)
+    got_seqids = set(got.record_names)
+    seqids = set(zstore.unique_seqids)
+    assert got_seqids == seqids
 
 
 @pytest.fixture(scope="session")
@@ -154,20 +156,42 @@ def brca1_coll(DATA_DIR):
 
 
 @pytest.fixture(scope="session")
+def brca1_zstore(DATA_DIR):
+    seqcoll = load_unaligned_seqs(DATA_DIR / "brca1.fasta", moltype="dna").degap()
+    store = dvs.make_zarr_store()
+    for seq in seqcoll.seqs:
+        arr = numpy.array(seq)
+        store.write(seq.name, arr.tobytes())
+    return store
+
+
+@pytest.fixture
+def brca1_zstore_path(DATA_DIR, tmp_path):
+    seqcoll = get_dataset("brca1").degap()
+    outpath = tmp_path / "brca1.dvseqsz"
+    store = dvs.make_zarr_store(str(outpath))
+    for seq in seqcoll.seqs:
+        arr = numpy.array(seq)
+        store.write(seq.name, arr.tobytes())
+    return outpath
+
+
+@pytest.fixture(scope="session")
 def brca1_alignment(DATA_DIR):
     return load_aligned_seqs(DATA_DIR / "brca1.fasta", moltype="dna")
 
 
-def test_merge_summed_records(DATA_DIR, brca1_coll):
-    path = DATA_DIR / "brca1.dvseqs"
-    names = brca1_coll.names
+def test_merge_summed_records(brca1_zstore_path):
+    path = brca1_zstore_path
+    zstore = dvs.make_zarr_store(str(path))
+    names = zstore.unique_seqids
     app = dvs_records.select_nmost(seq_store=path, n=5, k=1)
     sr1 = app(names[:10])  # pylint: disable=not-callable
     sr2 = app(names[10:20])  # pylint: disable=not-callable
     rnames1 = sr1.record_names
     rnames2 = sr2.record_names
     assert set(rnames1) != set(rnames2)
-    got = dvs_records.dvs_final_nmost()([sr1, sr2])
+    got = dvs_records.dvs_final_nmost(seq_store=zstore)([sr1, sr2])
     assert len(got.record_names) == 5
 
 
@@ -255,33 +279,3 @@ def test_dvs_delta_jsd_moltype():
 
 
 def test_dvs_nmost_small_case(): ...
-
-
-def test_small_case():
-    data = {
-        f"s{i + 1}": numpy.array(r, dtype=numpy.uint8)
-        for i, r in enumerate(
-            [
-                [0, 0, 1, 1],
-                [1, 1, 1, 3],
-                [0, 0, 0, 2, 2, 2],
-                [
-                    1,
-                    1,
-                    1,
-                    1,
-                    3,
-                ],
-                [1, 2],
-            ],
-        )
-    }
-    seqcoll = make_unaligned_seqs(data, moltype="dna")
-    k = 1
-    kcounts = _get_kfreqs_per_seq(seqcoll, k=k)
-    records = _make_records(kcounts, seqcoll)
-    sr = dvs_records.most_divergent(records, size=3)
-    print(sr.total_jsd)
-    # s4 = sr.get_by_seqid("s4")
-    # print(s4)
-    print(sr.to_table())

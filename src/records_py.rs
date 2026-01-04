@@ -1,4 +1,4 @@
-use crate::records::KmerSeq;
+use crate::record::{KmerSeq, SeqRecord};
 use crate::records::SummedRecords;
 use crate::zarr_io::{Storage, ZarrStore};
 use pyo3::Python;
@@ -20,7 +20,11 @@ pub struct SummedRecordsResult {
     #[pyo3(get)]
     pub cov_delta_jsd: f64,
     #[pyo3(get)]
-    pub size: u32,
+    pub size: usize,
+    #[pyo3(get)]
+    pub k: usize,
+    #[pyo3(get)]
+    pub num_states: usize,
 }
 
 #[pymethods]
@@ -31,7 +35,7 @@ impl SummedRecordsResult {
     }
 }
 
-#[pyclass(module = "diverse_seq._dvs")]
+#[pyclass(module = "diverse_seq._dvs", unsendable)]
 pub struct SummedRecordsWrapper {
     pub summed_records: SummedRecords,
     num_states: usize,
@@ -41,18 +45,36 @@ pub struct SummedRecordsWrapper {
 #[pymethods]
 impl SummedRecordsWrapper {
     #[new]
-    pub fn new(records: Vec<KmerSeq>, num_states: usize, k: usize) -> Self {
+    #[pyo3(signature = (records, k, num_states=4))]
+    pub fn new(records: Vec<(String, Vec<u8>)>, k: usize, num_states: usize) -> Self {
+        let mut kseq_recs: Vec<KmerSeq> = Vec::new();
+
+        for (seqid, seq) in records.iter() {
+            let seqrec = SeqRecord::new(seqid, seq, num_states);
+            let kseq = seqrec.to_kmerseq(k);
+            if kseq.is_ok() {
+                kseq_recs.push(kseq.unwrap());
+            }
+        }
+
         Self {
-            summed_records: SummedRecords::new(records, num_states, k),
+            summed_records: SummedRecords::new(kseq_recs),
+            num_states: num_states,
+            k: k,
         }
     }
 
     pub fn delta_jsd(&self, seqid: &str, seq: Vec<u8>) -> PyResult<f64> {
-        let seqrec = SeqRecord::new(seqid, &seq, self.summed_records.size as usize);
+        let seqrec = SeqRecord::new(seqid, &seq, self.num_states as usize);
         let kseq = seqrec.to_kmerseq(self.k);
         if kseq.is_ok() {
             let kseq = kseq.unwrap();
             Ok(self.summed_records.delta_jsd(&kseq))
+        } else {
+            Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+                "Failed to create add {}",
+                seqid
+            )))
         }
     }
 }

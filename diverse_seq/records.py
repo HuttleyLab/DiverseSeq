@@ -24,21 +24,32 @@ from math import fsum
 
 import numpy
 from attrs import define, field
-from cogent3 import make_table
+from cogent3 import get_moltype, make_table
 from cogent3.app import typing as c3_types
 from cogent3.app.composable import NotCompleted, define_app
 from numpy import isclose as np_isclose
 from rich import progress as rich_progress
 
+from diverse_seq import _dvs as dvs
 from diverse_seq import data_store as dvs_data_store
 from diverse_seq import util as dvs_util
 from diverse_seq.record import (
     KmerSeq,
     member_to_kmerseq,
-    seq_to_seqarray,
-    seqarray_to_kmerseq,
     vector,
 )
+
+
+def populate_inmem_zstore(seqcoll: c3_types.SeqsCollectionType) -> dvs.ZarrStore:
+    """returns an in-memory ZarrStoreWrapper populated with sequences from seqcoll"""
+    degapped = seqcoll.degap()
+    # make an in-memory ZarrStore
+    zstore = dvs.make_zarr_store()
+    for seq in degapped.seqs:
+        arr = numpy.array(seq)
+        zstore.write(seq.name, arr.tobytes())
+    return zstore
+
 
 # needs a jsd method for a new sequence
 # needs summed entropy scores
@@ -335,54 +346,49 @@ def max_divergent(
 
 @define_app
 def select_final_max(
-    summed: list[SummedRecords],
+    summed: list[dvs.SummedRecordsResult],
     *,
+    seq_store: str | pathlib.Path,
     stat: str,
     min_size: int,
-    verbose: bool,
-) -> SummedRecords:
+    max_size: int,
+    k: int,
+    num_states: int,
+) -> dvs.SummedRecordsResult:
     """returns the set that maximises stat
 
     Parameters
     ----------
-    sr
-        SummedRecords instance
+    summed
+        list of SummedRecordsResult instances
     stat
-        name of a SummedRecords attribute that returns the statistic
+        name of the statistic to be maximised
     min_size
         the minimum size of the set
-    verbose
-        display extra information
+    max_size
+        the maximum size of the set
+    k
+        k-mer size
+    num_states
+        number of canonical characters in the moltype
     """
     if len(summed) > 1:
-        records = list(itertools.chain.from_iterable(sr.all_records() for sr in summed))
-        numpy.random.shuffle(records)
-        sr = SummedRecords.from_records(records)
+        records = list(itertools.chain.from_iterable(sr.record_names for sr in summed))
     else:
-        sr = summed[0]
+        records = summed[0].record_names
 
-    if sr.size == min_size:
-        return sr
-
-    stat = _get_stat_attribute(stat)
-
-    results = {getattr(sr, stat): sr}
-    orig_size = sr.size
-    orig_stat = getattr(sr, stat)
-
-    while sr.size > min_size:
-        sr = sr.from_records(sr.records)
-        results[getattr(sr, stat)] = sr
-
-    sr = results[max(results)]
-
-    if verbose:
-        print(
-            f"Reduced size from {orig_size} to {sr.size}",
-            f" Increased {stat} from {orig_stat:.3f} to {getattr(sr, stat):.3f}",
-            sep="\n",
-        )
-    return sr
+    max_size = max_size or len(records)
+    numpy.random.shuffle(records)
+    seq_store = dvs.make_zarr_store(str(seq_store))
+    return dvs.max_divergent(
+        seq_store,
+        min_size=min_size,
+        max_size=max_size,
+        k=k,
+        num_states=num_states,
+        seqids=records,
+        stat=stat,
+    )
 
 
 def most_divergent(
@@ -437,7 +443,7 @@ class select_max:
         max_size: int = None,
         stat: str = "stdev",
         limit: int = None,
-        verbose=0,
+        num_states: int = 4,
     ) -> None:
         """
 
@@ -457,31 +463,27 @@ class select_max:
             limit number of sequence records to process
         stat
             the statistic to use for optimising, by default "cov_delta_jsd"
-        verbose
-            extra info display
+        num_states
+            number of canonical characters in the moltype
         """
-        self._seq_store = seq_store
+        self._seq_store = dvs.make_zarr_store(str(seq_store))
         self._k = k
         self._limit = limit
         self._max_size = max_size
         self._min_size = min_size
         self._stat = stat
-        self._verbose = verbose
+        self._num_states = num_states
 
-    def main(self, seq_names: list[str]) -> SummedRecords:
-        records = records_from_seq_store(
-            seq_store=self._seq_store,
-            seq_names=seq_names,
-            limit=self._limit,
-            k=self._k,
-        )
-        return max_divergent(
-            records=records,
+    def main(self, seq_names: list[str]) -> dvs.SummedRecordsResult:
+        max_size = self._max_size or len(seq_names)
+        return dvs.max_divergent(
+            self._seq_store,
             min_size=self._min_size,
-            max_size=self._max_size,
+            max_size=max_size,
+            k=self._k,
+            num_states=self._num_states,
+            seqids=seq_names,
             stat=self._stat,
-            verbose=self._verbose > 0,
-            max_set=False,
         )
 
 
@@ -538,9 +540,9 @@ class select_nmost:
         *,
         seq_store: str | pathlib.Path,
         k: int = 3,
-        limit: int = None,
+        limit: int | None = None,
         n: int,
-        verbose=0,
+        num_states: int = 4,
     ) -> None:
         """
 
@@ -554,37 +556,54 @@ class select_nmost:
             k-mer size
         limit
             limit number of sequence records to process
-        verbose
-            extra info display
+        num_states
+            number of canonical characters in the moltype
         """
-        self._seq_store = seq_store
+        self._seq_store = dvs.make_zarr_store(str(seq_store))
         self._k = k
         self._limit = limit
         self._max_size = n
-        self._verbose = verbose
+        self._num_states = num_states
 
-    def main(self, seq_names: list[str]) -> SummedRecords:
-        records = records_from_seq_store(
-            seq_store=self._seq_store,
-            seq_names=seq_names,
-            limit=self._limit,
+    def main(self, seq_names: list[str]) -> dvs.SummedRecordsResult:
+        if self._limit:
+            seq_names = seq_names[: self._limit]
+
+        return dvs.nmost_divergent(
+            self._seq_store,
+            n=self._max_size,
             k=self._k,
+            num_states=self._num_states,
+            seqids=seq_names,
         )
-        return most_divergent(records, size=self._max_size, verbose=self._verbose > 0)
 
 
 @define_app
-def dvs_final_nmost(summed: list[SummedRecords]) -> SummedRecords:
+def dvs_final_nmost(
+    summed: list[dvs.SummedRecordsResult], seq_store: str | pathlib.Path
+) -> dvs.SummedRecordsResult:
     """selects the best n records from a list of SummedRecords
 
     Notes
     -----
     Useful for aggregating results from multiple runs.
     """
+    if not summed:
+        return NotCompleted(
+            "ERROR",
+            origin="dvs_final_nmost",
+            message="no SummedRecords instances were provided",
+            source="Unknown",
+        )
+    seq_store = dvs.make_zarr_store(str(seq_store))
     size = max(sr.size for sr in summed)
-    records = list(itertools.chain.from_iterable(sr.all_records() for sr in summed))
-    numpy.random.shuffle(records)
-    return most_divergent(records, size=size, verbose=False, show_progress=False)
+    k = summed[0].k
+    num_states = summed[0].num_states
+    seqids = list(itertools.chain.from_iterable(sr.record_names for sr in summed))
+    numpy.random.shuffle(seqids)  # noqa: NPY002
+    return dvs.nmost_divergent(
+        seq_store, n=size, k=k, num_states=num_states, seqids=seqids
+    )
 
 
 def apply_app(
@@ -594,8 +613,8 @@ def apply_app(
     numprocs: int,
     verbose: bool,
     hide_progress: bool = False,
-    finalise: typing.Callable[[list[SummedRecords]], SummedRecords],
-) -> SummedRecords:
+    finalise: typing.Callable[[list[dvs.SummedRecordsResult]], dvs.SummedRecordsResult],
+) -> dvs.SummedRecordsResult:
     """applies the app to seqids, polishing the selected set with finalise"""
     if verbose and not hide_progress:
         dvs_util.print_colour(
@@ -625,6 +644,7 @@ def apply_app(
                 total=len(seqids),
             )
             result = []
+            print("here")
             for r in app.as_completed(
                 seqids,
                 parallel=numprocs > 1,
@@ -632,6 +652,7 @@ def apply_app(
                 show_progress=False,
             ):
                 if not r:
+                    print("here 2")
                     dvs_util.print_colour(str(r), "red")
                 result.append(r.obj)
                 progress.update(select, advance=1, refresh=True)
@@ -653,7 +674,7 @@ def apply_app(
 
 
 @define_app
-class dvs_max:
+class dvs_max:  # done
     """select the maximally divergent seqs from a sequence collection"""
 
     def __init__(
@@ -695,10 +716,9 @@ class dvs_max:
         -------
         The same type as the input sequence collection.
         """
-        self._s2k = seq_to_seqarray(moltype=moltype) + seqarray_to_kmerseq(
-            k=k,
-            moltype=moltype,
-        )
+        self._k = k
+        self._moltype = moltype
+        self._num_states = len(get_moltype(moltype).alphabet)
         self._min_size = min_size
         self._max_size = max_size
         self._stat = stat
@@ -706,16 +726,17 @@ class dvs_max:
         self._include = [include] if isinstance(include, str) else include
 
     def main(self, seqs: c3_types.SeqsCollectionType) -> AppOutType:
-        degapped = seqs.degap()
-        records = [self._s2k(degapped.get_seq(name)) for name in degapped.names]
-        self._rng.shuffle(records)
-        for record in records:
-            if not record:
-                return None
-        result = max_divergent(
-            records=records,
+        # make an in-memory ZarrStore
+        zstore = populate_inmem_zstore(seqs)
+        seqids = list(zstore.unique_seqids)
+        self._rng.shuffle(seqids)
+        result = dvs.max_divergent(
+            zstore,
             min_size=self._min_size,
             max_size=self._max_size,
+            k=self._k,
+            num_states=self._num_states,
+            seqids=seqids,
             stat=self._stat,
         )
         selected = set(result.record_names) | set(self._include or [])
@@ -723,7 +744,7 @@ class dvs_max:
 
 
 @define_app
-class dvs_nmost:
+class dvs_nmost:  # done
     """select the n-most diverse seqs from a sequence collection"""
 
     def __init__(
@@ -758,29 +779,24 @@ class dvs_nmost:
         -------
         The same type as the input sequence collection.
         """
-        self._s2k = seq_to_seqarray(moltype=moltype) + seqarray_to_kmerseq(
-            k=k,
-            moltype=moltype,
-        )
+        self._k = k
         self._n = n
         self._moltype = moltype
         self._rng = numpy.random.default_rng(seed)
         self._include = [include] if isinstance(include, str) else include
 
     def main(self, seqs: c3_types.SeqsCollectionType) -> AppOutType:
-        degapped = seqs.degap()
-        records = [self._s2k(degapped.get_seq(name)) for name in degapped.names]
-        self._rng.shuffle(records)
-        result = most_divergent(
-            records=records,
-            size=self._n,
-        )
+        # make an in-memory ZarrStore
+        zstore = populate_inmem_zstore(seqs)
+        seqids = list(zstore.unique_seqids)
+        self._rng.shuffle(seqids)
+        result = dvs.nmost_divergent(zstore, n=self._n, k=self._k, seqids=seqids)
         selected = set(result.record_names) | set(self._include or [])
         return seqs.take_seqs(selected)
 
 
 @define_app
-class dvs_delta_jsd:
+class dvs_delta_jsd:  # done
     """returns delta_jsd for a sequence"""
 
     def __init__(
@@ -811,19 +827,17 @@ class dvs_delta_jsd:
         -------
         (sequence name, delta JSD)
         """
-        self._s2k = seq_to_seqarray(moltype=moltype) + seqarray_to_kmerseq(
-            k=k,
-            moltype=moltype,
-        )
         degapped = seqs.degap()
         if (lengths := degapped.get_lengths()).array.min() == 0:
             zero_len = ", ".join([k for k, c in lengths.items() if c == 0])
             msg = f"cannot compute delta_jsd with zero-length sequences: {zero_len}"
             raise ValueError(msg)
 
-        records = [self._s2k(degapped.get_seq(name)) for name in degapped.names]
-        self._sr = SummedRecords.from_records(records)
         self.moltype = moltype
+        records = [(s.name, numpy.array(s).tobytes()) for s in degapped.seqs]
+        mtype = get_moltype(moltype)
+        num_states = len(mtype.alphabet)
+        self._sr = dvs.get_delta_jsd_calculator(records, k, num_states)
 
     def main(self, seq: c3_types.SeqType) -> tuple[str, float]:
         if seq.moltype.name != self.moltype:
@@ -833,6 +847,5 @@ class dvs_delta_jsd:
         if len(seq) == 0:
             return seq.name, numpy.nan
 
-        record = self._s2k(seq)
-        delta = self._sr.delta_jsd(record)
+        delta = self._sr.delta_jsd(seq.name, numpy.array(seq).tobytes())
         return seq.name, delta

@@ -1,21 +1,16 @@
 import pathlib
 import sys
 
-import h5py
 import pytest
 from click.testing import CliRunner
 from cogent3 import load_table, load_tree, load_unaligned_seqs
 
+from diverse_seq import _dvs as dvs
 from diverse_seq.cli import ctree as dvs_ctree
 from diverse_seq.cli import demo_data
 from diverse_seq.cli import max as dvs_max
 from diverse_seq.cli import nmost as dvs_nmost
 from diverse_seq.cli import prep as dvs_prep
-from diverse_seq.data_store import (
-    _LOG_TABLE,
-    _MD5_TABLE,
-    _NOT_COMPLETED_TABLE,
-)
 
 __author__ = "Gavin Huttley"
 __credits__ = ["Gavin Huttley"]
@@ -127,7 +122,7 @@ def test_min_gt_max_fail(runner, tmp_dir, processed_seq_path):
     assert r.exit_code != 0, r.output
 
 
-@pytest.mark.parametrize("stat", ("stdev", "cov"))
+@pytest.mark.parametrize("stat", ["stdev", "cov"])
 def test_stat(runner, tmp_dir, processed_seq_path, stat):
     outpath = tmp_dir / "test_defaults.tsv"
     args = f"-s {processed_seq_path} -o {outpath} -st {stat}".split()
@@ -223,14 +218,8 @@ def test_prep_source_from_directory(runner, tmp_dir, seq_dir):
     args = f"-s {seq_dir} -o {outpath} -sf fasta".split()
     r = runner.invoke(dvs_prep, args)
     assert r.exit_code == 0, r.output
-    with h5py.File(outpath, mode="r") as f:
-        sources = {
-            dset.attrs["source"]
-            for name, dset in f.items()
-            if name not in (_LOG_TABLE, _MD5_TABLE, _NOT_COMPLETED_TABLE)
-        }
-
-    assert sources == {str(seq_dir)}
+    zstore = dvs.make_zarr_store(str(outpath))
+    assert len(zstore.unique_seqids) == 55
 
 
 @pytest.mark.parametrize(

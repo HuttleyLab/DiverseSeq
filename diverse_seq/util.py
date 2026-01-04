@@ -159,7 +159,7 @@ def _check_h5_dstore(
     from diverse_seq import _dvs as dvs
 
     store = dvs.make_zarr_store(str(path))
-    seqids = list(store.unique_seqids())
+    seqids = list(store.unique_seqids)
     min_num = 5
     if len(seqids) >= min_num:
         return path

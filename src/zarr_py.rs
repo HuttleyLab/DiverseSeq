@@ -1,12 +1,13 @@
-use crate::zarr_io::ZarrStore;
+use crate::zarr_io::{Storage, ZarrStore};
 use pyo3::Python;
 use pyo3::prelude::{Bound, PyErr, PyResult, pyclass, pymethods};
 use pyo3::types::{PyAnyMethods, PyDict, PyDictMethods, PyTuple};
 use rustc_hash::FxHashMap;
+use std::path::PathBuf;
 
 #[pyclass(module = "diverse_seq._dvs")]
 pub struct ZarrStoreWrapper {
-    store: ZarrStore,
+    pub store: ZarrStore,
     #[pyo3(get)]
     pub source: String,
 }
@@ -14,26 +15,38 @@ pub struct ZarrStoreWrapper {
 #[pymethods]
 impl ZarrStoreWrapper {
     #[new]
-    pub fn new(path: String) -> PyResult<Self> {
-        let path = std::path::PathBuf::from(path);
-        let source = path.to_string_lossy().to_string();
-        let store = ZarrStore::new(path.clone());
+    pub fn new(path: Option<String>) -> PyResult<Self> {
+        let source = match path {
+            Some(ref p) => p,
+            None => &"".to_string(),
+        };
+
+        let path: Option<PathBuf> = match path {
+            Some(ref p) => Some(PathBuf::from(p)),
+            None => None,
+        };
+        let store = ZarrStore::new(path);
         if !store.is_ok() {
             return Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
                 "Failed to create ZarrStore: {:?}",
-                path
+                source
             )));
         }
         Ok(Self {
             store: store.unwrap(),
-            source,
+            source: source.to_string(),
         })
     }
 
     pub fn __repr__(&self) -> String {
+        let source = if self.source.len() == 0 {
+            "'in memory'"
+        } else {
+            &self.source
+        };
         format!(
             "ZarrStoreWrapper(source={}, num members={})",
-            self.source,
+            source,
             self.__len__()
         )
     }
@@ -52,6 +65,12 @@ impl ZarrStoreWrapper {
     }
 
     fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
+        if matches!(self.store.store, Storage::Memory(_)) {
+            return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                "Cannot pickle in-memory store",
+            ));
+        }
+
         let path_str = self.store.path().to_string_lossy().to_string();
 
         // Save metadata to disk before pickling
@@ -74,7 +93,7 @@ impl ZarrStoreWrapper {
             .extract()?;
 
         let path_buf = std::path::PathBuf::from(path);
-        let store = ZarrStore::new(path_buf.clone()).map_err(|e| {
+        let store = ZarrStore::new(Some(path_buf.clone())).map_err(|e| {
             PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
                 "Failed to unpickle: {:?}",
                 e
@@ -126,6 +145,9 @@ impl ZarrStoreWrapper {
         Ok(())
     }
 
+    #[pyo3(signature = (unique_id, data))]
+    pub fn write_log(&self, unique_id: String, data: String) {}
+
     #[pyo3(signature = (seqid))]
     pub fn read(&self, seqid: &str) -> PyResult<Vec<u8>> {
         let result = self.store.read_uint8_array(seqid);
@@ -161,6 +183,7 @@ impl ZarrStoreWrapper {
         self.store.list_hexdigests().unwrap().len()
     }
 
+    #[getter]
     /// returns the names of unique sequences in the store
     pub fn unique_seqids(&self) -> PyResult<Vec<String>> {
         Ok(self.store.list_unique_seqids().unwrap())

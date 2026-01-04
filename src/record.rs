@@ -98,6 +98,7 @@ pub fn entropy(kfreqs: &Vec<f64>) -> f64 {
     entropy
 }
 
+#[derive(Debug)]
 pub struct SeqRecord<'a> {
     pub seqid: &'a str,
     pub seq: &'a [u8],
@@ -168,15 +169,15 @@ impl KmerSeq {
 }
 
 pub struct LazySeqRecord<'a> {
-    pub seqid: &'a String,
+    pub seqid: String,
     pub num_states: usize,
     storage: &'a ZarrStore,
 }
 
 impl<'a> LazySeqRecord<'a> {
-    pub fn new(seqid: &'a String, num_states: usize, storage: &'a ZarrStore) -> Self {
+    pub fn new(seqid: &str, num_states: usize, storage: &'a ZarrStore) -> Self {
         Self {
-            seqid,
+            seqid: seqid.to_string(),
             num_states,
             storage,
         }

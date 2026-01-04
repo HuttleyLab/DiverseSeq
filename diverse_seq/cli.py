@@ -9,12 +9,14 @@ from collections.abc import Mapping
 from pathlib import Path
 
 import click
+import cogent3 as c3
 import numpy
 import rich.progress as rich_progress
 from cogent3.app import data_store as c3_data_store
 from scitrack import CachingLogger
 
 from diverse_seq import __version__
+from diverse_seq import _dvs as dvs
 from diverse_seq import cluster as dvs_cluster
 from diverse_seq import data_store as dvs_data_store
 from diverse_seq import io as dvs_io
@@ -311,7 +313,6 @@ def max(  # noqa: A001
     hide_progress: bool,
 ) -> None:
     """Identify the seqs that maximise average delta JSD"""
-    from diverse_seq import _dvs as dvs
 
     if max_size is not None and min_size > max_size:
         dvs_util.print_colour(f"{min_size=} cannot be greater than {max_size=}", "red")
@@ -354,13 +355,15 @@ def max(  # noqa: A001
         max_size=max_size,
         stat=stat,
         limit=limit,
-        verbose=verbose,
     )
     # turn off pylint check, since the function is made into a class
     finalise = dvs_records.select_final_max(  # pylint: disable=no-value-for-parameter
+        seq_store=seqfile,
         stat=stat,
         min_size=min_size,
-        verbose=verbose,
+        max_size=max_size,
+        k=k,
+        num_states=4,
     )
     result = dvs_records.apply_app(
         app=app,
@@ -373,18 +376,18 @@ def max(  # noqa: A001
 
     # user requested inclusions are added to the selected divergent set
     if include:
-        include_records = dvs_records.records_from_seq_store(
+        record_names = result.record_names + include
+        app = dvs_records.select_nmost(
             seq_store=seqfile,
-            seq_names=include,
+            n=len(record_names),
             k=k,
-            limit=None,
-        )
-        result = dvs_records.SummedRecords.from_records(
-            result.all_records() + include_records,
+            limit=limit,
         )
 
+        result = app(record_names)  # pylint: disable=not-callable
+
     outpath.parent.mkdir(parents=True, exist_ok=True)
-    table = result.to_table()
+    table = c3.make_table(header=["names", "delta_jsd"], rows=result.record_deltas)
     table.write(outpath)
     dvs_util.print_colour(
         f"{table.shape[0]} divergent sequences IDs written to '{outpath!s}'",
@@ -430,7 +433,7 @@ def nmost(
         )
         sys.exit(1)
 
-    seqids = dvs_data_store.get_seqids_from_store(seqfile)
+    seqids = dvs.get_seqids_from_store(str(seqfile))
     if len(seqids) < number:
         msg = f"Num seqs in {seqfile}={len(seqids)} < {number=}. Nothing to do!"
         dvs_util.print_colour(msg, "red")
@@ -456,7 +459,6 @@ def nmost(
         n=number,
         k=k,
         limit=limit,
-        verbose=verbose,
     )
     result = dvs_records.apply_app(
         app=app,
@@ -464,22 +466,22 @@ def nmost(
         numprocs=numprocs,
         verbose=verbose,
         hide_progress=hide_progress,
-        finalise=dvs_records.dvs_final_nmost(),  # pylint: disable=no-value-for-parameter
+        finalise=dvs_records.dvs_final_nmost(seq_store=seqfile),  # pylint: disable=no-value-for-parameter
     )
     # user requested inclusions are added to the selected divergent set
     if include:
-        include_records = dvs_records.records_from_seq_store(
+        record_names = result.record_names + include
+        app = dvs_records.select_nmost(
             seq_store=seqfile,
-            seq_names=include,
+            n=len(record_names),
             k=k,
-            limit=None,
-        )
-        result = dvs_records.SummedRecords.from_records(
-            result.all_records() + include_records,
+            limit=limit,
         )
 
+        result = app(record_names)  # pylint: disable=not-callable
+
     outpath.parent.mkdir(parents=True, exist_ok=True)
-    table = result.to_table()
+    table = c3.make_table(header=["names", "delta_jsd"], rows=result.record_deltas)
     table.write(outpath)
     dvs_util.print_colour(
         f"{table.shape[0]} divergent sequences IDs written to '{outpath!s}'",

@@ -1,10 +1,11 @@
+use crate::records_py::SummedRecordsResult;
 use crate::zarr_io::ZarrStore;
 use core::panic;
 use std::collections::HashSet;
 
 use crate::record::{KmerSeq, LazySeqRecord, entropy};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// Container of most divergent sequences
 pub struct SummedRecords {
     pub records: Vec<KmerSeq>,
@@ -199,6 +200,19 @@ impl SummedRecords {
             title, record_deltas, self.total_jsd
         )
     }
+
+    pub fn get_result(&self) -> SummedRecordsResult {
+        SummedRecordsResult {
+            record_deltas: self.record_deltas(),
+            total_jsd: self.total_jsd,
+            mean_delta_jsd: self.mean_delta_jsd(),
+            std_delta_jsd: self.std_delta_jsd(),
+            cov_delta_jsd: self.cov_delta_jsd(),
+            size: self.size as usize,
+            k: self.records[0].k,
+            num_states: self.records[0].num_states,
+        }
+    }
 }
 
 /// update delta_jsd on records and return index for lowest delta_jsd
@@ -277,6 +291,28 @@ fn updated_mean_freqs(dest: &mut [f64], total_freqs: &[f64], record_kfreqs: &[f6
     }
 }
 
+fn get_lazyrecords_and_init_summed_records(
+    store: &ZarrStore,
+    seqids: Vec<String>,
+    n: usize,
+    k: usize,
+    num_states: usize,
+) -> (Vec<LazySeqRecord>, SummedRecords) {
+    let records: Vec<LazySeqRecord> = seqids
+        .iter()
+        .map(|seqid| LazySeqRecord::new(seqid, num_states, &store))
+        .collect();
+    let mut init: Vec<KmerSeq> = Vec::new();
+    for i in 0..n {
+        let kseq = records[i].to_kmerseq(k);
+        if kseq.is_ok() {
+            init.push(kseq.unwrap());
+        }
+    }
+    let summed = SummedRecords::new(init);
+    (records, summed)
+}
+
 /// returns the SummedRecords object containing nmost divergent sequences
 pub fn select_nmost_divergent(
     store: &ZarrStore,
@@ -293,18 +329,10 @@ pub fn select_nmost_divergent(
     if seqids.len() < n {
         panic!("The number of sequences {} is < n {}", seqids.len(), n);
     }
-    let records: Vec<LazySeqRecord> = seqids
-        .iter()
-        .map(|seqid| LazySeqRecord::new(&seqid, num_states, &store))
-        .collect();
-    let mut init: Vec<KmerSeq> = Vec::new();
-    for i in 0..n {
-        let kseq = records[i].to_kmerseq(k);
-        if kseq.is_ok() {
-            init.push(kseq.unwrap());
-        }
-    }
-    let mut summed = SummedRecords::new(init);
+
+    let (records, mut summed) =
+        get_lazyrecords_and_init_summed_records(store, seqids, n, k, num_states);
+
     // now iterate over the rest
     for i in n..records.len() {
         let rec = records[i].to_kmerseq(k);
@@ -316,7 +344,79 @@ pub fn select_nmost_divergent(
             summed.replace_lowest(rec);
         }
     }
-    return summed;
+    summed
+}
+
+pub enum Stat {
+    Cov,
+    Std,
+}
+
+/// returns SummedRecords of sequences that maximise divergence
+pub fn select_max_divergent(
+    store: &ZarrStore,
+    stat: Stat,
+    min_size: usize,
+    max_size: usize,
+    k: usize,
+    num_states: usize,
+    seqids: Option<Vec<String>>,
+) -> SummedRecords {
+    let seqids = match seqids {
+        Some(seqids) => seqids,
+        None => store.list_unique_seqids().unwrap(),
+    };
+
+    if seqids.len() < min_size {
+        panic!(
+            "The number of sequences {} is < n {}",
+            seqids.len(),
+            min_size
+        );
+    }
+
+    let max_size = if seqids.len() > max_size {
+        max_size
+    } else {
+        seqids.len()
+    };
+    let (records, mut summed) =
+        get_lazyrecords_and_init_summed_records(store, seqids, min_size, k, num_states);
+
+    // now iterate over the rest
+    for i in min_size..records.len() {
+        let rec = records[i].to_kmerseq(k);
+        if !rec.is_ok() {
+            continue;
+        }
+        let rec = rec.unwrap();
+        if !summed.increases_jsd(&rec) {
+            continue;
+        } else if summed.size == max_size as u32 {
+            summed.replace_lowest(rec);
+            continue;
+        }
+
+        let mut new_summed = summed.clone();
+        new_summed.push(rec);
+        summed = match stat {
+            Stat::Cov => {
+                if new_summed.cov_delta_jsd() > summed.cov_delta_jsd() {
+                    new_summed
+                } else {
+                    summed
+                }
+            }
+            Stat::Std => {
+                if new_summed.std_delta_jsd() > summed.std_delta_jsd() {
+                    new_summed
+                } else {
+                    summed
+                }
+            }
+        };
+    }
+    summed
 }
 
 #[cfg(test)]
@@ -493,7 +593,7 @@ mod tests {
     }
 
     fn make_zstore(path: std::path::PathBuf, add_invalid: bool) -> ZarrStore {
-        let mut store = ZarrStore::new(path).unwrap();
+        let mut store = ZarrStore::new(Some(path)).unwrap();
         let sequences = vec![
             vec![0, 0, 1, 1],       // seq1
             vec![1, 1, 1, 3],       // seq2
@@ -625,10 +725,72 @@ mod tests {
     }
 
     #[test]
+    fn checked_result() {
+        let orig = summed234();
+        let stats = orig.get_result();
+        assert_eq!(stats.size, orig.size as usize);
+        assert_eq!(stats.total_jsd, orig.total_jsd);
+        assert_eq!(stats.mean_delta_jsd, orig.mean_delta_jsd());
+        assert_eq!(stats.std_delta_jsd, orig.std_delta_jsd());
+        assert_eq!(stats.cov_delta_jsd, orig.cov_delta_jsd());
+        assert_eq!(stats.record_deltas, orig.record_deltas());
+    }
+
+    #[test]
     fn exercise_display() {
         // shouldn't panic
         let sr = summed234();
         let r = sr.for_display("test".to_string());
         println!("{}", r);
+    }
+
+    #[rstest]
+    #[case(Stat::Cov, Some(vec!["seq1".to_string(), "seq2".to_string(), "seq3".to_string(), "seq4".to_string(), "seq5".to_string()]))]
+    #[case(Stat::Cov, None)]
+    #[case(Stat::Std, None)]
+    #[case(Stat::Std, Some(vec!["seq1".to_string(), "seq2".to_string(), "seq3".to_string(), "seq4".to_string(), "seq5".to_string()]))]
+    fn check_max_divergent(
+        temp_dir: TempDir,
+        #[case] stat: Stat,
+        #[case] seqids: Option<Vec<String>>,
+    ) {
+        let path = temp_dir.path().join("zarrs.dvseqz");
+        let zstore = make_zstore(path, true);
+        let min_size = 3;
+        let max_size = 4;
+        let num_states = 4;
+        let k = 1;
+
+        let sr = select_max_divergent(&zstore, stat, min_size, max_size, k, num_states, seqids);
+        assert!(sr.size >= min_size as u32);
+        assert!(sr.size <= max_size as u32);
+    }
+
+    #[rstest]
+    fn check_max_divergent_invalid_size(temp_dir: TempDir) {
+        let path = temp_dir.path().join("zarrs.dvseqz");
+        let zstore = make_zstore(path, true);
+        let min_size = 30;
+        let max_size = 40;
+        let num_states = 4;
+        let k = 1;
+        let result = catch_unwind(AssertUnwindSafe(|| {
+            select_max_divergent(&zstore, Stat::Std, min_size, max_size, k, num_states, None);
+        }));
+        assert!(result.is_err());
+    }
+
+    #[rstest]
+    fn check_max_divergent_max_size(temp_dir: TempDir) {
+        // max_size is bigger than number of records
+        let path = temp_dir.path().join("zarrs.dvseqz");
+        let zstore = make_zstore(path, true);
+        let min_size = 3;
+        let max_size = 10;
+        let num_states = 4;
+        let k = 1;
+        let sr = select_max_divergent(&zstore, Stat::Std, min_size, max_size, k, num_states, None);
+        assert!(sr.size >= min_size as u32);
+        assert!(sr.size <= zstore.list_unique_seqids().unwrap().len() as u32);
     }
 }

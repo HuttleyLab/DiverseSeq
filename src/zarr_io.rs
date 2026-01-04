@@ -8,12 +8,47 @@ use xxhash_rust::xxh3::xxh3_64;
 use zarrs::array::codec::ZstdCodec;
 use zarrs::array::{Array, ArrayBuilder, DataType, FillValue};
 use zarrs::filesystem::FilesystemStore;
+use zarrs_storage::store::MemoryStore;
+
 /// A wrapper around a zarr directory store that manages uint8 array members with zstd compression
+
+#[derive(Debug)]
+pub enum Storage {
+    File(Arc<FilesystemStore>),
+    Memory(Arc<MemoryStore>),
+}
+
+enum ZarrArray {
+    File(Array<FilesystemStore>),
+    Memory(Array<MemoryStore>),
+}
+
+impl ZarrArray {
+    fn retrieve_array_subset_elements(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+        match self {
+            ZarrArray::File(arr) => {
+                let data = arr.retrieve_array_subset_elements::<u8>(&arr.subset_all())?;
+                Ok(data)
+            }
+            ZarrArray::Memory(arr) => {
+                let data = arr.retrieve_array_subset_elements::<u8>(&arr.subset_all())?;
+                Ok(data)
+            }
+        }
+    }
+
+    fn attributes(&self) -> serde_json::Map<String, serde_json::Value> {
+        match self {
+            ZarrArray::File(arr) => arr.attributes().clone(),
+            ZarrArray::Memory(arr) => arr.attributes().clone(),
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct ZarrStore {
     path: PathBuf,
-    store: Arc<FilesystemStore>,
+    pub store: Storage,
     seqid_to_hash: FxHashMap<String, [u8; 16]>,
     root: String,
 }
@@ -25,19 +60,37 @@ struct Metadata {
 
 impl ZarrStore {
     /// Create a new ZarrStore at the specified directory path
-    pub fn new(path: impl Into<PathBuf>) -> Result<Self, Box<dyn std::error::Error>> {
-        let path = path.into();
-        std::fs::create_dir_all(&path)?;
-        let store = Arc::new(FilesystemStore::new(&path)?);
-        let seqid_to_hash = Self::load_metadata(&path);
+    /// If path is None, creates an in-memory store; otherwise creates a filesystem store
+    pub fn new(path: Option<PathBuf>) -> Result<Self, Box<dyn std::error::Error>> {
+        let store = match &path {
+            None => Storage::Memory(Arc::new(MemoryStore::new())),
+            Some(path_buf) => {
+                std::fs::create_dir_all(path_buf)?;
+                Storage::File(Arc::new(FilesystemStore::new(path_buf)?))
+            }
+        };
+
+        let seqid_to_hash = match &path {
+            None => FxHashMap::default(),
+            Some(path_buf) => Self::load_metadata(path_buf),
+        };
 
         let root = "/seqdata".to_string();
-        zarrs::group::GroupBuilder::new()
-            .build(store.clone(), &root)?
-            .store_metadata()?;
+        match &store {
+            Storage::File(s) => {
+                zarrs::group::GroupBuilder::new()
+                    .build(s.clone(), &root)?
+                    .store_metadata()?;
+            }
+            Storage::Memory(s) => {
+                zarrs::group::GroupBuilder::new()
+                    .build(s.clone(), &root)?
+                    .store_metadata()?;
+            }
+        }
 
         Ok(ZarrStore {
-            path,
+            path: path.unwrap_or_default(),
             store,
             seqid_to_hash,
             root,
@@ -141,7 +194,7 @@ impl ZarrStore {
             DataType::UInt8,
             FillValue::from(0u8),
         );
-        let array = if metadata.is_some() {
+        let array_builder = if metadata.is_some() {
             let metadata_bytes = postcard::to_allocvec(&metadata.unwrap_or_default())?;
             let attrs = json!({"metadata": metadata_bytes})
                 .as_object()
@@ -154,32 +207,58 @@ impl ZarrStore {
             array_builder.bytes_to_bytes_codecs(vec![Arc::new(codec)])
         };
 
-        let array = array
-            .build(self.store.clone(), &array_path)
-            .expect("Failed to build array");
+        match &self.store {
+            Storage::File(s) => {
+                let array = array_builder
+                    .build(s.clone(), &array_path)
+                    .expect("Failed to build array");
 
-        // Write the data
-        array
-            .store_array_subset_elements::<u8>(&array.subset_all(), data)
-            .expect("Failed to write data");
+                // Write the data
+                array
+                    .store_array_subset_elements::<u8>(&array.subset_all(), data)
+                    .expect("Failed to write data");
 
-        // Store array metadata to disk
-        array
-            .store_metadata()
-            .expect("Failed to store array metadata");
+                // Store array metadata to disk
+                array
+                    .store_metadata()
+                    .expect("Failed to store array metadata");
+            }
+            Storage::Memory(s) => {
+                let array = array_builder
+                    .build(s.clone(), &array_path)
+                    .expect("Failed to build array");
+
+                // Write the data
+                array
+                    .store_array_subset_elements::<u8>(&array.subset_all(), data)
+                    .expect("Failed to write data");
+
+                // Store array metadata to disk
+                array
+                    .store_metadata()
+                    .expect("Failed to store array metadata");
+            }
+        }
 
         Ok(())
     }
 
-    fn get_array_for(
-        &self,
-        seqid: &str,
-    ) -> Result<Array<FilesystemStore>, Box<dyn std::error::Error>> {
+    fn get_array_for(&self, seqid: &str) -> Result<ZarrArray, Box<dyn std::error::Error>> {
         let array_path = self.get_path_for_seqid(seqid)?;
 
-        let array = zarrs::array::Array::open(self.store.clone(), &array_path)
-            .expect("failed to build array for reading");
-        Ok(array)
+        let result = match &self.store {
+            Storage::File(s) => {
+                let array = zarrs::array::Array::open(s.clone(), &array_path)
+                    .expect("failed to build array for reading");
+                ZarrArray::File(array)
+            }
+            Storage::Memory(s) => {
+                let array = zarrs::array::Array::open(s.clone(), &array_path)
+                    .expect("failed to build array for reading");
+                ZarrArray::Memory(array)
+            }
+        };
+        Ok(result)
     }
 
     /// Read a uint8 array member
@@ -191,9 +270,7 @@ impl ZarrStore {
     /// A tuple of (data, shape)
     pub fn read_uint8_array(&self, seqid: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         let array = self.get_array_for(seqid)?;
-
-        let data = array.retrieve_array_subset_elements::<u8>(&array.subset_all())?;
-
+        let data = array.retrieve_array_subset_elements()?;
         Ok(data)
     }
 
@@ -280,6 +357,8 @@ impl Drop for ZarrStore {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashSet;
+
     use super::*;
     use rstest::{fixture, rstest};
     use tempfile::TempDir;
@@ -291,13 +370,13 @@ mod tests {
 
     #[rstest]
     fn test_create_store(temp_dir: TempDir) {
-        let store = ZarrStore::new(temp_dir.path());
+        let store = ZarrStore::new(Some(temp_dir.path().to_path_buf()));
         assert!(store.is_ok());
     }
 
     #[fixture]
     fn a_store(temp_dir: TempDir) -> ZarrStore {
-        ZarrStore::new(temp_dir.path()).expect("failed to create store")
+        ZarrStore::new(Some(temp_dir.path().to_path_buf())).expect("failed to create store")
     }
 
     #[rstest]
@@ -328,7 +407,7 @@ mod tests {
     #[rstest]
     fn test_reload_store(b_store: PathBuf) {
         let name = "s1";
-        let reopened_store = ZarrStore::new(&b_store).expect("failed to reopen store");
+        let reopened_store = ZarrStore::new(Some(b_store)).expect("failed to reopen store");
         assert!(reopened_store.contains_seqid(name));
         let got = reopened_store.read_uint8_array(name);
         if let Err(e) = &got {
@@ -340,24 +419,69 @@ mod tests {
 
     #[rstest]
     fn test_reloaded_store_seqids(b_store: PathBuf) {
-        let reopened_store = ZarrStore::new(&b_store).expect("failed to reopen store");
+        let reopened_store = ZarrStore::new(Some(b_store)).expect("failed to reopen store");
         assert_eq!(reopened_store.list_seqids().unwrap(), vec!["s1", "s2"]);
         assert_eq!(reopened_store.list_hexdigests().unwrap().len(), 1);
     }
 
     #[rstest]
     fn test_list_unique_seqids(b_store: PathBuf) {
-        let reopened_store = ZarrStore::new(&b_store).expect("failed to reopen store");
+        let reopened_store = ZarrStore::new(Some(b_store)).expect("failed to reopen store");
         assert_eq!(reopened_store.list_unique_seqids().unwrap(), vec!["s2"]);
     }
 
     #[rstest]
     fn test_reloaded_seqid_metadata(b_store: PathBuf) {
-        let reopened_store = ZarrStore::new(&b_store).expect("failed to reopen store");
+        let reopened_store = ZarrStore::new(Some(b_store)).expect("failed to reopen store");
         // s1 and s2 have the same data, so they map to the same array
         // The metadata was stored when s1 was added, so it contains key "s1"
         let got = reopened_store.read_metadata("s2");
         assert!(got.is_ok());
         assert_eq!(got.unwrap()["s1"], "ahexdigest");
+    }
+
+    #[fixture]
+    fn m_store() -> ZarrStore {
+        let mut map = FxHashMap::default();
+        let mut store = ZarrStore::new(None).expect("failed to create memory store");
+        map.insert("s1".to_string(), "ahexdigest".to_string());
+        let _ = store.add_uint8_array(&"s1", &[0, 3, 1, 0], Some(map));
+        let _ = store.add_uint8_array(&"s2", &[0, 3, 1, 1, 2], None);
+        let _ = store.add_uint8_array(&"s3", &[0, 3, 1, 0], None);
+        store
+    }
+
+    #[rstest]
+    fn test_memory_store(m_store: ZarrStore) {
+        let got = m_store.read_uint8_array("s1");
+        assert!(got.is_ok());
+        assert_eq!(got.unwrap(), &[0, 3, 1, 0]);
+        let got = m_store.read_uint8_array("s3");
+        assert!(got.is_ok());
+        assert_eq!(got.unwrap(), &[0, 3, 1, 0]);
+        let got_ids: HashSet<String> = m_store
+            .list_seqids()
+            .unwrap()
+            .iter()
+            .map(|x| x.to_string())
+            .collect();
+        let expect: HashSet<String> = vec!["s1", "s2", "s3"]
+            .iter()
+            .map(|x| x.to_string())
+            .collect();
+        assert_eq!(got_ids, expect);
+        let meta = m_store.read_metadata("s1").unwrap();
+        assert_eq!(meta["s1"], "ahexdigest");
+    }
+
+    #[rstest]
+    fn test_read_invalid_seqid(m_store: ZarrStore) {
+        let got = m_store.read_uint8_array("s100");
+        assert!(got.is_err());
+    }
+
+    #[rstest]
+    fn test_mem_store_drop(m_store: ZarrStore) {
+        drop(m_store)
     }
 }
