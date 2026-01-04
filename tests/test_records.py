@@ -16,7 +16,7 @@ from numpy.testing import assert_allclose
 from diverse_seq import _dvs as dvs
 from diverse_seq import records as dvs_records
 from diverse_seq.record import KmerSeq, kmer_counts
-from diverse_seq.util import str2arr
+from diverse_seq.util import populate_inmem_zstore, str2arr
 
 
 @pytest.fixture
@@ -125,10 +125,11 @@ def test_replaced_lowest(seqcoll):
 
 
 def test_max_divergent(seqcoll):
+    zstore = populate_inmem_zstore(seqcoll)
     k = 1
     kcounts = _get_kfreqs_per_seq(seqcoll, k=k)
     records = _make_records(kcounts, seqcoll)
-    got = dvs_records.max_divergent(records, min_size=2, max_size=2, stat="stdev")
+    got = dvs.max_divergent(zstore, min_size=2, max_size=2, stat="stdev", k=k)
     assert got.size == 2
 
 
@@ -169,7 +170,7 @@ def brca1_zstore(DATA_DIR):
 def brca1_zstore_path(DATA_DIR, tmp_path):
     seqcoll = get_dataset("brca1").degap()
     outpath = tmp_path / "brca1.dvseqsz"
-    store = dvs.make_zarr_store(str(outpath))
+    store = dvs.make_zarr_store(str(outpath), mode="w")
     for seq in seqcoll.seqs:
         arr = numpy.array(seq)
         store.write(seq.name, arr.tobytes())
@@ -191,7 +192,7 @@ def test_merge_summed_records(brca1_zstore_path):
     rnames1 = sr1.record_names
     rnames2 = sr2.record_names
     assert set(rnames1) != set(rnames2)
-    got = dvs_records.dvs_final_nmost(seq_store=zstore)([sr1, sr2])
+    got = dvs_records.dvs_final_nmost(seq_store=brca1_zstore_path)([sr1, sr2])
     assert len(got.record_names) == 5
 
 

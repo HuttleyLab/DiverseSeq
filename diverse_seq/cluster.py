@@ -15,22 +15,19 @@ from rich.progress import Progress
 from scipy.sparse import dok_matrix
 from sklearn.cluster import AgglomerativeClustering
 
-from diverse_seq import data_store as dvs_data_store
+from diverse_seq import _dvs as dvs
 from diverse_seq.distance import (
     BottomSketch,
     euclidean_distance,
     euclidean_distances,
     mash_distance,
     mash_distances,
-    mash_sketch,
 )
 from diverse_seq.record import (
-    KmerSeq,
     SeqArray,
     _get_canonical_states,
-    make_kmerseq,
-    seq_to_seqarray,
 )
+from diverse_seq.util import populate_inmem_zstore
 
 
 class ClusterTreeBase:
@@ -95,8 +92,7 @@ class ClusterTreeBase:
         self._distance_mode = distance_mode
         self._mash_canonical = mash_canonical_kmers
         self._progress = Progress(disable=not show_progress)
-
-        self._s2a = seq_to_seqarray(moltype=moltype)
+        self._num_states = len(_get_canonical_states(moltype))
 
 
 @define_app
@@ -107,7 +103,7 @@ class dvs_ctree(ClusterTreeBase):
         self,
         *,
         k: int = 12,
-        sketch_size: int | None = 3_000,
+        sketch_size: int = 3_000,
         moltype: str = "dna",
         distance_mode: Literal["mash", "euclidean"] = "mash",
         mash_canonical_kmers: bool | None = None,
@@ -167,15 +163,18 @@ class dvs_ctree(ClusterTreeBase):
             a cluster tree.
         """
         seqs = seqs.degap()
+        zstore = populate_inmem_zstore(seqs)
         seq_names = seqs.names
-        seq_arrays = [self._s2a(seqs.get_seq(name)) for name in seq_names]  # pylint: disable=not-callable
+        seq_arrays = [
+            zstore.get_lazyseq(name, num_states=self._num_states) for name in seq_names
+        ]
 
         with self._progress:
             if self._distance_mode == "mash":
                 distances = mash_distances(
                     seq_arrays,
                     self._k,
-                    self._sketch_size,
+                    int(self._sketch_size),
                     self._num_states,
                     mash_canonical=self._mash_canonical,
                     progress=self._progress,
@@ -337,17 +336,7 @@ class DvsParCtreeMixin:
             total=None,
         )
 
-        kmer_seqs = [
-            make_kmerseq(
-                seq,
-                dtype=numpy.min_scalar_type(
-                    len(_get_canonical_states(self._moltype)) ** self._k,
-                ),
-                k=self._k,
-                moltype=self._moltype,
-            )
-            for seq in seq_arrays
-        ]
+        kmer_seqs = [numpy.array(seq.get_kfreqs(self._k)) for seq in seq_arrays]
 
         # Compute distances in parallel
         num_jobs = self._numprocs
@@ -377,7 +366,7 @@ class DvsParCtreeMixin:
 
     def mash_sketches_parallel(
         self,
-        seq_arrays: Sequence[SeqArray],
+        seq_arrays: Sequence[dvs.LazySeq],
     ) -> list[BottomSketch]:
         """Create sketch representations for a collection of sequence records in parallel.
 
@@ -401,10 +390,10 @@ class DvsParCtreeMixin:
         # Compute sketches in parallel
         futures_to_idx = {
             self._executor.submit(
-                mash_sketch,
-                seq_array.data,
+                dvs.mash_sketch,
+                seq_array.get_seq(),
                 self._k,
-                self._sketch_size,
+                int(self._sketch_size),
                 self._num_states,
                 mash_canonical=self._mash_canonical,
             ): i
@@ -504,14 +493,15 @@ class dvs_par_ctree(ClusterTreeBase, DvsParCtreeMixin):
             a cluster tree.
         """
         seqs = seqs.degap()
+        zstore = populate_inmem_zstore(seqs)
         self._executor = (
             get_reusable_executor(max_workers=self._numprocs)
             if self._numprocs != 1
             else nullcontext()
         )
 
-        seq_names = seqs.names
-        seq_arrays = [self._s2a(seqs.get_seq(name)) for name in seq_names]  # pylint: disable=not-callable
+        seq_arrays = zstore.get_lazyseqs(num_states=self._num_states)
+        seq_names = [s.seqid for s in seq_arrays]
 
         with self._progress, self._executor:
             distances = self._calc_dist(seq_arrays)
@@ -579,7 +569,7 @@ class dvs_cli_par_ctree(ClusterTreeBase, DvsParCtreeMixin):
             show_progress=show_progress,
         )
 
-        self._seq_store = seq_store
+        self._seq_store = dvs.make_zarr_store(str(seq_store))
         self._limit = limit
 
         if parallel:
@@ -606,30 +596,18 @@ class dvs_cli_par_ctree(ClusterTreeBase, DvsParCtreeMixin):
         PhyloNode
             a cluster tree.
         """
-        dstore = dvs_data_store.HDF5DataStore(self._seq_store, mode="r")
-
         self._executor = (
             get_reusable_executor(max_workers=self._numprocs)
             if self._numprocs != 1
             else nullcontext()
         )
 
-        seq_arrays = {
-            m.unique_id: m  # pylint: disable=not-callable
-            for m in dstore.completed
-            if m.unique_id in seq_names
-        }
-        seq_arrays = [seq_arrays[name] for name in seq_names]
-        seq_arrays = seq_arrays[: self._limit] if self._limit else seq_arrays
-        seq_arrays = [
-            SeqArray(
-                member.unique_id,
-                member.read(),
-                self._moltype,
-                member.data_store.source,
-            )
-            for member in seq_arrays
-        ]
+        zarr_store = self._seq_store
+        seqids = zarr_store.unique_seqids
+        seq_arrays = [zarr_store.get_lazyseq(seqid, num_states=4) for seqid in seqids]
+        if self._limit:
+            seq_arrays = seq_arrays[: self._limit]
+            seqids = seqids[: self._limit]
 
         with self._progress, self._executor:
             distances = self._calc_dist(seq_arrays)
@@ -679,7 +657,7 @@ def compute_mash_chunk_distances(
 def compute_euclidean_chunk_distances(
     start_idx: int,
     stride: int,
-    kmer_seqs: list[KmerSeq],
+    kmer_freqs: list[numpy.ndarray],
 ) -> tuple[int, dok_matrix]:
     """Find a subset of pairwise distances between sketches.
 
@@ -702,11 +680,11 @@ def compute_euclidean_chunk_distances(
     tuple[int, dok_matrix]
         The start index, and the calculated pairwise distances.
     """
-    distances_chunk = dok_matrix((len(kmer_seqs), len(kmer_seqs)))
-    for i in range(start_idx, len(kmer_seqs), stride):
-        freq_i = numpy.array(kmer_seqs[i].kfreqs)
+    distances_chunk = dok_matrix((len(kmer_freqs), len(kmer_freqs)))
+    for i in range(start_idx, len(kmer_freqs), stride):
+        freq_i = numpy.array(kmer_freqs[i])
         for j in range(i):
-            freq_j = numpy.array(kmer_seqs[j].kfreqs)
+            freq_j = numpy.array(kmer_freqs[j])
             distance = euclidean_distance(freq_i, freq_j)
             distances_chunk[i, j] = distance
     return start_idx, distances_chunk

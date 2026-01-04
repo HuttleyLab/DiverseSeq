@@ -12,7 +12,7 @@ use zarrs_storage::store::MemoryStore;
 
 /// A wrapper around a zarr directory store that manages uint8 array members with zstd compression
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Storage {
     File(Arc<FilesystemStore>),
     Memory(Arc<MemoryStore>),
@@ -61,11 +61,13 @@ struct Metadata {
 impl ZarrStore {
     /// Create a new ZarrStore at the specified directory path
     /// If path is None, creates an in-memory store; otherwise creates a filesystem store
-    pub fn new(path: Option<PathBuf>) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn new(path: Option<PathBuf>, mode: &str) -> Result<Self, Box<dyn std::error::Error>> {
         let store = match &path {
             None => Storage::Memory(Arc::new(MemoryStore::new())),
             Some(path_buf) => {
-                std::fs::create_dir_all(path_buf)?;
+                if mode != "r" {
+                    std::fs::create_dir_all(path_buf)?;
+                }
                 Storage::File(Arc::new(FilesystemStore::new(path_buf)?))
             }
         };
@@ -115,6 +117,11 @@ impl ZarrStore {
 
     /// Save metadata to disk atomically
     pub fn save_metadata(&self) -> Result<(), Box<dyn std::error::Error>> {
+        if !matches!(self.store, Storage::File(_)) {
+            // don't save to disk if in-memory
+            return Ok(());
+        }
+
         let metadata_path = self.path.join(".seqid_to_hash.bin");
         let temp_path = self.path.join(".seqid_to_hash.bin.tmp");
 
@@ -344,6 +351,22 @@ impl ZarrStore {
 
         Ok(hash2seqid.values().cloned().collect())
     }
+
+    /// Clone the storage instance
+    /// For filesystem stores, metadata is saved to disk before cloning
+    pub fn clone(&self) -> Result<Self, Box<dyn std::error::Error>> {
+        // For filesystem stores, ensure metadata is persisted before cloning
+        if matches!(self.store, Storage::File(_)) {
+            self.save_metadata()?;
+        }
+
+        Ok(ZarrStore {
+            path: self.path.clone(),
+            store: self.store.clone(),
+            seqid_to_hash: self.seqid_to_hash.clone(),
+            root: self.root.clone(),
+        })
+    }
 }
 
 impl Drop for ZarrStore {
@@ -370,13 +393,13 @@ mod tests {
 
     #[rstest]
     fn test_create_store(temp_dir: TempDir) {
-        let store = ZarrStore::new(Some(temp_dir.path().to_path_buf()));
+        let store = ZarrStore::new(Some(temp_dir.path().to_path_buf()), "w");
         assert!(store.is_ok());
     }
 
     #[fixture]
     fn a_store(temp_dir: TempDir) -> ZarrStore {
-        ZarrStore::new(Some(temp_dir.path().to_path_buf())).expect("failed to create store")
+        ZarrStore::new(Some(temp_dir.path().to_path_buf()), "w").expect("failed to create store")
     }
 
     #[rstest]
@@ -407,7 +430,7 @@ mod tests {
     #[rstest]
     fn test_reload_store(b_store: PathBuf) {
         let name = "s1";
-        let reopened_store = ZarrStore::new(Some(b_store)).expect("failed to reopen store");
+        let reopened_store = ZarrStore::new(Some(b_store), "w").expect("failed to reopen store");
         assert!(reopened_store.contains_seqid(name));
         let got = reopened_store.read_uint8_array(name);
         if let Err(e) = &got {
@@ -419,20 +442,20 @@ mod tests {
 
     #[rstest]
     fn test_reloaded_store_seqids(b_store: PathBuf) {
-        let reopened_store = ZarrStore::new(Some(b_store)).expect("failed to reopen store");
+        let reopened_store = ZarrStore::new(Some(b_store), "w").expect("failed to reopen store");
         assert_eq!(reopened_store.list_seqids().unwrap(), vec!["s1", "s2"]);
         assert_eq!(reopened_store.list_hexdigests().unwrap().len(), 1);
     }
 
     #[rstest]
     fn test_list_unique_seqids(b_store: PathBuf) {
-        let reopened_store = ZarrStore::new(Some(b_store)).expect("failed to reopen store");
+        let reopened_store = ZarrStore::new(Some(b_store), "w").expect("failed to reopen store");
         assert_eq!(reopened_store.list_unique_seqids().unwrap(), vec!["s2"]);
     }
 
     #[rstest]
     fn test_reloaded_seqid_metadata(b_store: PathBuf) {
-        let reopened_store = ZarrStore::new(Some(b_store)).expect("failed to reopen store");
+        let reopened_store = ZarrStore::new(Some(b_store), "r").expect("failed to reopen store");
         // s1 and s2 have the same data, so they map to the same array
         // The metadata was stored when s1 was added, so it contains key "s1"
         let got = reopened_store.read_metadata("s2");
@@ -443,7 +466,7 @@ mod tests {
     #[fixture]
     fn m_store() -> ZarrStore {
         let mut map = FxHashMap::default();
-        let mut store = ZarrStore::new(None).expect("failed to create memory store");
+        let mut store = ZarrStore::new(None, "w").expect("failed to create memory store");
         map.insert("s1".to_string(), "ahexdigest".to_string());
         let _ = store.add_uint8_array(&"s1", &[0, 3, 1, 0], Some(map));
         let _ = store.add_uint8_array(&"s2", &[0, 3, 1, 1, 2], None);

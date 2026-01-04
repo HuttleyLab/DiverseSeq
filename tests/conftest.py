@@ -18,7 +18,7 @@ def processed_seq_path(tmp_path):
     from diverse_seq import _dvs as dvs
 
     outpath = tmp_path / "brca1.dvseqsz"
-    dstore = dvs.make_zarr_store(str(outpath))
+    dstore = dvs.make_zarr_store(str(outpath), mode="w")
     seqcoll = get_dataset("brca1").degap()
     for seq in seqcoll.seqs:
         seqarr = np.array(seq)

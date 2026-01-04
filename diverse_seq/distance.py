@@ -10,12 +10,11 @@ from cogent3.app.composable import define_app
 from cogent3.evolve.fast_distance import DistanceMatrix
 from rich.progress import Progress
 
+from diverse_seq import _dvs as dvs
 from diverse_seq.record import (
-    SeqArray,
     _get_canonical_states,
-    make_kmerseq,
-    seq_to_seqarray,
 )
+from diverse_seq.util import populate_inmem_zstore
 
 BottomSketch: TypeAlias = list[int]
 
@@ -84,27 +83,29 @@ class dvs_dist:
         self._moltype = moltype
         self._k = k
         self._show_progress = show_progress
+        self._num_states = len(_get_canonical_states(self._moltype))
 
-        self._s2a = seq_to_seqarray(moltype=moltype)
         if distance_mode == "mash":
             self._func = mash_distances
-            kwargs = dict(
-                k=self._k,
-                sketch_size=sketch_size,
-                num_states=len(_get_canonical_states(self._moltype)),
-                mash_canonical=mash_canonical_kmers,
-            )
+            kwargs = {
+                "k": self._k,
+                "sketch_size": sketch_size,
+                "num_states": self._num_states,
+                "mash_canonical": mash_canonical_kmers,
+            }
         else:
             self._func = euclidean_distances
-            kwargs = dict(k=self._k, moltype=self._moltype)
+            kwargs = {"k": self._k, "moltype": self._moltype}
         self._func_kwargs = kwargs
 
     def main(
         self,
         seqs: c3_types.SeqsCollectionType,
     ) -> c3_types.PairwiseDistanceType:
-        seqs = seqs.to_moltype(self._moltype)
-        seq_arrays = [self._s2a(seqs.get_seq(name)) for name in seqs.names]  # pylint: disable=not-callable
+        seqs = seqs.to_moltype(self._moltype).degap()
+        zstore = populate_inmem_zstore(seqs)
+
+        seq_arrays = zstore.get_lazyseqs(num_states=self._num_states)
 
         with Progress(disable=not self._show_progress) as progress:
             distances = self._func(
@@ -113,7 +114,7 @@ class dvs_dist:
                 **self._func_kwargs,
             )
 
-        return dists_to_distmatrix(distances, seqs.names)
+        return distances
 
 
 def dists_to_distmatrix(
@@ -128,7 +129,7 @@ def dists_to_distmatrix(
 
 
 def mash_distances(
-    seq_arrays: list[SeqArray],
+    seq_arrays: list[dvs.LazySeq],
     k: int,
     sketch_size: int,
     num_states: int,
@@ -141,7 +142,7 @@ def mash_distances(
     Parameters
     ----------
     seq_arrays
-        Sequence arrays.
+        lazy sequence objects.
     k
         kmer size.
     sketch_size
@@ -162,10 +163,8 @@ def mash_distances(
     if progress is None:
         progress = Progress(disable=True)
 
-    seqs = [seq_array.data for seq_array in seq_arrays]
-
     sketches = mash_sketches(
-        seqs,
+        seq_arrays,
         k,
         sketch_size,
         num_states,
@@ -178,6 +177,7 @@ def mash_distances(
         total=len(sketches) * (len(sketches) - 1) // 2,
     )
 
+    seqids = [sarr.seqid for sarr in seq_arrays]
     distances = np.zeros((len(sketches), len(sketches)))
 
     for i in range(1, len(sketches)):
@@ -193,11 +193,11 @@ def mash_distances(
 
             progress.update(distance_task, advance=1)
 
-    return distances
+    return DistanceMatrix.from_array_names(matrix=distances, names=seqids)
 
 
 def mash_sketches(
-    seq_arrays: Sequence[np.ndarray],
+    seq_arrays: Sequence[dvs.LazySeq],
     k: int,
     sketch_size: int,
     num_states: int,
@@ -238,10 +238,10 @@ def mash_sketches(
 
     # Compute sketches in serial
     for i, seq_array in enumerate(seq_arrays):
-        bottom_sketches[i] = mash_sketch(
-            seq_array,
+        bottom_sketches[i] = dvs.mash_sketch(
+            seq_array.get_seq(),
             k,
-            sketch_size,
+            int(sketch_size),
             num_states,
             mash_canonical,
         )
@@ -501,12 +501,12 @@ def mash_distance(
 
 
 def euclidean_distances(
-    seq_arrays: Sequence[SeqArray],
+    seq_arrays: Sequence[dvs.LazySeq],
     k: int,
     moltype: str,
     *,
     progress: Progress | None = None,
-) -> np.ndarray:
+) -> DistanceMatrix:
     """Calculates pairwise euclidean distances between sequences.
 
     Parameters
@@ -524,35 +524,25 @@ def euclidean_distances(
     if progress is None:
         progress = Progress(disable=True)
 
-    kmer_seqs = [
-        make_kmerseq(
-            seq,
-            dtype=np.min_scalar_type(len(_get_canonical_states(moltype)) ** k),
-            k=k,
-            moltype=moltype,
-        )
-        for seq in seq_arrays
-    ]
-
-    distances = np.zeros((len(kmer_seqs), len(kmer_seqs)))
+    distances = np.zeros((len(seq_arrays), len(seq_arrays)))
 
     distance_task = progress.add_task(
         "[green]Computing Pairwise Distances",
-        total=len(kmer_seqs) * (len(kmer_seqs) - 1) // 2,
+        total=len(seq_arrays) * (len(seq_arrays) - 1) // 2,
     )
 
-    for i, kmer_seq_i in enumerate(kmer_seqs):
-        freq_i = np.array(kmer_seq_i.kfreqs)
-        for j in range(i + 1, len(kmer_seqs)):
-            freq_j = np.array(kmer_seqs[j].kfreqs)
-
+    seqids = [sarr.seqid for sarr in seq_arrays]
+    for i, sarr_i in enumerate(seq_arrays[1:], 1):
+        freq_i = np.array(sarr_i.get_kfreqs(k))
+        for j, sarr_j in enumerate(seq_arrays[:i]):
+            freq_j = np.array(sarr_j.get_kfreqs(k))
             distance = euclidean_distance(freq_i, freq_j)
             distances[i, j] = distance
             distances[j, i] = distance
 
             progress.update(distance_task, advance=1)
 
-    return distances
+    return DistanceMatrix.from_array_names(matrix=distances, names=seqids)
 
 
 def euclidean_distance(freq_1: np.ndarray, freq_2: np.ndarray) -> np.ndarray:

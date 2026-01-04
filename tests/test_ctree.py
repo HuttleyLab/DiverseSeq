@@ -8,6 +8,7 @@ from diverse_seq.cluster import dvs_ctree, dvs_par_ctree
 
 def check_ctree_app(app: dvs_ctree | dvs_par_ctree, seqs: SequenceCollection) -> None:
     tree = app(seqs.take_seqs(["Human", "Chimpanzee", "Rhesus", "Horse"]))
+    print(tree)
     expected = make_tree("(((Human, Chimpanzee), Rhesus), Horse);")
     assert tree.same_topology(expected)
 
@@ -20,7 +21,7 @@ def check_ctree_app(app: dvs_ctree | dvs_par_ctree, seqs: SequenceCollection) ->
     assert tree.same_topology(expected)
 
 
-@pytest.mark.parametrize("sketch_size", [400, 4e50])
+@pytest.mark.parametrize("sketch_size", [400, 4e9])
 def test_ctree_mash(unaligned_seqs: SequenceCollection, sketch_size: int) -> None:
     app = dvs_ctree(k=16, sketch_size=sketch_size, distance_mode="mash")
     check_ctree_app(app, unaligned_seqs)

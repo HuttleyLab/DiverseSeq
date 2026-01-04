@@ -10,7 +10,10 @@ import typing
 import numpy
 from cogent3 import get_moltype
 from cogent3.app import composable
+from cogent3.app import typing as c3_types
 from rich import text as rich_text
+
+from diverse_seq import _dvs as dvs
 
 try:
     from wakepy.keep import running as keep_running
@@ -197,3 +200,14 @@ def get_sample_data_path() -> pathlib.Path:
 
 
 print_colour = _printer()
+
+
+def populate_inmem_zstore(seqcoll: c3_types.SeqsCollectionType) -> dvs.ZarrStore:
+    """returns an in-memory ZarrStoreWrapper populated with sequences from seqcoll"""
+    degapped = seqcoll.degap()
+    # make an in-memory ZarrStore
+    zstore = dvs.make_zarr_store()
+    for seq in degapped.seqs:
+        arr = numpy.array(seq)
+        zstore.write(seq.name, arr.tobytes())
+    return zstore

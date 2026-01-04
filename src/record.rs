@@ -1,4 +1,9 @@
+use pyo3::Py;
+use pyo3::Python;
+use pyo3::prelude::{PyResult, pyclass, pyfunction, pymethods};
+
 use crate::zarr_io::ZarrStore;
+use crate::zarr_py::ZarrStoreWrapper;
 use std::cell::Cell;
 
 /// Coefficients for multi-dimensional coordinate conversion into 1D index.
@@ -114,13 +119,17 @@ impl<'a> SeqRecord<'a> {
         }
     }
 
-    pub fn to_kmerseq(&self, k: usize) -> Result<KmerSeq, Box<dyn std::error::Error>> {
+    pub fn to_kcounts(&self, k: usize) -> Result<Vec<usize>, Box<dyn std::error::Error>> {
         let kcounts = match k {
             0 => panic!("k cannot be 0"),
             1 => count_monomers(self.seq, self.num_states),
             _ => count_kmers(self.seq, self.num_states, k),
         };
+        Ok(kcounts)
+    }
 
+    pub fn to_kmerseq(&self, k: usize) -> Result<KmerSeq, Box<dyn std::error::Error>> {
+        let kcounts = self.to_kcounts(k).unwrap();
         let total = kcounts.iter().sum::<usize>() as f64;
         if total == 0.0 {
             return Err(format!("No valid k-mers for '{}'", self.seqid).into());
@@ -190,16 +199,63 @@ impl<'a> LazySeqRecord<'a> {
     }
 }
 
-pub fn make_seq_records<'a>(
-    seqids: &'a [String],
-    seqs: &'a [Vec<u8>],
-    num_states: usize,
-) -> Vec<SeqRecord<'a>> {
-    seqids
-        .iter()
-        .zip(seqs.iter())
-        .map(|(id, seq)| SeqRecord::new(id.as_str(), seq.as_slice(), num_states))
-        .collect()
+#[pyclass(module = "diverse_seq._dvs")]
+pub struct LazySeq {
+    pub seqid: String,
+    storage: Py<ZarrStoreWrapper>,
+    pub num_states: usize,
+}
+
+#[pymethods]
+impl LazySeq {
+    #[new]
+    pub fn new(seqid: String, storage: Py<ZarrStoreWrapper>, num_states: usize) -> Self {
+        Self {
+            seqid: seqid,
+            num_states,
+            storage,
+        }
+    }
+
+    #[getter]
+    pub fn seqid(&self) -> &str {
+        &self.seqid
+    }
+
+    #[getter]
+    pub fn num_states(&self) -> usize {
+        self.num_states
+    }
+
+    pub fn __repr__(&self) -> String {
+        format!(
+            "LazySeq(seqid={}, num_states={}, storage={})",
+            self.seqid, self.num_states, self.storage
+        )
+    }
+
+    pub fn get_kcounts(&self, k: usize) -> PyResult<Vec<usize>> {
+        Python::attach(|py| {
+            let storage = self.storage.borrow(py);
+            let seq = storage.store.read_uint8_array(&self.seqid).unwrap();
+            let sr = SeqRecord::new(&self.seqid, &seq, self.num_states);
+            Ok(sr.to_kcounts(k).unwrap())
+        })
+    }
+
+    pub fn get_kfreqs(&self, k: usize) -> PyResult<Vec<f64>> {
+        let kcounts = self.get_kcounts(k)?;
+        let total = kcounts.iter().sum::<usize>() as f64;
+        let kfreqs = kcounts.iter().map(|x| *x as f64 / total).collect();
+        Ok(kfreqs)
+    }
+
+    pub fn get_seq(&self) -> PyResult<Vec<u8>> {
+        Python::attach(|py| {
+            let storage = self.storage.borrow(py);
+            Ok(storage.store.read_uint8_array(&self.seqid).unwrap())
+        })
+    }
 }
 
 #[cfg(test)]
@@ -292,25 +348,5 @@ mod tests {
         let sr = SeqRecord::new(&seqid, &seq, num_states as usize);
         let result = sr.to_kmerseq(1);
         assert!(result.is_err());
-    }
-
-    #[test]
-    fn check_make_records() {
-        let seqids: Vec<String> = vec![
-            String::from("seq1"),
-            String::from("seq2"),
-            String::from("seq3"),
-        ];
-        let seqs: Vec<Vec<u8>> = vec![vec![0, 1, 2, 1], vec![0, 1, 2, 2, 3], vec![3, 0, 0]];
-        let records = make_seq_records(&seqids, &seqs, 4);
-        assert_eq!(records[0].seqid, "seq1");
-        assert_eq!(records[1].seqid, "seq2");
-        assert_eq!(records[2].seqid, "seq3");
-        assert_eq!(records[0].num_states, 4);
-        assert_eq!(records[1].num_states, 4);
-        assert_eq!(records[2].num_states, 4);
-        assert_eq!(records[0].seq, &[0, 1, 2, 1]);
-        assert_eq!(records[1].seq, &[0, 1, 2, 2, 3]);
-        assert_eq!(records[2].seq, &[3, 0, 0]);
     }
 }

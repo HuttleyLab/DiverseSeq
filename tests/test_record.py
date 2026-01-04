@@ -460,3 +460,43 @@ def test_make_kmerseq():
     expect = zeros(len(alpha), dtype=dtype)
     expect[expect_kmers] = 1
     assert_allclose(array(kseq.kcounts), expect)
+
+
+@pytest.fixture
+def zstore(unaligned_seqs):
+    from diverse_seq.util import populate_inmem_zstore
+
+    unaligned_seqs = unaligned_seqs.take_seqs(
+        ["Human", "Chimpanzee", "Manatee", "Dugong", "Rhesus"],
+    )
+
+    return populate_inmem_zstore(unaligned_seqs)
+
+
+@pytest.mark.parametrize("seq_number", range(5))
+@pytest.mark.parametrize("k", [1, 2, 3, 5])
+def test_delme(unaligned_seqs, zstore, seq_number, k):
+    from diverse_seq import _dvs as dvs
+
+    zstore = dvs.make_zarr_store()
+    seqid = unaligned_seqs.names[seq_number]
+    seq = unaligned_seqs.seqs[seqid]
+    dvs_kseq = make_kmerseq(seq, dtype=numpy.int32, k=k, moltype="dna")
+
+    # check counts
+    expect = numpy.array(dvs_kseq.kcounts)
+    zstore.write(seqid, numpy.array(seq).tobytes())
+    lz = zstore.get_lazyseq(seqid, num_states=4)
+    kcounts = numpy.array(lz.get_kcounts(k=k))
+    assert numpy.allclose(kcounts, expect)
+    # c3 kcounts
+    c3kcounts = seq.count_kmers(k)
+    assert numpy.allclose(kcounts, c3kcounts)
+
+    # check freqs
+    got = numpy.array(lz.get_kfreqs(k=k))
+    expect_freqs = numpy.array(dvs_kseq.kfreqs)
+    assert numpy.allclose(got, expect_freqs)
+    # c3 kfreqs
+    c3kfreqs = c3kcounts / c3kcounts.sum()
+    assert numpy.allclose(got, c3kfreqs)

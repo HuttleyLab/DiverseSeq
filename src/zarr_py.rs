@@ -1,6 +1,7 @@
+use crate::record::LazySeq;
 use crate::zarr_io::{Storage, ZarrStore};
 use pyo3::Python;
-use pyo3::prelude::{Bound, PyErr, PyResult, pyclass, pymethods};
+use pyo3::prelude::{Bound, Py, PyErr, PyResult, pyclass, pymethods};
 use pyo3::types::{PyAnyMethods, PyDict, PyDictMethods, PyTuple};
 use rustc_hash::FxHashMap;
 use std::path::PathBuf;
@@ -12,10 +13,20 @@ pub struct ZarrStoreWrapper {
     pub source: String,
 }
 
+impl Clone for ZarrStoreWrapper {
+    fn clone(&self) -> Self {
+        ZarrStoreWrapper {
+            store: self.store.clone().expect("Failed to clone ZarrStore"),
+            source: self.source.clone(),
+        }
+    }
+}
+
 #[pymethods]
 impl ZarrStoreWrapper {
     #[new]
-    pub fn new(path: Option<String>) -> PyResult<Self> {
+    #[pyo3(signature = (path, mode="r"))]
+    pub fn new(path: Option<String>, mode: &str) -> PyResult<Self> {
         let source = match path {
             Some(ref p) => p,
             None => &"".to_string(),
@@ -25,7 +36,19 @@ impl ZarrStoreWrapper {
             Some(ref p) => Some(PathBuf::from(p)),
             None => None,
         };
-        let store = ZarrStore::new(path);
+
+        // In read mode, check that path exists
+        if mode == "r" {
+            if let Some(ref p) = path {
+                if !p.exists() {
+                    return Err(PyErr::new::<pyo3::exceptions::PyFileNotFoundError, _>(
+                        format!("Path does not exist: {:?}", p),
+                    ));
+                }
+            }
+        }
+
+        let store = ZarrStore::new(path, mode);
         if !store.is_ok() {
             return Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
                 "Failed to create ZarrStore: {:?}",
@@ -93,7 +116,7 @@ impl ZarrStoreWrapper {
             .extract()?;
 
         let path_buf = std::path::PathBuf::from(path);
-        let store = ZarrStore::new(Some(path_buf.clone())).map_err(|e| {
+        let store = ZarrStore::new(Some(path_buf.clone()), "r").map_err(|e| {
             PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
                 "Failed to unpickle: {:?}",
                 e
@@ -192,5 +215,27 @@ impl ZarrStoreWrapper {
     /// returns the names of unique sequences in the store
     pub fn get_seqids(&self) -> PyResult<Vec<String>> {
         Ok(self.store.list_seqids().unwrap())
+    }
+
+    pub fn get_lazyseq<'py>(
+        &self,
+        py: Python<'py>,
+        seqid: &str,
+        num_states: usize,
+    ) -> PyResult<LazySeq> {
+        Ok(LazySeq::new(
+            seqid.to_string(),
+            Py::new(py, self.clone())?,
+            num_states,
+        ))
+    }
+
+    pub fn get_lazyseqs<'py>(&self, py: Python<'py>, num_states: usize) -> PyResult<Vec<LazySeq>> {
+        let seqids = self.store.list_seqids().unwrap();
+        let lazyseqs = seqids
+            .iter()
+            .map(|seqid| self.get_lazyseq(py, seqid, num_states).unwrap())
+            .collect();
+        Ok(lazyseqs)
     }
 }

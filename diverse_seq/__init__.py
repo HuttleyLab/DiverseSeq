@@ -1,7 +1,9 @@
 """diverse_seq: a tool for sampling diverse biological sequences"""
 
 import typing
+import warnings
 
+warnings.filterwarnings("ignore", message='.+Cannot register "UNREGISTER".+')
 # need to import hdf5plugin here to make sure the plugin path can be
 # found by h5py
 import hdf5plugin  # noqa: F401

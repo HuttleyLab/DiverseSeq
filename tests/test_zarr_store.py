@@ -6,13 +6,13 @@ from diverse_seq import _dvs as dvs
 
 
 def test_can_access_rust_func(tmp_path):
-    result = dvs.make_zarr_store(str(tmp_path / "test.zarr"))
+    result = dvs.make_zarr_store(str(tmp_path / "test.zarr"), mode="w")
     assert not len(result)
 
 
 @pytest.fixture
 def empty_zarr_store(tmp_path):
-    return dvs.make_zarr_store(str(tmp_path / "empty.zarr"))
+    return dvs.make_zarr_store(str(tmp_path / "empty.zarr"), mode="w")
 
 
 @pytest.fixture
@@ -86,3 +86,34 @@ def test_pickle_memstore(inmem_zarr_store):
     result.write("s3", seq.tobytes())
     with pytest.raises(TypeError):
         _ = pickle.dumps(result)
+
+
+@pytest.fixture
+def brc1_zstore(inmem_zarr_store):
+    result = inmem_zarr_store
+    seqcoll = c3.get_dataset("brca1").degap()
+    for seq in seqcoll.seqs:
+        arr = np.array(seq)
+        result.write(seq.name, arr.tobytes())
+    return result
+
+
+def test_zarr_store_key_lazyseq_kfreqs(brc1_zstore):
+    h = brc1_zstore.get_lazyseq("Human", num_states=4)
+    nuc_freq = np.array(h.get_kfreqs(1))
+    assert np.allclose(nuc_freq.sum(), 1.0)
+
+
+def test_zarr_store_key_lazyseq_seq(brc1_zstore):
+    h = brc1_zstore.get_lazyseq("Human", num_states=4)
+    expect = np.array(memoryview(brc1_zstore.read("Human")))
+    seq = np.array(memoryview(h.get_seq()))
+    assert np.allclose(
+        seq,
+        expect,
+    )
+
+
+def test_zarr_store_get_lazyseqs(brc1_zstore):
+    lz = brc1_zstore.get_lazyseqs(num_states=4)
+    assert len(lz) == brc1_zstore.num_unique()

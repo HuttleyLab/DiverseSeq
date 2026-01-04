@@ -39,18 +39,6 @@ from diverse_seq.record import (
     vector,
 )
 
-
-def populate_inmem_zstore(seqcoll: c3_types.SeqsCollectionType) -> dvs.ZarrStore:
-    """returns an in-memory ZarrStoreWrapper populated with sequences from seqcoll"""
-    degapped = seqcoll.degap()
-    # make an in-memory ZarrStore
-    zstore = dvs.make_zarr_store()
-    for seq in degapped.seqs:
-        arr = numpy.array(seq)
-        zstore.write(seq.name, arr.tobytes())
-    return zstore
-
-
 # needs a jsd method for a new sequence
 # needs summed entropy scores
 # needs combined array of summed freqs to allow efficient calculation of entropy
@@ -336,7 +324,7 @@ def max_divergent(
             sr = SummedRecords.from_records(sr.records)
 
     if max_set:
-        app = select_final_max(stat=stat, min_size=min_size, verbose=verbose)  # pylint: disable=no-value-for-parameter
+        app = select_final_max(stat=stat, min_size=min_size)  # pylint: disable=no-value-for-parameter
         sr = app([sr])
     elif verbose:
         num_neg = sum(r.delta_jsd < 0 for r in [sr.lowest] + sr.records)
@@ -727,7 +715,7 @@ class dvs_max:  # done
 
     def main(self, seqs: c3_types.SeqsCollectionType) -> AppOutType:
         # make an in-memory ZarrStore
-        zstore = populate_inmem_zstore(seqs)
+        zstore = dvs_util.populate_inmem_zstore(seqs)
         seqids = list(zstore.unique_seqids)
         self._rng.shuffle(seqids)
         result = dvs.max_divergent(
@@ -787,7 +775,7 @@ class dvs_nmost:  # done
 
     def main(self, seqs: c3_types.SeqsCollectionType) -> AppOutType:
         # make an in-memory ZarrStore
-        zstore = populate_inmem_zstore(seqs)
+        zstore = dvs_util.populate_inmem_zstore(seqs)
         seqids = list(zstore.unique_seqids)
         self._rng.shuffle(seqids)
         result = dvs.nmost_divergent(zstore, n=self._n, k=self._k, seqids=seqids)

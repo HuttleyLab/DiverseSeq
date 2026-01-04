@@ -593,7 +593,7 @@ mod tests {
     }
 
     fn make_zstore(path: std::path::PathBuf, add_invalid: bool) -> ZarrStore {
-        let mut store = ZarrStore::new(Some(path)).unwrap();
+        let mut store = ZarrStore::new(Some(path), "w").unwrap();
         let sequences = vec![
             vec![0, 0, 1, 1],       // seq1
             vec![1, 1, 1, 3],       // seq2

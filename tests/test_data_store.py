@@ -48,7 +48,7 @@ def zarrstore_path(tmp_path):
 
 @pytest.fixture(scope="function")
 def brca1_hdf5_dstore(zarrstore_path, brca1_5_dstore):
-    dstore = dvs.make_zarr_store(str(zarrstore_path))
+    dstore = dvs.make_zarr_store(str(zarrstore_path), mode="w")
     prep = dvs_io.dvs_load_seqs(moltype="dna") + dvs_io.dvs_write_seqs(
         data_store=dstore,
     )
@@ -63,7 +63,7 @@ def test_dvs_file_to_dir(brca1_5_dstore, brca1_5):
 @pytest.mark.parametrize("parallel", (False, True))
 def test_prep_pipeline(brca1_5, brca1_5_dstore, zarrstore_path, parallel):
     # initialise and apply pipeline
-    dstore = dvs.make_zarr_store(str(zarrstore_path))
+    dstore = dvs.make_zarr_store(str(zarrstore_path), mode="w")
     prep = dvs_io.dvs_load_seqs(moltype="dna") + dvs_io.dvs_write_seqs(
         data_store=dstore,
     )

@@ -18,7 +18,6 @@ from scitrack import CachingLogger
 from diverse_seq import __version__
 from diverse_seq import _dvs as dvs
 from diverse_seq import cluster as dvs_cluster
-from diverse_seq import data_store as dvs_data_store
 from diverse_seq import io as dvs_io
 from diverse_seq import records as dvs_records
 from diverse_seq import util as dvs_util
@@ -222,7 +221,7 @@ def prep(
             random.shuffle(members)
             in_dstore = members[:limit]
 
-        out_dstore = dvs.make_zarr_store(str(dvseqs_path))
+        out_dstore = dvs.make_zarr_store(str(dvseqs_path), mode="w")
 
         loader = dvs_io.dvs_load_seqs(
             moltype=moltype,
@@ -555,7 +554,7 @@ def ctree(
         )
         sys.exit(1)
 
-    seqids = dvs_data_store.get_seqids_from_store(seqfile)
+    seqids = dvs.get_seqids_from_store(str(seqfile))
     if verbose:
         dvs_util.print_colour(f"Using random seed: {seed}", "blue")
 
@@ -578,7 +577,8 @@ def ctree(
     )
     tree = app(seqids)  # pylint: disable=not-callable
     if not tree:
-        dvs_util.print_colour(tree, "red")
+        print(tree)
+        # dvs_util.print_colour(tree, "red")
         sys.exit(1)
 
     tree.write(outpath)
