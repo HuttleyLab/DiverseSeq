@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::record::{KmerSeq, entropy};
+use crate::record::{entropy, KmerSeq};
 
 #[derive(Debug)]
 /// Container of most divergent sequences
@@ -241,7 +241,7 @@ mod tests {
     use rstest::{fixture, rstest};
 
     use super::*;
-    use std::panic::{AssertUnwindSafe, catch_unwind};
+    use std::panic::{catch_unwind, AssertUnwindSafe};
 
     #[test]
     fn add_vectors() {
