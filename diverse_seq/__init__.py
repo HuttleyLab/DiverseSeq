@@ -4,9 +4,6 @@ import typing
 import warnings
 
 warnings.filterwarnings("ignore", message='.+Cannot register "UNREGISTER".+')
-# need to import hdf5plugin here to make sure the plugin path can be
-# found by h5py
-import hdf5plugin  # noqa: F401
 
 if typing.TYPE_CHECKING:
     from cogent3.core.alignment import SequenceCollection
