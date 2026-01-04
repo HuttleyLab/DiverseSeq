@@ -5,7 +5,6 @@ import tempfile
 import time
 import typing
 from collections import OrderedDict
-from collections.abc import Mapping
 from pathlib import Path
 
 import click
@@ -42,15 +41,15 @@ class OrderedGroup(click.Group):
     def __init__(
         self,
         name: str | None = None,
-        commands: Mapping[str, click.Command] | None = None,
+        commands: dict[str, click.Command] | None = None,
         **kwargs,
     ):
         super().__init__(name, commands, **kwargs)
         #: the registered subcommands by their exported names.
         self.commands = commands or OrderedDict()
 
-    def list_commands(self, ctx: click.Context) -> Mapping[str, click.Command]:
-        return self.commands
+    def list_commands(self, ctx: click.Context) -> list[str]:
+        return list(self.commands.keys())
 
 
 _click_command_opts = {
@@ -113,7 +112,7 @@ _seqfile = click.option(
     "--seqfile",
     required=True,
     type=Path,
-    callback=dvs_util._check_h5_dstore,
+    callback=dvs_util._check_dstore,
     help="path to .dvseqsz file",
 )
 _k = click.option("-k", type=int, default=6, help="k-mer size")

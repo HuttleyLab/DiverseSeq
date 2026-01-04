@@ -3,7 +3,7 @@ use crate::zarr_io::ZarrStore;
 use core::panic;
 use std::collections::HashSet;
 
-use crate::record::{KmerSeq, LazySeqRecord, entropy};
+use crate::record::{KmerSeq, LazySeqRecord, SeqRecord, entropy};
 
 #[derive(Debug, Clone)]
 /// Container of most divergent sequences
@@ -419,6 +419,23 @@ pub fn select_max_divergent(
     summed
 }
 
+pub fn make_summed_records(
+    records: Vec<(String, Vec<u8>)>,
+    k: usize,
+    num_states: usize,
+) -> SummedRecords {
+    let mut kseq_recs: Vec<KmerSeq> = Vec::new();
+
+    for (seqid, seq) in records.iter() {
+        let seqrec = SeqRecord::new(seqid, seq, num_states);
+        let kseq = seqrec.to_kmerseq(k);
+        if kseq.is_ok() {
+            kseq_recs.push(kseq.unwrap());
+        }
+    }
+    SummedRecords::new(kseq_recs)
+}
+
 #[cfg(test)]
 mod tests {
     use crate::record::SeqRecord;
@@ -543,6 +560,18 @@ mod tests {
     fn check_increases_jsd(summed: SummedRecords) {
         let better = SeqRecord::new("seq4", &[0, 1, 2, 1], 4);
         assert!(summed.increases_jsd(&better.to_kmerseq(1).unwrap()));
+    }
+
+    #[rstest]
+    fn check_not_increases_jsd(summed: SummedRecords) {
+        let same = &summed.records[0];
+        assert!(!summed.increases_jsd(&same));
+    }
+
+    #[rstest]
+    fn check_delta_jsd_same(summed: SummedRecords) {
+        let same = &summed.records[0];
+        assert_eq!(summed.delta_jsd(&same), 0.0);
     }
 
     #[rstest]
@@ -792,5 +821,61 @@ mod tests {
         let sr = select_max_divergent(&zstore, Stat::Std, min_size, max_size, k, num_states, None);
         assert!(sr.size >= min_size as u32);
         assert!(sr.size <= zstore.list_unique_seqids().unwrap().len() as u32);
+    }
+    #[fixture]
+    fn big_seqs() -> Vec<(String, Vec<u8>)> {
+        vec![
+            (
+                "FlyingFox".to_string(),
+                vec![
+                    3, 2, 0, 2, 3, 0, 2, 0, 1, 0, 1, 2, 0, 0, 2, 1, 0, 3, 3, 2, 2, 1, 1, 0, 3, 2,
+                    1, 2, 0, 1, 1, 1, 2, 3, 2, 3, 2, 3, 3, 3, 0, 2, 2, 2, 3, 2, 1, 2, 3, 1, 2, 1,
+                    1, 2, 2, 2, 1, 1, 2, 0, 1, 2, 0, 3, 1, 2, 3, 1, 2, 2, 0, 0, 2, 2, 2, 2, 2, 1,
+                    1, 1, 1, 2, 3, 2, 3, 2, 2, 1, 0, 0, 2, 0, 0, 1, 2, 0, 3, 3, 0, 0, 3, 0, 0, 1,
+                    0, 3, 2, 2, 3, 2, 0, 2, 1, 0, 2, 3, 2, 2, 2, 0, 3, 2, 0, 3, 1, 2, 3, 2, 3, 3,
+                    3, 1, 0, 0, 0, 2, 2, 2, 3, 2, 0, 1, 1, 2, 0, 0, 3, 2, 3, 2,
+                ],
+            ),
+            (
+                "DogFaced".to_string(),
+                vec![
+                    1, 2, 2, 3, 2, 0, 2, 3, 0, 2, 0, 1, 0, 1, 2, 0, 0, 2, 1, 0, 3, 3, 2, 2, 0, 1,
+                    0, 3, 2, 1, 2, 0, 1, 1, 1, 2, 3, 3, 3, 2, 3, 3, 3, 1, 2, 2, 2, 3, 2, 1, 2, 3,
+                    1, 2, 1, 1, 2, 2, 2, 1, 1, 2, 2, 1, 2, 0, 3, 1, 2, 3, 2, 0, 1, 0, 3, 0, 3, 0,
+                    3, 1, 2, 3, 1, 2, 2, 0, 0, 3, 2, 2, 2, 2, 1, 1, 1, 1, 2, 3, 2, 3, 2, 2, 1, 0,
+                    0, 2, 0, 0, 1, 2, 0, 3, 2, 0, 0, 3, 0, 0, 0, 0, 2, 2, 2, 3, 2, 2, 2, 1, 0, 2,
+                    3, 2, 2, 2, 0, 3, 2, 1, 2, 1, 2, 3, 2, 3, 2, 3, 1, 0, 0, 0,
+                ],
+            ),
+            (
+                "FreeTaile".to_string(),
+                vec![
+                    3, 2, 0, 2, 3, 0, 2, 0, 1, 0, 1, 2, 0, 0, 2, 1, 0, 3, 3, 2, 2, 1, 1, 0, 3, 2,
+                    1, 2, 1, 1, 1, 1, 2, 3, 3, 3, 2, 2, 3, 3, 1, 2, 2, 2, 2, 2, 2, 2, 3, 1, 0, 1,
+                    1, 2, 2, 2, 0, 1, 2, 2, 0, 2, 0, 3, 1, 3, 3, 3, 0, 1, 0, 3, 0, 3, 0, 3, 1, 2,
+                    3, 2, 2, 2, 0, 0, 2, 2, 2, 2, 2, 1, 1, 5, 1, 2, 2, 3, 3, 2, 2, 1, 0, 0, 2, 0,
+                    1, 1, 2, 0, 3, 3, 0, 0, 3, 0, 0, 1, 0, 2, 2, 1, 3, 2, 0, 2, 2, 0, 2, 3, 2, 2,
+                    2, 0, 3, 2, 1, 2, 3, 2, 3, 2, 3, 3, 2, 1, 2, 0, 0, 2, 2, 3,
+                ],
+            ),
+            (
+                "LittleBro".to_string(),
+                vec![
+                    3, 3, 1, 2, 1, 2, 1, 2, 3, 3, 2, 0, 2, 3, 0, 3, 0, 1, 0, 1, 2, 0, 0, 2, 1, 0,
+                    3, 3, 2, 2, 1, 1, 0, 3, 2, 1, 2, 0, 1, 1, 1, 2, 3, 3, 3, 2, 2, 3, 3, 1, 2, 2,
+                    2, 2, 2, 1, 2, 3, 1, 0, 1, 1, 2, 2, 2, 0, 1, 2, 2, 0, 3, 0, 3, 3, 3, 3, 2, 0,
+                    1, 0, 3, 0, 3, 0, 3, 1, 2, 3, 1, 2, 3, 0, 0, 2, 2, 2, 2, 2, 0, 1, 1, 0, 2, 2,
+                    2, 3, 2, 2, 1, 0, 0, 2, 0, 0, 1, 3, 0, 3, 3, 0, 0, 3, 0, 0, 1, 0, 2, 2, 2, 3,
+                    2, 0, 2, 0, 0, 2, 3, 2, 2, 2, 0, 3, 2, 1, 2, 3, 2, 3, 2, 3,
+                ],
+            ),
+        ]
+    }
+
+    #[rstest]
+    fn check_big(big_seqs: Vec<(String, Vec<u8>)>) {
+        let srw = make_summed_records(big_seqs, 3, 4);
+        let rs = srw.get_result();
+        assert!(!rs.total_jsd.is_nan());
     }
 }

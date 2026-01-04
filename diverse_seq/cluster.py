@@ -23,11 +23,10 @@ from diverse_seq.distance import (
     mash_distance,
     mash_distances,
 )
-from diverse_seq.record import (
+from diverse_seq.io import (
     SeqArray,
-    _get_canonical_states,
 )
-from diverse_seq.util import populate_inmem_zstore
+from diverse_seq.util import _get_canonical_states, populate_inmem_zstore
 
 
 class ClusterTreeBase:

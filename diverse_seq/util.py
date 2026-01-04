@@ -1,6 +1,5 @@
 import contextlib
 import functools
-import math
 import os
 import pathlib
 import re
@@ -102,35 +101,6 @@ def chunked(iterable, num_chunks, verbose=False):
         yield iterable[start:end]
 
 
-class summary_stats:
-    """computes the summary statistics for a set of numbers"""
-
-    def __init__(self, numbers: numpy.ndarray):
-        self._numbers = numbers
-
-    @functools.cached_property
-    def n(self):
-        return len(self._numbers)
-
-    @functools.cached_property
-    def mean(self):
-        return math.fsum(self._numbers) / self.n
-
-    @functools.cached_property
-    def var(self):
-        """unbiased estimate of the variance"""
-        return math.fsum((x - self.mean) ** 2 for x in self._numbers) / (self.n - 1)
-
-    @functools.cached_property
-    def std(self):
-        """standard deviation"""
-        return self.var**0.5
-
-    @functools.cached_property
-    def cov(self):
-        return self.std / self.mean
-
-
 def _comma_sep_or_file(
     ctx: "Context",  # noqa: ARG001
     param: "Option",  # noqa: ARG001
@@ -153,7 +123,7 @@ def _hide_progress(
     return True if "DVS_HIDE_PROGRESS" in os.environ else hide_progress
 
 
-def _check_h5_dstore(
+def _check_dstore(
     ctx: "Context",  # noqa: ARG001
     param: "Option",  # noqa: ARG001
     path: pathlib.Path,
@@ -211,3 +181,14 @@ def populate_inmem_zstore(seqcoll: c3_types.SeqsCollectionType) -> dvs.ZarrStore
         arr = numpy.array(seq)
         zstore.write(seq.name, arr.tobytes())
     return zstore
+
+
+@functools.cache
+def _get_canonical_states(moltype: str) -> bytes:
+    mt = get_moltype(moltype)
+    canonical = "".join(mt.alphabet)
+    v = mt.alphabet.to_indices(canonical)
+    if not (0 <= min(v) < max(v) < len(canonical)):
+        msg = f"indices of canonical states {canonical} not sequential {v}"
+        raise ValueError(msg)
+    return canonical.encode("utf8")

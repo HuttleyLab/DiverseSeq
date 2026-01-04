@@ -85,8 +85,7 @@ fn count_kmers(seq: &[u8], num_states: usize, k: usize) -> Vec<usize> {
 
 pub fn entropy(kfreqs: &Vec<f64>) -> f64 {
     if kfreqs.is_empty() {
-        let entropy = f64::NAN;
-        return entropy;
+        panic!("cannot calculate entropy as frequency vector empty");
     }
     let mut entropy: f64 = 0.0;
     let mut total_freq: f64 = 0.0;
@@ -97,8 +96,11 @@ pub fn entropy(kfreqs: &Vec<f64>) -> f64 {
         entropy += -*freq * freq.log2();
         total_freq += *freq;
     }
-    if (total_freq - 1.0).abs() > f64::EPSILON {
-        entropy = f64::NAN;
+    // Use tolerance accounting for accumulated rounding errors
+    // Rule of thumb: n * epsilon where n is number of operations
+    let tolerance = (kfreqs.len() as f64) * f64::EPSILON;
+    if (total_freq - 1.0).abs() > tolerance {
+        panic!("cannot calculate entropy as frequency vector total {total_freq}!=1.0");
     }
     entropy
 }
@@ -277,8 +279,8 @@ mod tests {
     #[case(vec![0.9, 0.9])]
     #[case(vec![1.9, 0.0])]
     fn nan_entropy(#[case] freqs: Vec<f64>) {
-        let entropy = entropy(&freqs);
-        assert!(entropy.is_nan());
+        let result = std::panic::catch_unwind(|| entropy(&freqs));
+        assert!(result.is_err());
     }
 
     #[rstest]
@@ -348,5 +350,26 @@ mod tests {
         let sr = SeqRecord::new(&seqid, &seq, num_states as usize);
         let result = sr.to_kmerseq(1);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn freetailed() {
+        let sr = SeqRecord::new(
+            "FreeTaile",
+            &[
+                3, 2, 0, 2, 3, 0, 2, 0, 1, 0, 1, 2, 0, 0, 2, 1, 0, 3, 3, 2, 2, 1, 1, 0, 3, 2, 1, 2,
+                1, 1, 1, 1, 2, 3, 3, 3, 2, 2, 3, 3, 1, 2, 2, 2, 2, 2, 2, 2, 3, 1, 0, 1, 1, 2, 2, 2,
+                0, 1, 2, 2, 0, 2, 0, 3, 1, 3, 3, 3, 0, 1, 0, 3, 0, 3, 0, 3, 1, 2, 3, 2, 2, 2, 0, 0,
+                2, 2, 2, 2, 2, 1, 1, 5, 1, 2, 2, 3, 3, 2, 2, 1, 0, 0, 2, 0, 1, 1, 2, 0, 3, 3, 0, 0,
+                3, 0, 0, 1, 0, 2, 2, 1, 3, 2, 0, 2, 2, 0, 2, 3, 2, 2, 2, 0, 3, 2, 1, 2, 3, 2, 3, 2,
+                3, 3, 2, 1, 2, 0, 0, 2, 2, 3,
+            ],
+            4,
+        );
+        let kcounts = sr.to_kcounts(3).unwrap();
+        let total = kcounts.iter().sum::<usize>() as f64;
+        let kfreqs: Vec<f64> = kcounts.iter().map(|x| *x as f64 / total).collect();
+        let e = entropy(&kfreqs);
+        assert!(!e.is_nan());
     }
 }

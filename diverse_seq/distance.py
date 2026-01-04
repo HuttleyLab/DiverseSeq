@@ -11,10 +11,10 @@ from cogent3.evolve.fast_distance import DistanceMatrix
 from rich.progress import Progress
 
 from diverse_seq import _dvs as dvs
-from diverse_seq.record import (
+from diverse_seq.util import (
     _get_canonical_states,
+    populate_inmem_zstore,
 )
-from diverse_seq.util import populate_inmem_zstore
 
 BottomSketch: TypeAlias = list[int]
 
@@ -115,17 +115,6 @@ class dvs_dist:
             )
 
         return distances
-
-
-def dists_to_distmatrix(
-    distances: np.ndarray,
-    names: Sequence[str],
-) -> c3_types.PairwiseDistanceType:
-    dist_dict = {}
-    for i in range(1, len(distances)):
-        for j in range(i):
-            dist_dict[(names[i], names[j])] = distances[i, j]
-    return DistanceMatrix(dist_dict)
 
 
 def mash_distances(

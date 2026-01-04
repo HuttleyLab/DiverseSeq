@@ -5,9 +5,7 @@ from cogent3 import load_unaligned_seqs, make_unaligned_seqs
 from numpy.testing import assert_array_equal
 
 from diverse_seq import _dvs as dvs
-from diverse_seq import data_store
 from diverse_seq import io as dvs_io
-from diverse_seq import record as dvs_record
 from diverse_seq.util import str2arr
 
 DATADIR = pathlib.Path(__file__).parent / "data"
@@ -46,15 +44,6 @@ def zarrstore_path(tmp_path):
     return tmp_path / "zarrstore.dvseqsz"
 
 
-@pytest.fixture(scope="function")
-def brca1_hdf5_dstore(zarrstore_path, brca1_5_dstore):
-    dstore = dvs.make_zarr_store(str(zarrstore_path), mode="w")
-    prep = dvs_io.dvs_load_seqs(moltype="dna") + dvs_io.dvs_write_seqs(
-        data_store=dstore,
-    )
-    return prep.apply_to(brca1_5_dstore, id_from_source=dvs_io.get_unique_id)
-
-
 def test_dvs_file_to_dir(brca1_5_dstore, brca1_5):
     # directory contains the same number of sequences as the input file
     assert brca1_5.num_seqs == len(brca1_5_dstore.completed)
@@ -81,28 +70,10 @@ def test_prep_pipeline(brca1_5, brca1_5_dstore, zarrstore_path, parallel):
     assert_array_equal(seq_data, orig_seq_data.tobytes())
 
 
-def test_get_seqids(DATA_DIR):
+def test_get_seqids(DATA_DIR, processed_seq_path):
     fasta_path = DATA_DIR / "brca1.fasta"
     expect = set(load_unaligned_seqs(fasta_path, moltype="dna").names)
-    store_path = DATA_DIR / "brca1.dvseqs"
 
-    got = data_store.get_seqids_from_store(store_path)
+    got = dvs.get_seqids_from_store(str(processed_seq_path))
 
     assert set(got) == expect
-
-
-def test_in_memory(brca1_5):
-    dstore = dvs.make_zarr_store()
-    writer = dvs_io.dvs_write_seqs(
-        data_store=dstore,
-    )
-
-    def get_src(x):
-        if hasattr(x, "name"):
-            return x.name
-        return x.source
-
-    prep = dvs_record.seq_to_seqarray(moltype="dna") + writer
-    prep.apply_to(brca1_5.seqs, id_from_source=get_src, logger=False)
-    assert len(dstore) == brca1_5.num_seqs
-    assert len(dstore.read("Cat")) == 20

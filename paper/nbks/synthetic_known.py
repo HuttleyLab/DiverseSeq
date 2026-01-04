@@ -9,7 +9,8 @@ from numpy.random import choice, shuffle
 from rich.progress import track
 
 from diverse_seq import util as dvs_utils
-from diverse_seq.record import KmerSeq, SeqArray, seqarray_to_kmerseq
+from diverse_seq.io import SeqArray
+from diverse_seq.record import KmerSeq, seqarray_to_kmerseq
 from diverse_seq.records import max_divergent
 
 POOL = {"a": "ACGGGGGT", "b": "ACCCCCGT", "c": "AAAAACGT", "d": "ACGTTTTT"}

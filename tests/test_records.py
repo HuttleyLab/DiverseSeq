@@ -14,9 +14,9 @@ from cogent3.maths.measure import jsd
 from numpy.testing import assert_allclose
 
 from diverse_seq import _dvs as dvs
+from diverse_seq import load_sample_data
 from diverse_seq import records as dvs_records
-from diverse_seq.record import KmerSeq, kmer_counts
-from diverse_seq.util import populate_inmem_zstore, str2arr
+from diverse_seq.util import populate_inmem_zstore
 
 
 @pytest.fixture
@@ -25,121 +25,41 @@ def seqcoll():
     return make_unaligned_seqs(data, moltype="dna")
 
 
-def _get_kfreqs_per_seq(seqs, k=1):
-    app = str2arr()
-    result = {}
-    for seq in seqs.seqs:
-        arr = app(str(seq))  # pylint: disable=not-callable
-        freqs = kmer_counts(arr, 4, k)
-        result[seq.name] = freqs
-    return result
+@pytest.fixture
+def zstore(seqcoll):
+    return populate_inmem_zstore(seqcoll)
 
 
-def _make_records(kcounts, seqcoll):
-    return [
-        KmerSeq(kcounts=kcounts[s.name], name=s.name)
-        for s in seqcoll.seqs
-        if s.name in kcounts
-    ]
-
-
-@pytest.mark.parametrize("k", (1, 2))
-def test_total_jsd(seqcoll, k):
-    kcounts = _get_kfreqs_per_seq(seqcoll, k=k)
-    records = [
-        KmerSeq(kcounts=kcounts[s.name], name=f"{s.name}-{k}") for s in seqcoll.seqs
-    ]
-    sr = dvs_records.SummedRecords.from_records(records)
-    freqs = {n: v.astype(float) / v.sum() for n, v in kcounts.items()}
+@pytest.mark.parametrize("k", [1, 2])
+def test_total_jsd(zstore, k):
+    lzseqs = [zstore.get_lazyseq(n, num_states=4) for n in zstore.unique_seqids]
+    sr = dvs.get_delta_jsd_calculator(
+        [(s.seqid, s.get_seq()) for s in lzseqs], k=k, num_states=4
+    ).get_result()
+    freqs = {s.seqid: numpy.array(s.get_kfreqs(k)) for s in lzseqs}
     expect = jsd(*list(freqs.values()))
     assert_allclose(sr.total_jsd, expect)
 
 
-def test_add(seqcoll):
+def test_mean_delta_jsd(zstore):
     k = 1
-    kcounts = _get_kfreqs_per_seq(seqcoll, k=k)
-    records = _make_records(kcounts, seqcoll)
-    sr = dvs_records.SummedRecords.from_records(records[:-1])
-    orig = id(sr)
-    sr = sr + records[-1]
-    assert id(sr) != orig
-    freqs = {n: v.astype(float) / v.sum() for n, v in kcounts.items()}
-    expect = jsd(*list(freqs.values()))
-    assert_allclose(sr.total_jsd, expect)
-
-
-def test_sub(seqcoll):
-    k = 1
-    kcounts = _get_kfreqs_per_seq(seqcoll, k=k)
-    records = _make_records(kcounts, seqcoll)
-    sr = dvs_records.SummedRecords.from_records(records)
-    assert sr.size == 4
-    orig = id(sr)
-    sr = sr - records[-1]
-    assert id(sr) != orig
-    assert sr.size == 3
-    freqs = {n: v.astype(float) / v.sum() for n, v in kcounts.items()}
-    expect = jsd(*[freqs[name] for name in sr.iter_record_names()])
-    assert_allclose(sr.total_jsd, expect)
-
-
-@pytest.mark.parametrize(
-    "exclude,expect",
-    (("a", False), ("b", False), ("c", True), ("d", True)),
-)
-def test_increases_jsd(seqcoll, exclude, expect):
-    kcounts = _get_kfreqs_per_seq(seqcoll, k=1)
-    records = {r.name: r for r in _make_records(kcounts, seqcoll)}
-    excluded = records.pop(exclude)
-    sr = dvs_records.SummedRecords.from_records(list(records.values()))
-    assert sr.increases_jsd(excluded) == expect
-
-
-def test_mean_delta_jsd(seqcoll):
-    k = 1
-    kcounts = _get_kfreqs_per_seq(seqcoll, k=k)
-    records = [KmerSeq(kcounts=kcounts[s.name], name=s.name) for s in seqcoll.seqs]
-    sr_with_a = dvs_records.SummedRecords.from_records(records)
-    sr_without_a = dvs_records.SummedRecords.from_records(
-        [r for r in records if r.name != "a"],
-    )
+    lzseqs = [zstore.get_lazyseq(n, num_states=4) for n in zstore.get_seqids()]
+    wout_a = [lz for lz in lzseqs if lz.seqid != "a"]
+    assert len(wout_a) == len(lzseqs) - 1
+    sr_with_a = dvs.get_delta_jsd_calculator(
+        [(s.seqid, s.get_seq()) for s in lzseqs], k=k, num_states=4
+    ).get_result()
+    sr_without_a = dvs.get_delta_jsd_calculator(
+        [(s.seqid, s.get_seq()) for s in wout_a], k=k, num_states=4
+    ).get_result()
     assert sr_without_a.mean_delta_jsd > sr_with_a.mean_delta_jsd
-
-
-def test_replaced_lowest(seqcoll):
-    k = 1
-    kcounts = _get_kfreqs_per_seq(seqcoll, k=k)
-    records = _make_records(kcounts, seqcoll)
-    sr = dvs_records.SummedRecords.from_records(records[:-1])
-    lowest = sr.lowest
-    nsr = sr.replaced_lowest(records[-1])
-
-    assert nsr is not sr
-    assert sr.size == nsr.size == len(records) - 1
-    # make sure previous lowest not present at all
-    assert nsr.lowest is not lowest
-    for r in nsr.records:
-        assert r is not lowest
-    # make sure new record is present
-    assert any(r is records[-1] for r in nsr.records + [nsr.lowest])
 
 
 def test_max_divergent(seqcoll):
     zstore = populate_inmem_zstore(seqcoll)
     k = 1
-    kcounts = _get_kfreqs_per_seq(seqcoll, k=k)
-    records = _make_records(kcounts, seqcoll)
-    got = dvs.max_divergent(zstore, min_size=2, max_size=2, stat="stdev", k=k)
+    got = dvs.max_divergent(zstore, min_size=2, max_size=2, k=k)
     assert got.size == 2
-
-
-@pytest.fixture
-def zstore(seqcoll):
-    store = dvs.make_zarr_store(None)
-    for seq in seqcoll.seqs:
-        arr = numpy.array(seq)
-        store.write(seq.name, arr.tobytes())
-    return store
 
 
 def test_most_divergent(zstore):
@@ -279,4 +199,39 @@ def test_dvs_delta_jsd_moltype():
     assert expect == got
 
 
-def test_dvs_nmost_small_case(): ...
+@pytest.fixture
+def ref_query_seqs():
+    seqcoll = load_sample_data()
+    sliced = [seq[1500:1650] for seq in seqcoll.seqs]
+    newcoll = make_unaligned_seqs(sliced, moltype="dna")
+
+    num = 4
+    ref_seqs = newcoll.take_seqs(seqcoll.names[:num])
+    query_seqs = newcoll.take_seqs(seqcoll.names[:num], negate=True)
+    return ref_seqs, query_seqs
+
+
+def test_jsd_calc(ref_query_seqs):
+    ref_seqs, _ = ref_query_seqs
+    calc = dvs.get_delta_jsd_calculator(
+        [(s.name, s.to_array().tobytes()) for s in ref_seqs.seqs], k=3, num_states=4
+    )
+    sr = calc.get_result()
+    assert sr.total_jsd > 0.0
+
+
+def test_jsd_calc_exists(ref_query_seqs):
+    ref_seqs, _ = ref_query_seqs
+    seq_records = [(s.name, s.to_array().tobytes()) for s in ref_seqs.seqs]
+    calc = dvs.get_delta_jsd_calculator(seq_records, k=3, num_states=4)
+    got = calc.delta_jsd(*seq_records[0])
+    numpy.allclose(got, 0.0)
+
+
+def test_jsd_calc_empty_seq(ref_query_seqs):
+    ref_seqs, _ = ref_query_seqs
+    calc = dvs.get_delta_jsd_calculator(
+        [(s.name, s.to_array().tobytes()) for s in ref_seqs.seqs], k=3, num_states=4
+    )
+    with pytest.raises(ValueError):
+        calc.delta_jsd("blah", b"")

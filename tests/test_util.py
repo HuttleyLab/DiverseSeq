@@ -1,9 +1,7 @@
 import sys
 
-import numpy
 import pytest
 from cogent3 import get_moltype
-from numpy.testing import assert_allclose
 
 from diverse_seq import util as dvs_util
 
@@ -49,14 +47,6 @@ def test_chunked():
     got = list(dvs_util.chunked(data, 3))
     expect = [[0, 1, 2, 3], [4, 5, 6], [7, 8, 9]]
     assert got == expect
-
-
-def test_summary_stats():
-    data = numpy.random.randint(low=0, high=5, size=100)
-    stats = dvs_util.summary_stats(data)
-    assert_allclose(stats.mean, data.mean())
-    assert_allclose(stats.std, data.std(ddof=1))
-    assert_allclose(stats.cov, data.std(ddof=1) / data.mean())
 
 
 @pytest.fixture(params=(False, True))

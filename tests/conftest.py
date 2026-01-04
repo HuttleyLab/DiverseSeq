@@ -1,8 +1,11 @@
 from pathlib import Path
 
+import numpy as np
 import pytest
-from cogent3 import load_unaligned_seqs
+from cogent3 import get_dataset, load_unaligned_seqs
 from cogent3.core.alignment import SequenceCollection
+
+from diverse_seq import _dvs as dvs
 
 
 @pytest.fixture(scope="session")
@@ -12,11 +15,6 @@ def DATA_DIR() -> Path:
 
 @pytest.fixture
 def processed_seq_path(tmp_path):
-    import numpy as np
-    from cogent3 import get_dataset
-
-    from diverse_seq import _dvs as dvs
-
     outpath = tmp_path / "brca1.dvseqsz"
     dstore = dvs.make_zarr_store(str(outpath), mode="w")
     seqcoll = get_dataset("brca1").degap()
