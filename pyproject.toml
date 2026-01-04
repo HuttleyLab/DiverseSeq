@@ -1,6 +1,6 @@
 [build-system]
-requires = ["flit_core >=3.2,<4"]
-build-backend = "flit_core.buildapi"
+requires = ["maturin>=1.10,<2.0"]
+build-backend = "maturin"
 
 [project]
 name = "diverse_seq"
@@ -48,11 +48,13 @@ Documentation = "https://diverse-seq.readthedocs.io/"
 "Bug Tracker" = "https://github.com/HuttleyLab/DiverseSeq/issues"
 "Source Code" = "https://github.com/HuttleyLab/DiverseSeq/"
 
-[tool.flit.sdist]
-include = ["tests/*"]
+[tool.maturin]
+# This feature is required for the "extending" pattern
+features = ["pyo3/extension-module"]
+module-name = "diverse_seq._dvs"
 
 [project.optional-dependencies]
-test = ["nox", "pytest", "pytest-cov", "pytest-xdist"]
+test = ["nox", "pytest", "pytest-cov"]
 doc = [
     "diverse_seq[extra]",
     "mkdocs>=1.6.1",
@@ -68,6 +70,7 @@ dev = [
     "ruff==0.14.9",
     "diverse_seq[test]",
     "diverse_seq[doc]",
+    "maturin",
 ]
 extra = [
     "cogent3[extra]",

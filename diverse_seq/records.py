@@ -703,7 +703,6 @@ class dvs_max:
         self._rng.shuffle(records)
         for record in records:
             if not record:
-                print(record)
                 return None
         result = max_divergent(
             records=records,
