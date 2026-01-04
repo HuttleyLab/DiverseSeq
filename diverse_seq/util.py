@@ -155,10 +155,11 @@ def _check_h5_dstore(
     param: "Option",  # noqa: ARG001
     path: pathlib.Path,
 ) -> pathlib.Path:
-    """makes sure minimum number of sequences are in the store"""
-    from diverse_seq import data_store
+    """makes sure minimum number of unique sequences are in the store"""
+    from diverse_seq import _dvs as dvs
 
-    seqids = data_store.get_seqids_from_store(path)
+    store = dvs.make_zarr_store(str(path))
+    seqids = list(store.unique_seqids())
     min_num = 5
     if len(seqids) >= min_num:
         return path

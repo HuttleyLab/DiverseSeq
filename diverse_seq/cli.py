@@ -1,4 +1,5 @@
 import random
+import shutil
 import sys
 import tempfile
 import time
@@ -112,7 +113,7 @@ _seqfile = click.option(
     required=True,
     type=Path,
     callback=dvs_util._check_h5_dstore,
-    help="path to .dvseqs file",
+    help="path to .dvseqsz file",
 )
 _k = click.option("-k", type=int, default=6, help="k-mer size")
 
@@ -175,8 +176,10 @@ def prep(
     limit: int | None,
     hide_progress: bool,
 ) -> None:
-    """Writes processed sequences to a <HDF5 file>.dvseqs."""
-    dvseqs_path = outpath.with_suffix(".dvseqs")
+    """Writes processed sequences to a <Zarr file>.dvseqsz."""
+    from diverse_seq import _dvs as dvs
+
+    dvseqs_path = outpath.with_suffix(".dvseqsz")
     if dvseqs_path.exists() and not force_overwrite:
         dvs_util.print_colour(
             "A file with the same name already exists. Existing data members will be skipped. "
@@ -186,7 +189,7 @@ def prep(
         sys.exit(1)
 
     if dvseqs_path.exists() and force_overwrite:
-        dvseqs_path.unlink()
+        shutil.rmtree(dvseqs_path)
 
     suffix = suffix.removeprefix(".")
 
@@ -217,7 +220,7 @@ def prep(
             random.shuffle(members)
             in_dstore = members[:limit]
 
-        out_dstore = dvs_data_store.HDF5DataStore(source=dvseqs_path, mode="w")
+        out_dstore = dvs.make_zarr_store(str(dvseqs_path))
 
         loader = dvs_io.dvs_load_seqs(
             moltype=moltype,
@@ -249,7 +252,6 @@ def prep(
                 progress.update(convert, advance=1, refresh=True)
                 del r
 
-    out_dstore.close()
     dvs_util.print_colour(
         f"Successfully created '{out_dstore.source!s}'",
         "green",
@@ -309,18 +311,20 @@ def max(  # noqa: A001
     hide_progress: bool,
 ) -> None:
     """Identify the seqs that maximise average delta JSD"""
+    from diverse_seq import _dvs as dvs
+
     if max_size is not None and min_size > max_size:
         dvs_util.print_colour(f"{min_size=} cannot be greater than {max_size=}", "red")
         sys.exit(1)
 
-    if seqfile.suffix != ".dvseqs":
+    if seqfile.suffix != ".dvseqsz":
         dvs_util.print_colour(
             "Sequence data needs to be preprocessed, use 'dvs prep'",
             "red",
         )
         sys.exit(1)
 
-    seqids = dvs_data_store.get_seqids_from_store(seqfile)
+    seqids = dvs.get_seqids_from_store(str(seqfile))
     if len(seqids) < min_size:
         msg = f"Num seqs in {seqfile}={len(seqids)} < {min_size=}. Nothing to do!"
         dvs_util.print_colour(msg, "red")
@@ -419,7 +423,7 @@ def nmost(
 ) -> None:
     """Identify n seqs that maximise average delta JSD"""
 
-    if seqfile.suffix != ".dvseqs":
+    if seqfile.suffix != ".dvseqsz":
         dvs_util.print_colour(
             "Sequence data needs to be preprocessed, use 'dvs prep'",
             "red",
@@ -528,7 +532,7 @@ def ctree(
     verbose: int,
 ):
     """Quickly compute a cluster tree based on kmers for a collection of sequences."""
-    if seqfile.suffix != ".dvseqs":
+    if seqfile.suffix != ".dvseqsz":
         dvs_util.print_colour(
             "Sequence data needs to be preprocessed, use 'dvs prep'",
             "red",

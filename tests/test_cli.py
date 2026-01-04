@@ -15,7 +15,6 @@ from diverse_seq.data_store import (
     _LOG_TABLE,
     _MD5_TABLE,
     _NOT_COMPLETED_TABLE,
-    HDF5DataStore,
 )
 
 __author__ = "Gavin Huttley"
@@ -57,11 +56,6 @@ def seq_dir(tmp_path, seq_path):
     return tmp_path
 
 
-@pytest.fixture(scope="session")
-def processed_seq_path():
-    return DATADIR / "brca1.dvseqs"
-
-
 def _checked_output(path, eval_rows=None, eval_header=None):
     table = load_table(str(path))
     assert table.shape[1] == 2, table.shape[1]
@@ -72,11 +66,12 @@ def _checked_output(path, eval_rows=None, eval_header=None):
         assert eval_header(table.header)
 
 
-def _checked_h5_dstore(path, source=None):
-    # TODO: how to more thoroughly interrogate output
-    dstore = HDF5DataStore(path)
-    assert len(dstore.completed) > 0
-    assert len(dstore.not_completed) == 0
+def _checked_zarr_dstore(path, source=None):
+    from diverse_seq import _dvs as dvs
+
+    store = dvs.make_zarr_store(path)
+    assert len(store) > 0
+    assert "num members=55" in repr(store)
 
 
 def test_defaults(runner, tmp_dir, processed_seq_path):
@@ -169,11 +164,11 @@ def test_nmost_include(runner, tmp_dir, processed_seq_path):
 
 @pytest.mark.skipif(sys.platform.startswith("win"), reason="Test skipped on Windows")
 def test_prep_seq_file(runner, tmp_dir, seq_path):
-    outpath = tmp_dir / "test_prep_seq_file.dvseqs"
+    outpath = tmp_dir / "test_prep_seq_file.dvseqsz"
     args = f"-s {seq_path} -o {outpath} -sf fasta".split()
     r = runner.invoke(dvs_prep, args, catch_exceptions=False)
     assert r.exit_code == 0, r.output
-    _checked_h5_dstore(str(outpath))
+    _checked_zarr_dstore(str(outpath))
 
 
 @pytest.mark.skipif(sys.platform.startswith("win"), reason="Test skipped on Windows")
@@ -182,32 +177,32 @@ def test_prep_outpath_without_suffix(runner, tmp_dir, seq_path):
     args = f"-s {seq_path} -o {outpath}".split()
     r = runner.invoke(dvs_prep, args, catch_exceptions=False)
     assert r.exit_code == 0, r.output
-    _checked_h5_dstore(str(outpath) + ".dvseqs")
+    _checked_zarr_dstore(str(outpath) + ".dvseqsz")
 
 
 @pytest.mark.skipif(sys.platform.startswith("win"), reason="Test skipped on Windows")
 def test_prep_force_override(runner, tmp_dir, seq_path):
-    outpath = tmp_dir / "test_prep_force_override.dvseqs"
+    outpath = tmp_dir / "test_prep_force_override.dvseqsz"
     args = f"-s {seq_path} -o {outpath}".split()
 
     # Run prep once, it should succeed
     r = runner.invoke(dvs_prep, args)
     assert r.exit_code == 0, r.output
-    _checked_h5_dstore(str(outpath))
+    _checked_zarr_dstore(str(outpath))
 
     # with the force write flag, it should succeed
     args += ["-F"]
     r = runner.invoke(dvs_prep, args)
     assert r.exit_code == 0, r.output
-    _checked_h5_dstore(str(outpath))
+    _checked_zarr_dstore(str(outpath))
 
 
 def test_prep_max_rna(runner, tmp_dir, rna_seq_path):
-    outpath = tmp_dir / "test_prep_max_rna.dvseqs"
+    outpath = tmp_dir / "test_prep_max_rna.dvseqsz"
     args = f"-s {rna_seq_path} -o {outpath} -m rna".split()
     r = runner.invoke(dvs_prep, args)
     assert r.exit_code == 0, r.output
-    _checked_h5_dstore(str(outpath))
+    _checked_zarr_dstore(str(outpath))
 
     max_outpath = tmp_dir / "test_prep_rna.tsv"
     max_args = f"-s {outpath} -o {max_outpath}".split()
@@ -217,14 +212,14 @@ def test_prep_max_rna(runner, tmp_dir, rna_seq_path):
 
 
 def test_prep_source_from_file(runner, tmp_dir, seq_path):
-    outpath = tmp_dir / "test_prep_source_from_file.dvseqs"
+    outpath = tmp_dir / "test_prep_source_from_file.dvseqsz"
     args = f"-s {seq_path} -o {outpath} -sf fasta".split()
     r = runner.invoke(dvs_prep, args)
     assert r.exit_code == 0
 
 
 def test_prep_source_from_directory(runner, tmp_dir, seq_dir):
-    outpath = tmp_dir / "test_prep_source_from_directory.dvseqs"
+    outpath = tmp_dir / "test_prep_source_from_directory.dvseqsz"
     args = f"-s {seq_dir} -o {outpath} -sf fasta".split()
     r = runner.invoke(dvs_prep, args)
     assert r.exit_code == 0, r.output
@@ -277,7 +272,7 @@ def test_prep_force(runner, tmp_path):
     two_path = tmp_path / "two.fasta"
     one.write(one_path)
     two.write(two_path)
-    outpath = tmp_path / "test_prep_force.dvseqs"
+    outpath = tmp_path / "test_prep_force.dvseqsz"
     args = f"-s {one_path} -o {outpath}".split()
 
     r = runner.invoke(dvs_prep, args)
@@ -312,7 +307,7 @@ def prep_too_few(request, tmp_path):
 
 
 def test_prep_too_few_seqs(prep_too_few, runner, tmp_path):
-    out_path = tmp_path / "too_few.dvseqs"
+    out_path = tmp_path / "too_few.dvseqsz"
     args = f"-s {prep_too_few} -sf fasta -o {out_path}".split()
     r = runner.invoke(dvs_prep, args)
     assert r.exit_code == 1, r.output
@@ -330,7 +325,7 @@ def too_few_seqs(tmp_path):
 
 
 def test_nmost_too_few_seqs(runner, too_few_seqs):
-    outpath = too_few_seqs.parent / "too_few.dvseqs"
+    outpath = too_few_seqs.parent / "too_few.dvseqsz"
     args = f"-s {too_few_seqs} -o {outpath}".split()
     r = runner.invoke(dvs_prep, args)
     assert r.exit_code == 0, r.output
@@ -343,7 +338,7 @@ def test_nmost_too_few_seqs(runner, too_few_seqs):
 
 
 def test_max_too_few_seqs(runner, too_few_seqs):
-    outpath = too_few_seqs.parent / "too_few.dvseqs"
+    outpath = too_few_seqs.parent / "too_few.dvseqsz"
     args = f"-s {too_few_seqs} -o {outpath}".split()
 
     r = runner.invoke(dvs_prep, args)

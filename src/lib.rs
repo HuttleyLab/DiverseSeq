@@ -69,13 +69,22 @@ fn make_zarr_store(path: &str) -> PyResult<ZarrStoreWrapper> {
     ZarrStoreWrapper::new(path.to_string())
 }
 
+#[pyfunction]
+#[pyo3(signature = (path,))]
+fn get_seqids_from_store(path: &str) -> PyResult<Vec<String>> {
+    let store = ZarrStoreWrapper::new(path.to_string())?;
+    Ok(store.get_seqids().unwrap())
+}
+
 /// A Python module implemented in Rust.
 #[cfg(feature = "python")]
 #[pymodule]
 fn _dvs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<ZarrStoreWrapper>()?;
     m.add_function(wrap_pyfunction!(get_entropy, m)?)?;
-    m.add_function(wrap_pyfunction!(make_zarr_store, m)?)?;
     m.add_function(wrap_pyfunction!(proc_seqs, m)?)?;
+    m.add_function(wrap_pyfunction!(make_zarr_store, m)?)?;
+    m.add_function(wrap_pyfunction!(make_zarr_store, m)?)?;
+    m.add_function(wrap_pyfunction!(get_seqids_from_store, m)?)?;
     Ok(())
 }

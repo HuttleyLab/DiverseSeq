@@ -7,6 +7,8 @@ use rustc_hash::FxHashMap;
 #[pyclass(module = "diverse_seq._dvs")]
 pub struct ZarrStoreWrapper {
     store: ZarrStore,
+    #[pyo3(get)]
+    pub source: String,
 }
 
 #[pymethods]
@@ -14,6 +16,7 @@ impl ZarrStoreWrapper {
     #[new]
     pub fn new(path: String) -> PyResult<Self> {
         let path = std::path::PathBuf::from(path);
+        let source = path.to_string_lossy().to_string();
         let store = ZarrStore::new(path.clone());
         if !store.is_ok() {
             return Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
@@ -23,7 +26,16 @@ impl ZarrStoreWrapper {
         }
         Ok(Self {
             store: store.unwrap(),
+            source,
         })
+    }
+
+    pub fn __repr__(&self) -> String {
+        format!(
+            "ZarrStoreWrapper(source={}, num members={})",
+            self.source,
+            self.__len__()
+        )
     }
 
     pub fn __contains__(&self, key: &str) -> bool {
@@ -32,6 +44,11 @@ impl ZarrStoreWrapper {
 
     pub fn __len__(&self) -> usize {
         self.store.list_seqids().unwrap().len()
+    }
+
+    #[getter]
+    pub fn source(&self) -> String {
+        self.store.path().to_string_lossy().to_string()
     }
 
     fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
@@ -147,5 +164,10 @@ impl ZarrStoreWrapper {
     /// returns the names of unique sequences in the store
     pub fn unique_seqids(&self) -> PyResult<Vec<String>> {
         Ok(self.store.list_unique_seqids().unwrap())
+    }
+
+    /// returns the names of unique sequences in the store
+    pub fn get_seqids(&self) -> PyResult<Vec<String>> {
+        Ok(self.store.list_seqids().unwrap())
     }
 }

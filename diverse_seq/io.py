@@ -24,7 +24,6 @@ from cogent3.format import fasta as format_fasta
 from cogent3.parse import fasta, genbank
 
 from diverse_seq import util as dvs_utils
-from diverse_seq.data_store import HDF5DataStore
 from diverse_seq.record import SeqArray
 
 converter_fasta = c3_alpha.convert_alphabet(
@@ -125,11 +124,11 @@ def _(val: SeqArray) -> str:
 
 @define_app(app_type=WRITER)
 class dvs_write_seqs:
-    """Write seqs as numpy arrays to a HDF5DataStore"""
+    """Write seqs as numpy arrays"""
 
     def __init__(
         self,
-        data_store: HDF5DataStore,
+        data_store,
         id_from_source: callable = get_unique_id,
     ):
         self.data_store = data_store
@@ -142,11 +141,13 @@ class dvs_write_seqs:
     ) -> c3_types.IdentifierType:
         data = data.obj if isinstance(data, source_proxy) else data
         unique_id = identifier or self.id_from_source(data)
+        metadata = ({"source": str(data.source)} if data.source else {}) | {
+            "moltype": data.moltype
+        }
         return self.data_store.write(
-            unique_id=unique_id,
-            data=data.data,
-            moltype=data.moltype,
-            source=str(data.source),
+            unique_id,
+            data.data.tobytes(),
+            metadata=metadata,
         )
 
 

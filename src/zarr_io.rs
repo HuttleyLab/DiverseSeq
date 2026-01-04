@@ -29,7 +29,7 @@ impl ZarrStore {
         let store = Arc::new(FilesystemStore::new(&path)?);
         let seqid_to_hash = Self::load_metadata(&path);
 
-        let root = "/group".to_string();
+        let root = "/seqdata".to_string();
         zarrs::group::GroupBuilder::new()
             .build(store.clone(), &root)?
             .store_metadata()?;
@@ -131,7 +131,7 @@ impl ZarrStore {
         // Build array with zstd compression
         let codec = ZstdCodec::new(10, true);
         let data_len = data.len() as u64;
-        let chunk_size = std::cmp::min(data_len, 1024); // Use 1024-byte chunks
+        let chunk_size = data_len; //std::cmp::min(data_len, 1024 * 1024); // Use 1024-byte chunks
 
         let mut array_builder = ArrayBuilder::new(
             vec![data_len],
