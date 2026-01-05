@@ -11,7 +11,7 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [macos-latest, windows-latest]
         python-version: ["3.11", "3.14"]
 
     steps:
@@ -23,6 +23,11 @@ jobs:
       - uses: "actions/setup-python@v6"
         with:
             python-version: "${{ matrix.python-version }}"
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
@@ -36,7 +41,64 @@ jobs:
           uv tool install -p venv nox
 
       - name: "Run nox for ${{ matrix.python-version }}"
-        run: "nox -db uv --force-python python -s test_coveralls -- --cov-report lcov:lcov-${{matrix.os}}-${{matrix.python-version}}.lcov --cov-report term --cov-append --cov diverse_seq"
+        run: |
+          nox -db uv --force-python python -s test
+
+  coverage:
+    name: "Python ${{ matrix.python-version }} (${{ matrix.os }})"
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        python-version: ["3.11", "3.14"]
+
+    steps:
+      - uses: "actions/checkout@v6"
+        with:
+          fetch-depth: 0
+
+      # Setup env
+      - uses: "actions/setup-python@v6"
+        with:
+            python-version: "${{ matrix.python-version }}"
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+
+      - name: Add LLVM tools to PATH
+        run: |
+          LLVM_PATH=$(rustc --print sysroot)/lib/rustlib/x86_64-unknown-linux-gnu/bin
+          echo "$LLVM_PATH" >> $GITHUB_PATH
+
+      - name: Install lcov
+        run: sudo apt-get update && sudo apt-get install -y lcov
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "."
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
+
+      - name: "Installs for ${{ matrix.python-version }}"
+        run: |
+          uv venv venv -p python${{ matrix.python-version }}
+          uv tool install -p venv nox
+
+      - name: "Run nox for ${{ matrix.python-version }}"
+        run: |
+          nox -db uv --force-python python -s rustcov
+
+      - name: "Rename merged coverage file"
+        run: |
+          mv coverage.lcov lcov-${{matrix.os}}-${{matrix.python-version}}.lcov
 
       - name: Coveralls Parallel
         uses: coverallsapp/github-action@v2
@@ -44,11 +106,11 @@ jobs:
           parallel: true
           github-token: ${{ secrets.github_token }}
           flag-name: run-${{matrix.python-version}}-${{matrix.os}}
-          file: "tests/lcov-${{matrix.os}}-${{matrix.python-version}}.lcov"
+          file: "lcov-${{matrix.os}}-${{matrix.python-version}}.lcov"
 
   finish:
     name: "Finish Coveralls"
-    needs: tests
+    needs: coverage
     runs-on: ubuntu-latest
     steps:
     - name: Coveralls Finished

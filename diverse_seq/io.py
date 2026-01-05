@@ -1,3 +1,4 @@
+import dataclasses
 import functools
 import string
 import typing
@@ -22,10 +23,9 @@ from cogent3.app.data_store import (
 from cogent3.core import alphabet as c3_alpha
 from cogent3.format import fasta as format_fasta
 from cogent3.parse import fasta, genbank
+from numpy import ndarray
 
 from diverse_seq import util as dvs_utils
-from diverse_seq.data_store import HDF5DataStore
-from diverse_seq.record import SeqArray
 
 converter_fasta = c3_alpha.convert_alphabet(
     string.ascii_lowercase.encode("utf8"),
@@ -38,14 +38,6 @@ converter_genbank = c3_alpha.convert_alphabet(
     string.ascii_uppercase.encode("utf8"),
     delete=b"\n\r\t- 0123456789",
 )
-
-
-def _label_func(label):
-    return label.split()[0]
-
-
-def _label_from_filename(path):
-    return Path(path).stem.split(".")[0]
 
 
 @define
@@ -64,6 +56,20 @@ def get_format_parser(seq_path: str | Path, seq_format: str) -> typing.Iterable:
             convert_features=None,
         )
     )
+
+
+@dataclasses.dataclass(frozen=True)
+class SeqArray:
+    """A SeqArray stores an array of indices that map to the canonical characters
+    of the moltype of the original sequence."""
+
+    seqid: str
+    data: ndarray
+    moltype: str
+    source: str = None
+
+    def __len__(self) -> int:
+        return len(self.data)
 
 
 @define_app(app_type=LOADER)
@@ -107,29 +113,29 @@ def get_unique_id(val: typing.Any) -> str | None:
 
 
 @get_unique_id.register
-def _(val: Path) -> str | None:
+def _get_unique_id_path(val: Path) -> str | None:
     # have to intercept Path objects as they have a name attribute
     return val.with_suffix("").name
 
 
 @get_unique_id.register
-def _(val: str) -> str | None:
+def _get_unique_id_str(val: str) -> str | None:
     # have to intercept Path objects as they have a name attribute
     return get_unique_id(Path(val))
 
 
 @get_unique_id.register
-def _(val: SeqArray) -> str:
+def _get_unique_id_seqarray(val: SeqArray) -> str | None:
     return get_unique_id(val.seqid)
 
 
 @define_app(app_type=WRITER)
 class dvs_write_seqs:
-    """Write seqs as numpy arrays to a HDF5DataStore"""
+    """Write seqs as numpy arrays"""
 
     def __init__(
         self,
-        data_store: HDF5DataStore,
+        data_store,
         id_from_source: callable = get_unique_id,
     ):
         self.data_store = data_store
@@ -142,11 +148,13 @@ class dvs_write_seqs:
     ) -> c3_types.IdentifierType:
         data = data.obj if isinstance(data, source_proxy) else data
         unique_id = identifier or self.id_from_source(data)
+        metadata = ({"source": str(data.source)} if data.source else {}) | {
+            "moltype": data.moltype
+        }
         return self.data_store.write(
-            unique_id=unique_id,
-            data=data.data,
-            moltype=data.moltype,
-            source=str(data.source),
+            unique_id,
+            data.data.tobytes(),
+            metadata=metadata,
         )
 
 

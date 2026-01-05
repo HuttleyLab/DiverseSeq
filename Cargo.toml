@@ -1,0 +1,25 @@
+[package]
+name = "diverse_seq"
+version = "2025.12.17"
+edition = "2024"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+pyo3 = { version = "0.27.0", features = ["extension-module"], optional = true }
+zarrs = { version = "0.22.10", features = ["zstd"] }
+zarrs_storage = { version = "0.4.0" }
+rustc-hash = "2.0"
+xxhash-rust = { version = "0.8", features = ["xxh3"] }
+serde = { version = "1.0", features = ["derive"] }
+postcard = { version = "1.0", features = ["alloc"] }
+serde_json = "1.0.148"
+
+[features]
+default = ["python"]
+python = ["pyo3"]    # this allows testing python code
+rust-only = []       # this allows testing rust-only code
+
+[dev-dependencies]
+rstest = "0.26.1"
+tempfile = "3.24.0"

@@ -1,20 +1,17 @@
-import heapq
 import math
 from collections.abc import Sequence
 from typing import Literal, TypeAlias
 
 import cogent3.app.typing as c3_types
-import numba
 import numpy as np
 from cogent3.app.composable import define_app
 from cogent3.evolve.fast_distance import DistanceMatrix
 from rich.progress import Progress
 
-from diverse_seq.record import (
-    SeqArray,
+from diverse_seq import _dvs as dvs
+from diverse_seq.util import (
     _get_canonical_states,
-    make_kmerseq,
-    seq_to_seqarray,
+    populate_inmem_zstore,
 )
 
 BottomSketch: TypeAlias = list[int]
@@ -84,27 +81,29 @@ class dvs_dist:
         self._moltype = moltype
         self._k = k
         self._show_progress = show_progress
+        self._num_states = len(_get_canonical_states(self._moltype))
 
-        self._s2a = seq_to_seqarray(moltype=moltype)
         if distance_mode == "mash":
             self._func = mash_distances
-            kwargs = dict(
-                k=self._k,
-                sketch_size=sketch_size,
-                num_states=len(_get_canonical_states(self._moltype)),
-                mash_canonical=mash_canonical_kmers,
-            )
+            kwargs = {
+                "k": self._k,
+                "sketch_size": sketch_size,
+                "num_states": self._num_states,
+                "mash_canonical": mash_canonical_kmers,
+            }
         else:
             self._func = euclidean_distances
-            kwargs = dict(k=self._k, moltype=self._moltype)
+            kwargs = {"k": self._k, "moltype": self._moltype}
         self._func_kwargs = kwargs
 
     def main(
         self,
         seqs: c3_types.SeqsCollectionType,
     ) -> c3_types.PairwiseDistanceType:
-        seqs = seqs.to_moltype(self._moltype)
-        seq_arrays = [self._s2a(seqs.get_seq(name)) for name in seqs.names]  # pylint: disable=not-callable
+        seqs = seqs.to_moltype(self._moltype).degap()
+        zstore = populate_inmem_zstore(seqs)
+
+        seq_arrays = zstore.get_lazyseqs(num_states=self._num_states)
 
         with Progress(disable=not self._show_progress) as progress:
             distances = self._func(
@@ -113,22 +112,11 @@ class dvs_dist:
                 **self._func_kwargs,
             )
 
-        return dists_to_distmatrix(distances, seqs.names)
-
-
-def dists_to_distmatrix(
-    distances: np.ndarray,
-    names: Sequence[str],
-) -> c3_types.PairwiseDistanceType:
-    dist_dict = {}
-    for i in range(1, len(distances)):
-        for j in range(i):
-            dist_dict[(names[i], names[j])] = distances[i, j]
-    return DistanceMatrix(dist_dict)
+        return distances
 
 
 def mash_distances(
-    seq_arrays: list[SeqArray],
+    seq_arrays: list[dvs.LazySeq],
     k: int,
     sketch_size: int,
     num_states: int,
@@ -141,7 +129,7 @@ def mash_distances(
     Parameters
     ----------
     seq_arrays
-        Sequence arrays.
+        lazy sequence objects.
     k
         kmer size.
     sketch_size
@@ -162,10 +150,8 @@ def mash_distances(
     if progress is None:
         progress = Progress(disable=True)
 
-    seqs = [seq_array.data for seq_array in seq_arrays]
-
     sketches = mash_sketches(
-        seqs,
+        seq_arrays,
         k,
         sketch_size,
         num_states,
@@ -178,6 +164,7 @@ def mash_distances(
         total=len(sketches) * (len(sketches) - 1) // 2,
     )
 
+    seqids = [sarr.seqid for sarr in seq_arrays]
     distances = np.zeros((len(sketches), len(sketches)))
 
     for i in range(1, len(sketches)):
@@ -193,11 +180,11 @@ def mash_distances(
 
             progress.update(distance_task, advance=1)
 
-    return distances
+    return DistanceMatrix.from_array_names(matrix=distances, names=seqids)
 
 
 def mash_sketches(
-    seq_arrays: Sequence[np.ndarray],
+    seq_arrays: Sequence[dvs.LazySeq],
     k: int,
     sketch_size: int,
     num_states: int,
@@ -238,10 +225,10 @@ def mash_sketches(
 
     # Compute sketches in serial
     for i, seq_array in enumerate(seq_arrays):
-        bottom_sketches[i] = mash_sketch(
-            seq_array,
+        bottom_sketches[i] = dvs.mash_sketch(
+            seq_array.get_seq(),
             k,
-            sketch_size,
+            int(sketch_size),
             num_states,
             mash_canonical,
         )
@@ -249,191 +236,6 @@ def mash_sketches(
         progress.update(sketch_task, advance=1)
 
     return bottom_sketches
-
-
-@numba.njit
-def mash_sketch(
-    seq_array: np.ndarray,
-    k: int,
-    sketch_size: int,
-    num_states: int,
-    mash_canonical: bool,
-) -> BottomSketch:  # pragma: no cover
-    """Find the mash sketch for a sequence array.
-
-    Parameters
-    ----------
-    seq_array
-        The sequence array to find the sketch for.
-    k
-        kmer size.
-    sketch_size
-        Size of the sketch.
-    num_states
-        Number of possible states (e.g. GCAT gives 4 for DNA).
-    mash_canonical
-        Whether to use the mash canonical representation of kmers.
-
-    Returns
-    -------
-    BottomSketch
-        The bottom sketch for the given sequence seq_array.
-    """
-    kmer_hashes = np.unique(get_kmer_hashes(seq_array, k, num_states, mash_canonical))
-
-    heap = [0]
-    heap.pop()
-
-    for kmer_hash in kmer_hashes:
-        if len(heap) < sketch_size:
-            heapq.heappush(heap, -kmer_hash)
-        else:
-            heapq.heappushpop(heap, -kmer_hash)
-    kmer_hashes = [-kmer_hash for kmer_hash in heap]
-    kmer_hashes.sort()
-    return kmer_hashes
-
-
-@numba.njit
-def get_kmer_hashes(
-    seq: np.ndarray,
-    k: int,
-    num_states: int,
-    mash_canonical: bool,
-) -> np.ndarray:  # pragma: no cover
-    """Get the kmer hashes comprising a sequence.
-
-    Parameters
-    ----------
-    seq
-        A sequence.
-    k
-        kmer size.
-    num_states
-        Number of states allowed for sequence type.
-    mash_canonical
-        Whether to use the mash canonical representation of kmers.
-
-    Returns
-    -------
-    set[int]
-        kmer hashes for the sequence.
-    """
-    seq = seq.astype(np.int64)
-
-    kmer_hashes = np.zeros(len(seq) - k + 1, dtype=np.int32)
-
-    skip_until = 0
-    for i in range(k):
-        if seq[i] >= num_states:
-            skip_until = i + 1
-
-    kmer_index = 0
-    for i in range(len(seq) - k + 1):
-        if seq[i + k - 1] >= num_states:
-            skip_until = i + k
-
-        if i < skip_until:
-            continue
-        kmer_hashes[kmer_index] = hash_kmer(seq[i : i + k], mash_canonical)
-        kmer_index += 1
-    return kmer_hashes[:kmer_index]
-
-
-@numba.njit
-def murmurhash3_32(data: np.ndarray, seed: int = 0x9747B28C) -> int:  # pragma: no cover
-    """MurmurHash3 32-bit implementation for an array of integers.
-
-    Parameters
-    ----------
-    data : np.ndarray
-        The input array to hash.
-    seed : int
-        A seed for the hash function.
-
-    Returns
-    -------
-    int
-        The computed hash value.
-    """
-    length = data.size
-    h = seed ^ length
-
-    for i in range(length):
-        k = data[i]
-
-        # Mix the hash
-        k *= 0xCC9E2D51
-        k = (k << 15) | (k >> (32 - 15))  # Rotate left
-        k *= 0x1B873593
-
-        h ^= k
-        h = (h << 13) | (h >> (32 - 13))  # Rotate left
-        h = h * 5 + 0xE6546B64
-
-    h ^= h >> 16
-    h *= 0x85EBCA6B
-    h ^= h >> 13
-    h *= 0xC2B2AE35
-    h ^= h >> 16
-
-    return h & 0xFFFFFFFF  # Return as 32-bit integer
-
-
-@numba.njit
-def hash_kmer(kmer: np.ndarray, mash_canonical: bool) -> int:  # pragma: no cover
-    """Hash a kmer, optionally use the mash canonical representaiton.
-
-    Parameters
-    ----------
-    kmer
-        The kmer to hash.
-    canonical
-        Whether to use the mash canonical representation for a kmer.
-
-    Returns
-    -------
-    int
-        The has of a kmer.
-
-    Notes
-    -----
-    Uses MurmurHash3 32-bit implementation.
-    """
-    smallest = kmer
-    if mash_canonical:
-        reverse = reverse_complement(kmer)
-        for i in range(kmer.size):
-            if kmer[i] < reverse[i]:
-                break
-            if kmer[i] > reverse[i]:
-                smallest = reverse
-                break
-
-    return murmurhash3_32(smallest)
-
-
-@numba.njit
-def reverse_complement(kmer: np.ndarray) -> np.ndarray:  # pragma: no cover
-    """Take the reverse complement of a kmer.
-
-    Assumes cogent3 DNA/RNA sequences (numerical
-    representation for complement offset by 2
-    from original).
-
-    Parameters
-    ----------
-    kmer
-        The kmer to attain the reverse complement of
-
-    Returns
-    -------
-    numpy.ndarray
-        The reverse complement of a kmer.
-    """
-    # 0123 TCAG
-    # 3->1, 1->3, 2->0, 0->2
-    return ((kmer + 2) % 4)[::-1]
 
 
 def mash_distance(
@@ -501,12 +303,12 @@ def mash_distance(
 
 
 def euclidean_distances(
-    seq_arrays: Sequence[SeqArray],
+    seq_arrays: Sequence[dvs.LazySeq],
     k: int,
     moltype: str,
     *,
     progress: Progress | None = None,
-) -> np.ndarray:
+) -> DistanceMatrix:
     """Calculates pairwise euclidean distances between sequences.
 
     Parameters
@@ -524,35 +326,25 @@ def euclidean_distances(
     if progress is None:
         progress = Progress(disable=True)
 
-    kmer_seqs = [
-        make_kmerseq(
-            seq,
-            dtype=np.min_scalar_type(len(_get_canonical_states(moltype)) ** k),
-            k=k,
-            moltype=moltype,
-        )
-        for seq in seq_arrays
-    ]
-
-    distances = np.zeros((len(kmer_seqs), len(kmer_seqs)))
+    distances = np.zeros((len(seq_arrays), len(seq_arrays)))
 
     distance_task = progress.add_task(
         "[green]Computing Pairwise Distances",
-        total=len(kmer_seqs) * (len(kmer_seqs) - 1) // 2,
+        total=len(seq_arrays) * (len(seq_arrays) - 1) // 2,
     )
 
-    for i, kmer_seq_i in enumerate(kmer_seqs):
-        freq_i = np.array(kmer_seq_i.kfreqs)
-        for j in range(i + 1, len(kmer_seqs)):
-            freq_j = np.array(kmer_seqs[j].kfreqs)
-
+    seqids = [sarr.seqid for sarr in seq_arrays]
+    for i, sarr_i in enumerate(seq_arrays[1:], 1):
+        freq_i = np.array(sarr_i.get_kfreqs(k))
+        for j, sarr_j in enumerate(seq_arrays[:i]):
+            freq_j = np.array(sarr_j.get_kfreqs(k))
             distance = euclidean_distance(freq_i, freq_j)
             distances[i, j] = distance
             distances[j, i] = distance
 
             progress.update(distance_task, advance=1)
 
-    return distances
+    return DistanceMatrix.from_array_names(matrix=distances, names=seqids)
 
 
 def euclidean_distance(freq_1: np.ndarray, freq_2: np.ndarray) -> np.ndarray:

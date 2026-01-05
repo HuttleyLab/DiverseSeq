@@ -23,7 +23,7 @@ $ head demo.fa
 This command converts either the sequences in a single file, or a directory of files, into a HDF5 file format. This is more efficient for analysis.
 
 ```console exec="1" source="console" result="ansi" workdir="./demo"
-$ dvs prep -s demo.fa -o demo.dvseqs
+$ dvs prep -s demo.fa -o demo.dvseqsz
 ```
 
 ## The `nmost` command
@@ -31,7 +31,7 @@ $ dvs prep -s demo.fa -o demo.dvseqs
 This command selects the *n* most diverse sequences, outputting them to a `.tsv` file. We specify the *k*-mer size (`-k 6`), the value of *n* (`-n 10`).
 
 ```console exec="1" source="console" result="ansi" workdir="./demo"
-$ dvs nmost -s demo.dvseqs -o demo-nmost.tsv -k 6 -n 10
+$ dvs nmost -s demo.dvseqsz -o demo-nmost.tsv -k 6 -n 10
 ```
 
 The output file has two columns, the first is the name of the file the sequence came from, and the second is the delta_jsd value, the contribution of this sequence to the Jensen-Shannon Divergence of the final collection.
@@ -45,15 +45,15 @@ $ head demo-nmost.tsv
 The `max` command maximises the standard deviation of delta_jsd in a collection. The user specifies the minimum (`-z 5`) and maximum (`-zp 10`) size of the final collection. We also set the random number seed (`--seed 1741676171`). If the verbose flag is set (`-v`), the command will show the random seed used (which defaults to the system time).
 
 ```console exec="1" source="console" result="ansi" workdir="./demo"
-$ dvs max -s demo.dvseqs -o demo-max.tsv -k 6 -z 5 -zp 10 --seed 1741676171
+$ dvs max -s demo.dvseqsz -o demo-max.tsv -k 6 -z 5 -zp 10 --seed 1741676171
 ```
 
 ## Estimating a tree from mash distances using `ctree`
 
-The `ctree` command produces an approximate tree from a collection of unaligned sequences using either the Euclidean distance or the Mash distance. We specify the *k*-mer size (`-k 12`), the sketch size (`--sketch-size 3000`), and the distance metric (`-d mash`). This command ouputs a newick formatted trees string to file.
+The `ctree` command produces an approximate tree from a collection of unaligned sequences using either the Euclidean distance or the Mash distance. We specify the *k*-mer size (`-k 12`), the sketch size (`--sketch-size 3000`), and the distance metric (`-d mash`). This command ouputs a Newick formatted tree string to file.
 
 ```console exec="1" source="console" result="ansi" workdir="./demo"
-$ dvs ctree -s demo.dvseqs -o demo-ctree.nwk -k 12 -d mash --sketch-size 3000
+$ dvs ctree -s demo.dvseqsz -o demo-ctree.nwk -k 12 -d mash --sketch-size 3000
 ```
 
 ```bash exec="1"

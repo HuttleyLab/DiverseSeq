@@ -1,6 +1,5 @@
 import contextlib
 import functools
-import math
 import os
 import pathlib
 import re
@@ -10,7 +9,10 @@ import typing
 import numpy
 from cogent3 import get_moltype
 from cogent3.app import composable
+from cogent3.app import typing as c3_types
 from rich import text as rich_text
+
+from diverse_seq import _dvs as dvs
 
 try:
     from wakepy.keep import running as keep_running
@@ -99,35 +101,6 @@ def chunked(iterable, num_chunks, verbose=False):
         yield iterable[start:end]
 
 
-class summary_stats:
-    """computes the summary statistics for a set of numbers"""
-
-    def __init__(self, numbers: numpy.ndarray):
-        self._numbers = numbers
-
-    @functools.cached_property
-    def n(self):
-        return len(self._numbers)
-
-    @functools.cached_property
-    def mean(self):
-        return math.fsum(self._numbers) / self.n
-
-    @functools.cached_property
-    def var(self):
-        """unbiased estimate of the variance"""
-        return math.fsum((x - self.mean) ** 2 for x in self._numbers) / (self.n - 1)
-
-    @functools.cached_property
-    def std(self):
-        """standard deviation"""
-        return self.var**0.5
-
-    @functools.cached_property
-    def cov(self):
-        return self.std / self.mean
-
-
 def _comma_sep_or_file(
     ctx: "Context",  # noqa: ARG001
     param: "Option",  # noqa: ARG001
@@ -150,15 +123,16 @@ def _hide_progress(
     return True if "DVS_HIDE_PROGRESS" in os.environ else hide_progress
 
 
-def _check_h5_dstore(
+def _check_dstore(
     ctx: "Context",  # noqa: ARG001
     param: "Option",  # noqa: ARG001
     path: pathlib.Path,
 ) -> pathlib.Path:
-    """makes sure minimum number of sequences are in the store"""
-    from diverse_seq import data_store
+    """makes sure minimum number of unique sequences are in the store"""
+    from diverse_seq import _dvs as dvs
 
-    seqids = data_store.get_seqids_from_store(path)
+    store = dvs.make_zarr_store(str(path))
+    seqids = list(store.unique_seqids)
     min_num = 5
     if len(seqids) >= min_num:
         return path
@@ -196,3 +170,25 @@ def get_sample_data_path() -> pathlib.Path:
 
 
 print_colour = _printer()
+
+
+def populate_inmem_zstore(seqcoll: c3_types.SeqsCollectionType) -> dvs.ZarrStoreWrapper:
+    """returns an in-memory ZarrStoreWrapper populated with sequences from seqcoll"""
+    degapped = seqcoll.degap()
+    # make an in-memory ZarrStore
+    zstore = dvs.make_zarr_store()
+    for seq in degapped.seqs:
+        arr = numpy.array(seq)
+        zstore.write(seq.name, arr.tobytes())
+    return zstore
+
+
+@functools.cache
+def _get_canonical_states(moltype: str) -> bytes:
+    mt = get_moltype(moltype)
+    canonical = "".join(mt.alphabet)
+    v = mt.alphabet.to_indices(canonical)
+    if not (0 <= min(v) < max(v) < len(canonical)):
+        msg = f"indices of canonical states {canonical} not sequential {v}"
+        raise ValueError(msg)
+    return canonical.encode("utf8")
