@@ -172,7 +172,7 @@ def get_sample_data_path() -> pathlib.Path:
 print_colour = _printer()
 
 
-def populate_inmem_zstore(seqcoll: c3_types.SeqsCollectionType) -> dvs.ZarrStore:
+def populate_inmem_zstore(seqcoll: c3_types.SeqsCollectionType) -> dvs.ZarrStoreWrapper:
     """returns an in-memory ZarrStoreWrapper populated with sequences from seqcoll"""
     degapped = seqcoll.degap()
     # make an in-memory ZarrStore
