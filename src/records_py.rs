@@ -1,12 +1,6 @@
-use crate::record::{KmerSeq, SeqRecord};
+use crate::record::SeqRecord;
 use crate::records::{SummedRecords, make_summed_records};
-use crate::zarr_io::{Storage, ZarrStore};
-use core::num;
-use pyo3::Python;
-use pyo3::prelude::{Bound, PyErr, PyResult, pyclass, pymethods};
-use pyo3::types::{PyAnyMethods, PyDict, PyDictMethods, PyTuple};
-use rustc_hash::FxHashMap;
-use std::path::PathBuf;
+use pyo3::prelude::{PyErr, PyResult, pyclass, pymethods};
 
 #[pyclass(module = "diverse_seq._dvs")]
 pub struct SummedRecordsResult {

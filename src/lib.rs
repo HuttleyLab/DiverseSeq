@@ -1,13 +1,12 @@
 #[cfg(feature = "python")]
-use pyo3::exceptions::PyValueError;
 #[cfg(feature = "python")]
 use pyo3::prelude::{Bound, PyModule, PyResult, pyfunction, pymodule};
 use pyo3::types::PyModuleMethods;
 use pyo3::wrap_pyfunction;
 mod record;
-use record::{KmerSeq, LazySeq, SeqRecord};
+use record::LazySeq;
 mod records;
-use records::{Stat, SummedRecords, select_max_divergent, select_nmost_divergent};
+use records::{Stat, select_max_divergent, select_nmost_divergent};
 mod records_py;
 use records_py::{SummedRecordsResult, SummedRecordsWrapper};
 mod zarr_io;
@@ -79,7 +78,6 @@ fn get_delta_jsd_calculator(
     num_states: usize,
 ) -> PyResult<SummedRecordsWrapper> {
     let result = SummedRecordsWrapper::new(seqids_seqs, k, num_states);
-    let rs = result.get_result().unwrap();
     Ok(result)
 }
 
@@ -90,7 +88,6 @@ fn _dvs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<ZarrStoreWrapper>()?;
     m.add_class::<SummedRecordsResult>()?;
     m.add_class::<LazySeq>()?;
-    m.add_function(wrap_pyfunction!(make_zarr_store, m)?)?;
     m.add_function(wrap_pyfunction!(make_zarr_store, m)?)?;
     m.add_function(wrap_pyfunction!(get_seqids_from_store, m)?)?;
     m.add_function(wrap_pyfunction!(nmost_divergent, m)?)?;

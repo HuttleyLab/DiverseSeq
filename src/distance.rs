@@ -1,4 +1,3 @@
-use pyo3::Python;
 use pyo3::prelude::{PyResult, pyfunction};
 use std::collections::{BinaryHeap, HashSet};
 
@@ -184,8 +183,6 @@ pub fn mash_sketch(
 
 #[cfg(test)]
 mod tests {
-    use rstest::{fixture, rstest};
-
     #[test]
     fn test_reverse_complement() {
         let kmer = vec![0, 1, 2, 3];

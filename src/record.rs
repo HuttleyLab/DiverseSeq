@@ -1,6 +1,6 @@
 use pyo3::Py;
 use pyo3::Python;
-use pyo3::prelude::{PyResult, pyclass, pyfunction, pymethods};
+use pyo3::prelude::{PyResult, pyclass, pymethods};
 
 use crate::zarr_io::ZarrStore;
 use crate::zarr_py::ZarrStoreWrapper;
