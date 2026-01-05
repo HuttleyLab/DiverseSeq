@@ -287,7 +287,7 @@ fn get_lazyrecords_and_init_summed_records(
     n: usize,
     k: usize,
     num_states: usize,
-) -> (Vec<LazySeqRecord>, SummedRecords) {
+) -> (Vec<LazySeqRecord<'_>>, SummedRecords) {
     let records: Vec<LazySeqRecord> = seqids
         .iter()
         .map(|seqid| LazySeqRecord::new(seqid, num_states, &store))
