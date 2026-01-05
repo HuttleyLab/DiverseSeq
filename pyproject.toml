@@ -51,7 +51,7 @@ features = ["pyo3/extension-module"]
 module-name = "diverse_seq._dvs"
 
 [project.optional-dependencies]
-test = ["nox", "pytest", "pytest-cov"]
+test = ["nox", "pytest", "pytest-cov", "maturin[patchelf]"]
 doc = [
     "diverse_seq[extra]",
     "mkdocs>=1.6.1",
@@ -67,7 +67,6 @@ dev = [
     "ruff==0.14.9",
     "diverse_seq[test]",
     "diverse_seq[doc]",
-    "maturin",
 ]
 extra = [
     "cogent3[extra]",
