@@ -1,5 +1,4 @@
 import os
-import platform
 import subprocess
 from pathlib import Path
 
@@ -54,41 +53,33 @@ def cleanup_profraw_files(suffix):
         profraw.unlink()
 
 
+def find_llvm_bin(sysroot):
+    # Recursively search for llvm-profdata
+    for llvm_profdata in sysroot.rglob("llvm-profdata"):
+        if llvm_profdata.is_file():
+            return llvm_profdata.parent
+
+    msg = f"llvm-profdata not found in {sysroot}"
+    raise OSError(msg)
+
+
 @nox.session(python=[f"3.{v}" for v in _py_versions])
 def rustcov(session):
     """Generate coverage for Rust code triggered by Python tests."""
+    session.install("-e.[test]")
     output_dir = Path("coverage-report")
-    # Determine LLVM bin path based on platform
-    toolchain = (
+
+    # Determine LLVM bin path using rustc sysroot
+    sysroot = Path(
         subprocess.run(
-            ["rustup", "show", "active-toolchain"],
-            check=False,
+            ["rustc", "--print", "sysroot"],
+            check=True,
             capture_output=True,
             text=True,
-        )
-        .stdout.strip()
-        .split()[0]
+        ).stdout.strip()
     )
 
-    if platform.system() == "Darwin":
-        machine = (
-            "aarch64-apple-darwin"
-            if platform.machine() == "arm64"
-            else "x86_64-apple-darwin"
-        )
-    else:
-        machine = platform.machine()
-
-    llvm_bin = (
-        Path.home()
-        / ".rustup"
-        / "toolchains"
-        / toolchain
-        / "lib"
-        / "rustlib"
-        / machine
-        / "bin"
-    )
+    llvm_bin = find_llvm_bin(sysroot)
 
     # Build the extension with coverage instrumentation
     env = os.environ.copy()
@@ -104,7 +95,15 @@ def rustcov(session):
     # Run pytest with profiling enabled
     env["LLVM_PROFILE_FILE"] = str(PROJ_ROOT / "coverage-%p-%m.profraw")
     session.chdir("tests")
-    session.run("pytest", env=env)
+    session.run(
+        "pytest",
+        "--cov-report",
+        "lcov:python.lcov",
+        "--cov",
+        "diverse_seq",
+        env=env,
+        external=True,
+    )
     session.chdir("..")
 
     # Find the built extension
@@ -124,6 +123,7 @@ def rustcov(session):
             *[str(f) for f in profraw_files],
             "-o",
             "coverage.profdata",
+            external=True,
         )
     else:
         session.error("No coverage-*.profraw files found")
@@ -141,7 +141,7 @@ def rustcov(session):
     ]
 
     # Generate html coverage report
-    session.run(*rep_args)
+    session.run(*rep_args, external=True)
 
     # Generate lcov coverage report
     lcov_cmd = (
@@ -152,10 +152,40 @@ def rustcov(session):
         f"-ignore-filename-regex='\\.cargo|.rustup|registry' "
         f"src > {output_dir / 'rust.lcov'}"
     )
-    session.run("bash", "-c", lcov_cmd)
+    session.run("bash", "-c", lcov_cmd, external=True)
 
     # Clean up profraw files
     cleanup_profraw_files("profdata")
     cleanup_profraw_files("profraw")
 
-    session.log("Coverage report generated in coverage-report-rust/")
+    # Merge Python and Rust coverage files
+    python_lcov = PROJ_ROOT / "tests" / "python.lcov"
+    rust_lcov = output_dir / "rust.lcov"
+
+    if python_lcov.exists() and rust_lcov.exists():
+        session.run(
+            "lcov",
+            "--ignore-errors",
+            "inconsistent",
+            "--add-tracefile",
+            str(python_lcov),
+            "--add-tracefile",
+            str(rust_lcov),
+            "-o",
+            "coverage.lcov",
+            external=True,
+        )
+        session.log("Merged Python and Rust coverage into coverage.lcov")
+
+        html_report_dir = "coverage-html"
+        session.run(
+            "genhtml",
+            "--ignore-errors",
+            "category",
+            "coverage.lcov",
+            "-o",
+            str(html_report_dir),
+            "--branch-coverage",
+            external=True,
+        )
+        session.log(f"Merged HTML coverage report generated in {html_report_dir}/")
