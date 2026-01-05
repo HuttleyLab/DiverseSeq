@@ -110,7 +110,7 @@ jobs:
 
   finish:
     name: "Finish Coveralls"
-    needs: tests
+    needs: coverage
     runs-on: ubuntu-latest
     steps:
     - name: Coveralls Finished
