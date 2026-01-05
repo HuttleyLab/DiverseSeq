@@ -332,7 +332,7 @@ class dvs_max:  # done
         self._include = [include] if isinstance(include, str) else include
 
     def main(self, seqs: c3_types.SeqsCollectionType) -> AppOutType:
-        # make an in-memory ZarrStore
+        # make an in-memory ZarrStoreWrapper
         zstore = dvs_util.populate_inmem_zstore(seqs)
         seqids = list(zstore.unique_seqids)
         self._rng.shuffle(seqids)
@@ -392,7 +392,7 @@ class dvs_nmost:  # done
         self._include = [include] if isinstance(include, str) else include
 
     def main(self, seqs: c3_types.SeqsCollectionType) -> AppOutType:
-        # make an in-memory ZarrStore
+        # make an in-memory ZarrStoreWrapper
         zstore = dvs_util.populate_inmem_zstore(seqs)
         seqids = list(zstore.unique_seqids)
         self._rng.shuffle(seqids)

@@ -8,6 +8,7 @@ from cogent3 import load_table, load_tree, load_unaligned_seqs
 from diverse_seq import _dvs as dvs
 from diverse_seq.cli import ctree as dvs_ctree
 from diverse_seq.cli import demo_data
+from diverse_seq.cli import main as dvs_main
 from diverse_seq.cli import max as dvs_max
 from diverse_seq.cli import nmost as dvs_nmost
 from diverse_seq.cli import prep as dvs_prep
@@ -67,6 +68,11 @@ def _checked_zarr_dstore(path, source=None):
     store = dvs.make_zarr_store(path)
     assert len(store) > 0
     assert "num members=55" in repr(store)
+
+
+def test_cli_list(runner):
+    r = runner.invoke(dvs_main, catch_exceptions=False)
+    assert r.exit_code != 0, r.output
 
 
 def test_defaults(runner, tmp_dir, processed_seq_path):
