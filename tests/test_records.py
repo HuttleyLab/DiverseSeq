@@ -71,6 +71,18 @@ def test_most_divergent(zstore):
     assert got_seqids == seqids
 
 
+def test_most_divergent_pickle(zstore):
+    # can we pickle a nmost_divergent result and unpickle it
+    import pickle
+
+    k = 1
+    orig = dvs.nmost_divergent(zstore, n=3, k=k)
+    assert orig.size == 3
+    dumped = pickle.dumps(orig)
+    loaded = pickle.loads(dumped)
+    assert loaded.size == orig.size
+
+
 @pytest.fixture(scope="session")
 def brca1_coll(DATA_DIR):
     return load_unaligned_seqs(DATA_DIR / "brca1.fasta", moltype="dna").degap()
