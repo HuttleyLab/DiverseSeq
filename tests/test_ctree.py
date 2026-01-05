@@ -27,6 +27,19 @@ def test_ctree_mash(unaligned_seqs: SequenceCollection, sketch_size: int) -> Non
     check_ctree_app(app, unaligned_seqs)
 
 
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"mash_canonical_kmers": True, "moltype": "protein"},
+        {"distance_mode": "nope"},
+        {"distance_mode": "mash", "sketch_size": None},
+    ],
+)
+def test_ctree_invalid(kwargs) -> None:
+    with pytest.raises(ValueError):
+        dvs_ctree(k=16, **kwargs)
+
+
 def test_ctree_euclidean(unaligned_seqs: SequenceCollection) -> None:
     app = dvs_ctree(k=5, distance_mode="euclidean")
     check_ctree_app(app, unaligned_seqs)
