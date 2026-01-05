@@ -224,6 +224,9 @@ fn get_lowest_record_index(
     total_jsd: f64,
 ) -> u32 {
     let div = records.len() as f64 - 1.0;
+    if div <= 0.0 {
+        panic!("must have > 1 KmerSeq");
+    }
     let mut min_delta_jsd: f64 = 1e6;
     let mut lowest_index: u32 = 0;
     let mut mean_kfreqs = vec![0f64; num_kmers];
@@ -857,5 +860,18 @@ mod tests {
         let srw = make_summed_records(big_seqs, 3, 4);
         let rs = srw.get_result();
         assert!(!rs.total_jsd.is_nan());
+    }
+
+    #[test]
+    fn check_summed_records_to_few() {
+        let result = catch_unwind(AssertUnwindSafe(|| {
+            SummedRecords::new(
+                [SeqRecord::new("seq3", &[0, 0, 0, 2, 2, 2], 4)]
+                    .iter()
+                    .map(|sr| sr.to_kmerseq(1).unwrap())
+                    .collect(),
+            )
+        }));
+        assert!(result.is_err());
     }
 }
