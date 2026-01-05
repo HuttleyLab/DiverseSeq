@@ -606,7 +606,10 @@ class dvs_cli_par_ctree(ClusterTreeBase, DvsParCtreeMixin):
         if self._limit:
             seqids = seqids[: self._limit]
 
-        seq_arrays = [zarr_store.get_lazyseq(seqid, num_states=4) for seqid in seqids]
+        seq_arrays = [
+            zarr_store.get_lazyseq(seqid, num_states=self._num_states)
+            for seqid in seqids
+        ]
 
         with self._progress, self._executor:
             distances = self._calc_dist(seq_arrays)

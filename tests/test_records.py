@@ -225,7 +225,7 @@ def test_jsd_calc_exists(ref_query_seqs):
     seq_records = [(s.name, s.to_array().tobytes()) for s in ref_seqs.seqs]
     calc = dvs.get_delta_jsd_calculator(seq_records, k=3, num_states=4)
     got = calc.delta_jsd(*seq_records[0])
-    numpy.allclose(got, 0.0)
+    assert numpy.allclose(got, 0.0)
 
 
 def test_jsd_calc_empty_seq(ref_query_seqs):

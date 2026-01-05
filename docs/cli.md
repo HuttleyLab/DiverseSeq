@@ -50,7 +50,7 @@ $ dvs max -s demo.dvseqsz -o demo-max.tsv -k 6 -z 5 -zp 10 --seed 1741676171
 
 ## Estimating a tree from mash distances using `ctree`
 
-The `ctree` command produces an approximate tree from a collection of unaligned sequences using either the Euclidean distance or the Mash distance. We specify the *k*-mer size (`-k 12`), the sketch size (`--sketch-size 3000`), and the distance metric (`-d mash`). This command ouputs a newick formatted trees string to file.
+The `ctree` command produces an approximate tree from a collection of unaligned sequences using either the Euclidean distance or the Mash distance. We specify the *k*-mer size (`-k 12`), the sketch size (`--sketch-size 3000`), and the distance metric (`-d mash`). This command ouputs a Newick formatted tree string to file.
 
 ```console exec="1" source="console" result="ansi" workdir="./demo"
 $ dvs ctree -s demo.dvseqsz -o demo-ctree.nwk -k 12 -d mash --sketch-size 3000
