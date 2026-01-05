@@ -602,15 +602,15 @@ class dvs_cli_par_ctree(ClusterTreeBase, DvsParCtreeMixin):
         )
 
         zarr_store = self._seq_store
-        seqids = zarr_store.unique_seqids
-        seq_arrays = [zarr_store.get_lazyseq(seqid, num_states=4) for seqid in seqids]
+        seqids = seq_names
         if self._limit:
-            seq_arrays = seq_arrays[: self._limit]
             seqids = seqids[: self._limit]
+
+        seq_arrays = [zarr_store.get_lazyseq(seqid, num_states=4) for seqid in seqids]
 
         with self._progress, self._executor:
             distances = self._calc_dist(seq_arrays)
-            return make_cluster_tree(seq_names, distances, progress=self._progress)
+            return make_cluster_tree(seqids, distances, progress=self._progress)
 
 
 def compute_mash_chunk_distances(

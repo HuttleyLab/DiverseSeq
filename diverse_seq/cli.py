@@ -576,8 +576,7 @@ def ctree(
     )
     tree = app(seqids)  # pylint: disable=not-callable
     if not tree:
-        print(tree)
-        # dvs_util.print_colour(tree, "red")
+        dvs_util.print_colour(tree, "red")
         sys.exit(1)
 
     tree.write(outpath)

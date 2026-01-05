@@ -131,6 +131,8 @@ class select_max:
         self._num_states = num_states
 
     def main(self, seq_names: list[str]) -> dvs.SummedRecordsResult:
+        if self._limit:
+            seq_names = seq_names[: self._limit]
         max_size = self._max_size or len(seq_names)
         return dvs.max_divergent(
             self._seq_store,
