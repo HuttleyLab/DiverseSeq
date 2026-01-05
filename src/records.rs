@@ -268,16 +268,6 @@ fn div_vector(vector: &[f64], div: f64) -> Vec<f64> {
     vector.iter().map(|x| *x / div).collect()
 }
 
-/// inplace division of vector<f64> elements by a scalar
-fn idiv_vector(vector: &mut [f64], div: f64) {
-    if div == 0.0 {
-        panic!("division by zero");
-    }
-    for j in 0..vector.len() {
-        vector[j] /= div;
-    }
-}
-
 /// update vector
 fn updated_mean_freqs(dest: &mut [f64], total_freqs: &[f64], record_kfreqs: &[f64], div: f64) {
     if dest.len() != total_freqs.len() || dest.len() != record_kfreqs.len() {
@@ -476,16 +466,6 @@ mod tests {
 
         let got: Vec<f64> = div_vector(&v1, div);
         assert_eq!(got, expect);
-    }
-
-    #[test]
-    fn idivide_vector() {
-        let mut v1 = vec![1.0, 2.0, 3.0];
-        let div: f64 = 2.0;
-        let expect = vec![1.0 / div, 2.0 / div, 3.0 / div];
-
-        idiv_vector(&mut v1, div);
-        assert_eq!(v1, expect);
     }
 
     #[test]
