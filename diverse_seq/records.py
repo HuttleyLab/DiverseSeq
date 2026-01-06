@@ -258,15 +258,14 @@ def apply_app(
                 total=len(seqids),
             )
             result = []
-            for r in app.as_completed(
+            for r in dvs_util.as_completed(
+                app,
                 seqids,
-                parallel=numprocs > 1,
-                par_kw={"max_workers": numprocs},
-                show_progress=False,
+                max_workers=numprocs,
             ):
                 if not r:
                     dvs_util.print_colour(str(r), "red")
-                result.append(r.obj)
+                result.append(r)
                 progress.update(select, advance=1, refresh=True)
 
         if len(seqids) > 1:

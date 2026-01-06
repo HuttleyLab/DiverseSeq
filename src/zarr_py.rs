@@ -169,6 +169,7 @@ impl ZarrStoreWrapper {
     }
 
     // need these variable names for compatibility with python API
+    #[allow(unused_variables)]
     #[pyo3(signature = (unique_id, data))]
     pub fn write_log(&self, unique_id: String, data: String) {}
 

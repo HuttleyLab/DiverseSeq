@@ -239,11 +239,10 @@ def prep(
             disable=hide_progress,
         ) as progress:
             convert = progress.add_task("Processing sequences", total=len(in_dstore))
-            for r in loader.as_completed(
+            for r in dvs_util.as_completed(
+                loader,
                 in_dstore,
-                show_progress=False,
-                parallel=numprocs > 1,
-                par_kw={"max_workers": numprocs},
+                max_workers=numprocs,
             ):
                 if not r:
                     dvs_util.print_colour(str(r), "red")

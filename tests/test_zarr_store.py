@@ -66,13 +66,13 @@ def test_write_many(zstore):
 
 
 def test_pickle(empty_zarr_store):
-    import pickle
+    import pickle  # noqa: PLC0415
 
     result = empty_zarr_store
     seq = np.array([0, 3, 2, 0], dtype=np.uint8)
     result.write("s3", seq.tobytes())
     dumped = pickle.dumps(result)
-    loaded = pickle.loads(dumped)
+    loaded = pickle.loads(dumped)  # noqa: S301
     assert "s3" in loaded
     retrieved = loaded.read("s3")
     np.testing.assert_array_equal(np.frombuffer(retrieved, dtype=np.uint8), seq)

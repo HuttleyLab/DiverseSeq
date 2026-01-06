@@ -1,6 +1,8 @@
 use crate::record::SeqRecord;
 use crate::records::{SummedRecords, make_summed_records};
-use pyo3::prelude::{PyErr, PyResult, pyclass, pymethods};
+use pyo3::Python;
+use pyo3::prelude::{Bound, PyErr, PyResult, pyclass, pymethods};
+use pyo3::types::{PyAnyMethods, PyDict, PyDictMethods};
 
 #[pyclass(module = "diverse_seq._dvs")]
 pub struct SummedRecordsResult {
@@ -24,9 +26,63 @@ pub struct SummedRecordsResult {
 
 #[pymethods]
 impl SummedRecordsResult {
+    #[new]
+    pub fn new() -> Self {
+        Self {
+            total_jsd: 0.0,
+            record_deltas: Vec::new(),
+            mean_delta_jsd: 0.0,
+            std_delta_jsd: 0.0,
+            cov_delta_jsd: 0.0,
+            size: 0,
+            k: 0,
+            num_states: 0,
+        }
+    }
+
     #[getter]
     pub fn record_names(&self) -> Vec<String> {
         self.record_deltas.iter().map(|r| r.0.to_string()).collect()
+    }
+
+    fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
+        let state = PyDict::new(py);
+        macro_rules! set_field {
+            ($key:expr, $value:expr) => {
+                state.set_item($key, $value)?
+            };
+        }
+
+        set_field!("total_jsd", self.total_jsd);
+        set_field!("record_deltas", self.record_deltas.clone());
+        set_field!("mean_delta_jsd", self.mean_delta_jsd);
+        set_field!("std_delta_jsd", self.std_delta_jsd);
+        set_field!("cov_delta_jsd", self.cov_delta_jsd);
+        set_field!("size", self.size);
+        set_field!("k", self.k);
+        set_field!("num_states", self.num_states);
+        Ok(state)
+    }
+
+    fn __setstate__(&mut self, state: Bound<'_, PyDict>) -> PyResult<()> {
+        macro_rules! get_field {
+            ($key:expr) => {
+                state
+                    .get_item($key)?
+                    .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyKeyError, _>($key))?
+                    .extract()?
+            };
+        }
+
+        self.total_jsd = get_field!("total_jsd");
+        self.record_deltas = get_field!("record_deltas");
+        self.mean_delta_jsd = get_field!("mean_delta_jsd");
+        self.std_delta_jsd = get_field!("std_delta_jsd");
+        self.cov_delta_jsd = get_field!("cov_delta_jsd");
+        self.size = get_field!("size");
+        self.k = get_field!("k");
+        self.num_states = get_field!("num_states");
+        Ok(())
     }
 }
 
