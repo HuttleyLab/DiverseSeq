@@ -51,6 +51,7 @@ pub struct ZarrStore {
     pub store: Storage,
     seqid_to_hash: FxHashMap<String, [u8; 16]>,
     root: String,
+    mode: String,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -96,6 +97,7 @@ impl ZarrStore {
             store,
             seqid_to_hash,
             root,
+            mode: mode.to_string(),
         })
     }
 
@@ -125,6 +127,15 @@ impl ZarrStore {
         let metadata_path = self.path.join(".seqid_to_hash.bin");
         let temp_path = self.path.join(".seqid_to_hash.bin.tmp");
 
+        // Ensure parent directory exists
+        if let Some(parent) = metadata_path.parent() {
+            if !parent.exists() {
+                return Err(
+                    format!("Metadata directory does not exist: {}", parent.display()).into(),
+                );
+            }
+        }
+
         // Convert HashMap to Vec for serialization
         let metadata = Metadata {
             seqid_to_hash: self
@@ -135,13 +146,45 @@ impl ZarrStore {
         };
 
         // Serialize using postcard
-        let encoded = postcard::to_allocvec(&metadata)?;
-        let mut file = std::fs::File::create(&temp_path)?;
-        file.write_all(&encoded)?;
-        file.sync_all()?; // Ensure data is written to disk
+        let encoded = postcard::to_allocvec(&metadata).map_err(|e| {
+            format!(
+                "Failed to serialize metadata for {}: {}",
+                metadata_path.display(),
+                e
+            )
+        })?;
+
+        // Create temp file
+        let mut file = std::fs::File::create(&temp_path)
+            .map_err(|e| format!("Failed to create temp file {}: {}", temp_path.display(), e))?;
+
+        // Write
+        file.write_all(&encoded)
+            .map_err(|e| format!("Failed to write temp file {}: {}", temp_path.display(), e))?;
+
+        // Sync
+        file.sync_all()
+            .map_err(|e| format!("Failed to sync temp file {}: {}", temp_path.display(), e))?; // Ensure data is written to disk
 
         // Atomically replace the old file
-        std::fs::rename(&temp_path, &metadata_path)?;
+        std::fs::rename(&temp_path, &metadata_path).map_err(|e| {
+            let temp_exists = temp_path.exists();
+            let meta_parent = metadata_path
+                .parent()
+                .map(|p| p.display().to_string())
+                .unwrap_or_else(|| "<none>".to_string());
+            let detail = if !temp_exists {
+                format!("source temp file missing: {}", temp_path.display())
+            } else {
+                format!(
+                    "rename {} -> {} in parent {} failed",
+                    temp_path.display(),
+                    metadata_path.display(),
+                    meta_parent
+                )
+            };
+            format!("{}: {}", detail, e)
+        })?;
 
         Ok(())
     }
@@ -356,7 +399,7 @@ impl ZarrStore {
     /// For filesystem stores, metadata is saved to disk before cloning
     pub fn clone(&self) -> Result<Self, Box<dyn std::error::Error>> {
         // For filesystem stores, ensure metadata is persisted before cloning
-        if matches!(self.store, Storage::File(_)) {
+        if matches!(self.store, Storage::File(_)) && self.mode != "r" {
             self.save_metadata()?;
         }
 
@@ -365,6 +408,7 @@ impl ZarrStore {
             store: self.store.clone(),
             seqid_to_hash: self.seqid_to_hash.clone(),
             root: self.root.clone(),
+            mode: self.mode.clone(),
         })
     }
 }
@@ -372,8 +416,19 @@ impl ZarrStore {
 impl Drop for ZarrStore {
     fn drop(&mut self) {
         // Save metadata when the store is dropped
-        if let Err(e) = self.save_metadata() {
-            eprintln!("Warning: Failed to save metadata on drop: {}", e);
+        if matches!(self.store, Storage::File(_)) && self.mode != "r" {
+            if let Err(e) = self.save_metadata() {
+                let metadata_path = self.path.join(".seqid_to_hash.bin");
+                let cwd = std::env::current_dir()
+                    .map(|p| p.display().to_string())
+                    .unwrap_or_else(|_| "<unknown cwd>".to_string());
+                eprintln!(
+                    "Warning: Failed to save metadata on drop to {} (cwd: {}): {}",
+                    metadata_path.display(),
+                    cwd,
+                    e
+                );
+            }
         }
     }
 }
