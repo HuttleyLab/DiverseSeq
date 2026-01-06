@@ -73,13 +73,13 @@ def test_most_divergent(zstore):
 
 def test_most_divergent_pickle(zstore):
     # can we pickle a nmost_divergent result and unpickle it
-    import pickle
+    import pickle  # noqa: PLC0415
 
     k = 1
     orig = dvs.nmost_divergent(zstore, n=3, k=k)
     assert orig.size == 3
     dumped = pickle.dumps(orig)
-    loaded = pickle.loads(dumped)
+    loaded = pickle.loads(dumped)  # noqa: S301
     assert loaded.size == orig.size
 
 
