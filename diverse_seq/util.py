@@ -203,7 +203,7 @@ T = typing.TypeVar("T")
 
 def as_completed(
     f: typing.Callable[[T], R], s: typing.Iterable[T], max_workers: int | None
-) -> typing.Generator[R]:
+) -> typing.Generator[R, None, None]:
     """multiprocess version of as_completed"""
     if not max_workers or max_workers > multiprocessing.cpu_count():
         max_workers = multiprocessing.cpu_count() - 1
