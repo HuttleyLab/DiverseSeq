@@ -234,7 +234,7 @@ impl ZarrStore {
         let array_path = self.get_path_for_seqid(seqid)?;
 
         // Build array with zstd compression
-        let codec = ZstdCodec::new(10, true);
+        let codec = ZstdCodec::new(3, true);
         let data_len = data.len() as u64;
         let chunk_size = data_len; //std::cmp::min(data_len, 1024 * 1024); // Use 1024-byte chunks
 
