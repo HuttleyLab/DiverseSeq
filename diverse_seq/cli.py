@@ -176,7 +176,7 @@ def prep(
     limit: int | None,
     hide_progress: bool,
 ) -> None:
-    """Writes processed sequences to a <Zarr file>.dvseqsz."""
+    """Writes processed sequences to <Zarr Storage>.dvseqsz."""
     from diverse_seq import _dvs as dvs
 
     dvseqs_path = outpath.with_suffix(".dvseqsz")

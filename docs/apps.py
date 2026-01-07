@@ -20,6 +20,7 @@ cogent3.app_help("dvs_nmost")
 # %% [markdown]
 # ## Using dvs_nmost
 # Load the sample data as a `cogent3` `SequenceCollection` of unaligned sequences.
+#
 # > **Note**
 # > The apps can use either an alignment or a `cogent3` sequence collection (of unaligned sequences).
 

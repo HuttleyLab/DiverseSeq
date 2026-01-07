@@ -1,8 +1,8 @@
 ```bash exec="1"
 mkdir demo # markdown-exec: hide
 ```
-> **Note**
-> In the following we have turned off progress bars for clarity in the documentation.
+!!! note
+    In the following we have turned off progress bars for clarity in the documentation.
 
 ## Creating a demo dataset
 
