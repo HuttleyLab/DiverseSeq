@@ -1,3 +1,4 @@
+use pyo3::exceptions::PyValueError;
 #[cfg(feature = "python")]
 #[cfg(feature = "python")]
 use pyo3::prelude::{Bound, PyModule, PyResult, pyfunction, pymodule};
@@ -14,6 +15,7 @@ use zarr_py::ZarrStoreWrapper;
 pub mod distance;
 use distance::mash_sketch;
 pub mod zarr_py;
+use std::panic::{AssertUnwindSafe, catch_unwind};
 
 #[pyfunction]
 #[pyo3(signature = (path=None, mode="r"))]
@@ -37,8 +39,25 @@ fn nmost_divergent(
     num_states: usize,
     seqids: Option<Vec<String>>,
 ) -> PyResult<SummedRecordsResult> {
-    let result = select_nmost_divergent(&store.store, n, k, num_states, seqids);
-    Ok(result.get_result())
+    let result = catch_unwind(AssertUnwindSafe(|| {
+        select_nmost_divergent(&store.store, n, k, num_states, seqids)
+    }));
+
+    match result {
+        Ok(r) => Ok(r.get_result()),
+        Err(payload) => {
+            // Try to surface the original panic message if available
+            let msg: String = if let Some(s) = payload.downcast_ref::<&str>() {
+                s.to_string()
+            } else if let Some(s) = payload.downcast_ref::<String>() {
+                s.clone()
+            } else {
+                "select_nmost_divergent panicked (likely: n exceeds available sequences)"
+                    .to_string()
+            };
+            Err(PyValueError::new_err(msg))
+        }
+    }
 }
 
 #[pyfunction]
