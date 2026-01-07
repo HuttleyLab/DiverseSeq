@@ -24,6 +24,7 @@ plugins:
         ansi: required
 
 markdown_extensions:
+- admonition
 - pymdownx.superfences
 
 nav:
