@@ -8,8 +8,12 @@
 
 # `diverse-seq` provides alignment-free algorithms to facilitate phylogenetic workflows
 
-> **Warning**
-> We have rewritten a substantial part of the project in Rust. We now also use the Zarr storage format instead of HDF5. As a result, the output file from `dvs prep` now has the suffix `.dvseqsz` instead of `.dvseq`. **Old-format files are not compatible with this version.**
+<details>
+<summary> Warning -- backwards incompatible changes</summary>
+
+We have rewritten a substantial part of the project in Rust. We now also use the Zarr storage format instead of HDF5. As a result, the output file from `dvs prep` now has the suffix `.dvseqsz` instead of `.dvseq`. **Old-format files are not compatible with this version.**
+
+</details>
 
 `diverse-seq` implements computationally efficient alignment-free algorithms that enable efficient prototyping for phylogenetic workflows. It can accelerate parameter selection searches for sequence alignment and phylogeny estimation by identifying a subset of sequences that are representative of the diversity in a collection. We show that selecting representative sequences with an entropy measure of *k*-mer frequencies correspond well to sampling via conventional genetic distances. The computational performance is linear with respect to the number of sequences and can be run in parallel. Applied to a collection of 10.5k whole microbial genomes on a laptop took ~8 minutes to prepare the data and 4 minutes to select 100 representatives. `diverse-seq` can further boost the performance of phylogenetic estimation by providing a seed phylogeny that can be further refined by a more sophisticated algorithm. For ~1k whole microbial genomes on a laptop, it takes ~1.8 minutes to estimate a bifurcating tree from mash distances.
 
