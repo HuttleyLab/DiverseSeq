@@ -8,7 +8,7 @@ warnings.filterwarnings("ignore", message='.+Cannot register "UNREGISTER".+')
 if typing.TYPE_CHECKING:
     from cogent3.core.alignment import SequenceCollection
 
-__version__ = "2025.12.17"
+__version__ = "2026.1.7"
 
 
 def load_sample_data() -> "SequenceCollection":
