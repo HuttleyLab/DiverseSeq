@@ -13,7 +13,13 @@ nox.options.sessions = ["test", "testcov"]
 
 @nox.session(python=[f"3.{v}" for v in _py_versions])
 def test(session):
-    session.install("-e.[test]")
+    wheel_path = os.environ.get("WHEEL_PATH")
+    if wheel_path and Path(wheel_path).exists():
+        session.log(f"Installing from wheel: {wheel_path}")
+        session.install(f"{wheel_path}[test]")
+    else:
+        session.log("WHEEL_PATH not set or file missing; using editable install")
+        session.install("-e.[test]")
     session.chdir("tests")
     session.run(
         "pytest",
