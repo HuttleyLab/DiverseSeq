@@ -35,7 +35,6 @@ jobs:
 
   build:
     name: Build wheels
-    needs: test
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -73,12 +72,12 @@ jobs:
         with:
           name: dvs-dist-${{ matrix.os }}-py${{ matrix.python-version }}
           path: |
-            ./dist/*.whl
+            ./target/wheels/*.whl
             ./dist/*.tar.gz
   
   release_test:
     name: Release to Test PyPI
-    needs: [build]
+    needs: [test,build]
     environment: release_test
     runs-on: ubuntu-latest
     permissions:
