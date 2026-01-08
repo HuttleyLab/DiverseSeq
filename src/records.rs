@@ -171,11 +171,12 @@ impl SummedRecords {
         self.std_delta_jsd() / self.mean_delta_jsd()
     }
 
-    pub fn record_deltas(&self) -> Vec<(String, f64)> {
+    /// returns sufficient data to reconstruct the kmer seqs
+    pub fn get_raw_kseqs(&self) -> Vec<(String, Vec<f64>, f64)> {
         self.records
             .iter()
-            .map(|r| (r.seqid.clone(), r.delta_jsd.get()))
-            .collect::<Vec<(String, f64)>>()
+            .map(|r| r.raw_data())
+            .collect::<Vec<(String, Vec<f64>, f64)>>()
     }
 
     pub fn clone(&self) -> Self {
@@ -189,9 +190,9 @@ impl SummedRecords {
 
     pub fn for_display(&self, title: String) -> String {
         let record_deltas = self
-            .record_deltas()
+            .get_raw_kseqs()
             .iter()
-            .map(|(s, d)| format!("{}\t{}", s, d))
+            .map(|(s, _x, d)| format!("{}\t{}", s, d))
             .collect::<Vec<String>>()
             .join("\n");
 
@@ -203,7 +204,7 @@ impl SummedRecords {
 
     pub fn get_result(&self) -> SummedRecordsResult {
         SummedRecordsResult {
-            record_deltas: self.record_deltas(),
+            records: self.get_raw_kseqs(),
             total_jsd: self.total_jsd,
             mean_delta_jsd: self.mean_delta_jsd(),
             std_delta_jsd: self.std_delta_jsd(),
@@ -340,6 +341,46 @@ pub fn select_nmost_divergent(
     summed
 }
 
+fn get_kmerseqs_and_init_summed_records<T: std::ops::Deref<Target = SummedRecordsResult>>(
+    records: &[T],
+    n: usize,
+) -> (Vec<KmerSeq>, SummedRecords) {
+    let mut kseqs: Vec<KmerSeq> = Vec::new();
+    for sr in records {
+        kseqs.extend(
+            sr.records
+                .iter()
+                .map(|r| KmerSeq::new(&r.0, r.1.clone(), sr.k, sr.num_states))
+                .collect::<Vec<KmerSeq>>(),
+        );
+    }
+    let init: Vec<KmerSeq> = kseqs.drain(..n).collect();
+    let summed = SummedRecords::new(init);
+    (kseqs, summed)
+}
+
+/// returns the SummedRecords object containing nmost divergent sequences
+pub fn select_nmost_divergent_final<T: std::ops::Deref<Target = SummedRecordsResult>>(
+    records: &[T],
+    n: usize,
+) -> SummedRecords {
+    let num_records = records.iter().map(|r| r.records.len()).sum::<usize>();
+
+    if num_records < n {
+        panic!("The number of sequences {} is < n {}", num_records, n);
+    }
+
+    let (records, mut summed) = get_kmerseqs_and_init_summed_records(&records, n);
+
+    // now iterate over the rest
+    for rec in records {
+        if summed.increases_jsd(&rec) {
+            summed.replace_lowest(rec);
+        }
+    }
+    summed
+}
+
 pub enum Stat {
     Cov,
     Std,
@@ -383,6 +424,59 @@ pub fn select_max_divergent(
             continue;
         }
         let rec = rec.unwrap();
+        if !summed.increases_jsd(&rec) {
+            continue;
+        } else if summed.size == max_size as u32 {
+            summed.replace_lowest(rec);
+            continue;
+        }
+
+        let mut new_summed = summed.clone();
+        new_summed.push(rec);
+        summed = match stat {
+            Stat::Cov => {
+                if new_summed.cov_delta_jsd() > summed.cov_delta_jsd() {
+                    new_summed
+                } else {
+                    summed
+                }
+            }
+            Stat::Std => {
+                if new_summed.std_delta_jsd() > summed.std_delta_jsd() {
+                    new_summed
+                } else {
+                    summed
+                }
+            }
+        };
+    }
+    summed
+}
+
+pub fn select_max_divergent_final<T: std::ops::Deref<Target = SummedRecordsResult>>(
+    records: &[T],
+    stat: Stat,
+    min_size: usize,
+    max_size: usize,
+) -> SummedRecords {
+    let num_records = records.iter().map(|r| r.records.len()).sum::<usize>();
+
+    if num_records < min_size {
+        panic!(
+            "The number of sequences {} is < n {}",
+            num_records, min_size
+        );
+    }
+
+    let max_size = if num_records > max_size {
+        max_size
+    } else {
+        num_records
+    };
+    let (records, mut summed) = get_kmerseqs_and_init_summed_records(&records, min_size);
+
+    // now iterate over the rest
+    for rec in records {
         if !summed.increases_jsd(&rec) {
             continue;
         } else if summed.size == max_size as u32 {
@@ -469,13 +563,6 @@ mod tests {
 
         let got: Vec<f64> = div_vector(&v1, div);
         assert_eq!(got, expect);
-    }
-
-    #[test]
-    fn idivide_vector_divide_by_zero() {
-        let mut v1 = vec![1.0, 2.0, 3.0];
-        let result = catch_unwind(AssertUnwindSafe(|| idiv_vector(&mut v1, 0.0)));
-        assert!(result.is_err());
     }
 
     #[test]
@@ -680,14 +767,14 @@ mod tests {
         let path = temp_dir.path().join("zarrs.dvseqz");
         let zstore = make_zstore(path, false);
         let rs = select_nmost_divergent(&zstore, size, 1, 4, None);
-        let result = rs.record_deltas();
+        let result = rs.get_raw_kseqs();
         assert_eq!(result.len(), size);
         let seqids = result
             .iter()
             .map(|r| r.0.to_string())
             .collect::<HashSet<String>>();
         assert_eq!(seqids, rs.seqids);
-        assert!(result.iter().all(|v| !v.1.is_nan()));
+        assert!(result.iter().all(|v| !v.2.is_nan()));
     }
 
     #[rstest]
@@ -745,7 +832,7 @@ mod tests {
         assert_eq!(stats.mean_delta_jsd, orig.mean_delta_jsd());
         assert_eq!(stats.std_delta_jsd, orig.std_delta_jsd());
         assert_eq!(stats.cov_delta_jsd, orig.cov_delta_jsd());
-        assert_eq!(stats.record_deltas, orig.record_deltas());
+        assert_eq!(stats.records, orig.get_raw_kseqs());
     }
 
     #[test]

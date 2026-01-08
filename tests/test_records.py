@@ -10,6 +10,7 @@ from cogent3 import (
     make_unaligned_seqs,
     open_data_store,
 )
+from cogent3.app.composable import NotCompleted
 from cogent3.maths.measure import jsd
 from numpy.testing import assert_allclose
 
@@ -62,6 +63,13 @@ def test_max_divergent(seqcoll):
     assert got.size == 2
 
 
+def test_max_divergent_min_to_big(seqcoll):
+    zstore = populate_inmem_zstore(seqcoll)
+    k = 1
+    with pytest.raises(ValueError):
+        dvs.max_divergent(zstore, min_size=30, max_size=2, k=k)
+
+
 def test_most_divergent(zstore):
     k = 1
     got = dvs.nmost_divergent(zstore, n=3, k=k)
@@ -69,6 +77,12 @@ def test_most_divergent(zstore):
     got_seqids = set(got.record_names)
     seqids = set(zstore.unique_seqids)
     assert got_seqids == seqids
+
+
+def test_most_divergent_n_to_big(zstore):
+    k = 1
+    with pytest.raises(ValueError):
+        dvs.nmost_divergent(zstore, n=30, k=k)
 
 
 def test_most_divergent_pickle(zstore):
@@ -124,8 +138,33 @@ def test_merge_summed_records(brca1_zstore_path):
     rnames1 = sr1.record_names
     rnames2 = sr2.record_names
     assert set(rnames1) != set(rnames2)
-    got = dvs_records.dvs_final_nmost(seq_store=brca1_zstore_path)([sr1, sr2])
+    got = dvs_records.select_final_nmost(n=5)([sr1, sr2])
     assert len(got.record_names) == 5
+
+
+def test_select_final_nmost_n_to_big(brca1_zstore_path):
+    path = brca1_zstore_path
+    zstore = dvs.make_zarr_store(str(path))
+    names = zstore.unique_seqids
+    app = dvs_records.select_nmost(seq_store=path, n=5, k=1)
+    sr1 = app(names[:10])  # pylint: disable=not-callable
+    sr2 = app(names[10:20])  # pylint: disable=not-callable
+    rnames1 = sr1.record_names
+    rnames2 = sr2.record_names
+    assert set(rnames1) != set(rnames2)
+    got = dvs_records.select_final_nmost(n=500)([sr1, sr2])
+    assert isinstance(got, NotCompleted)
+
+
+def test_select_final_max_min_to_big(brca1_zstore_path):
+    path = brca1_zstore_path
+    zstore = dvs.make_zarr_store(str(path))
+    names = zstore.unique_seqids
+    app = dvs_records.select_max(seq_store=path, min_size=4, max_size=5, k=1)
+    sr1 = app(names[:10])  # pylint: disable=not-callable
+    app = dvs_records.select_final_max(min_size=10, max_size=20, stat="stdev")
+    got = app([sr1])
+    assert isinstance(got, NotCompleted)
 
 
 def test_dvs_select_max(brca1_coll):

@@ -160,7 +160,7 @@ impl ZarrStoreWrapper {
 
         let result = self.store.add_uint8_array(seqid, seq, Some(metadata_map));
         if !result.is_ok() {
-            return Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
                 "Failed to create add {}",
                 seqid
             )));

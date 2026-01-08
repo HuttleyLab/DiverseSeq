@@ -355,12 +355,9 @@ def max(  # noqa: A001
     )
     # turn off pylint check, since the function is made into a class
     finalise = dvs_records.select_final_max(  # pylint: disable=no-value-for-parameter
-        seq_store=seqfile,
         stat=stat,
         min_size=min_size,
         max_size=max_size,
-        k=k,
-        num_states=4,
     )
     result = dvs_records.apply_app(
         app=app,
@@ -384,7 +381,9 @@ def max(  # noqa: A001
         result = app(record_names)  # pylint: disable=not-callable
 
     outpath.parent.mkdir(parents=True, exist_ok=True)
-    table = c3.make_table(header=["names", "delta_jsd"], rows=result.record_deltas)
+    table = c3.make_table(
+        header=["names", "delta_jsd"], rows=[(r[0], r[2]) for r in result.records]
+    )
     table.write(outpath)
     dvs_util.print_colour(
         f"{table.shape[0]} divergent sequences IDs written to '{outpath!s}'",
@@ -463,7 +462,7 @@ def nmost(
         numprocs=numprocs,
         verbose=verbose,
         hide_progress=hide_progress,
-        finalise=dvs_records.dvs_final_nmost(seq_store=seqfile),  # pylint: disable=no-value-for-parameter
+        finalise=dvs_records.select_final_nmost(n=number),  # pylint: disable=no-value-for-parameter
     )
     # user requested inclusions are added to the selected divergent set
     if include:
@@ -478,7 +477,9 @@ def nmost(
         result = app(record_names)  # pylint: disable=not-callable
 
     outpath.parent.mkdir(parents=True, exist_ok=True)
-    table = c3.make_table(header=["names", "delta_jsd"], rows=result.record_deltas)
+    table = c3.make_table(
+        header=["names", "delta_jsd"], rows=[(r[0], r[2]) for r in result.records]
+    )
     table.write(outpath)
     dvs_util.print_colour(
         f"{table.shape[0]} divergent sequences IDs written to '{outpath!s}'",

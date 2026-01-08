@@ -143,14 +143,14 @@ impl<'a> SeqRecord<'a> {
 
 #[derive(Debug, Clone)]
 pub struct KmerSeq {
-    pub seqid: String,
-    pub kfreqs: Vec<f64>,
+    pub seqid: String,    // yes
+    pub kfreqs: Vec<f64>, // yes
     pub entropy: f64,
     // a Cell because they are mutable, even when
     // their container is not
-    pub delta_jsd: Cell<f64>,
-    pub num_states: usize,
-    pub k: usize,
+    pub delta_jsd: Cell<f64>, // yes
+    pub num_states: usize,    // yes
+    pub k: usize,             // yes
 }
 
 impl KmerSeq {
@@ -176,6 +176,14 @@ impl KmerSeq {
             num_states: self.num_states,
             k: self.k,
         }
+    }
+
+    pub fn raw_data(&self) -> (String, Vec<f64>, f64) {
+        (
+            self.seqid.clone(),
+            self.kfreqs.clone(),
+            self.delta_jsd.get(),
+        )
     }
 }
 
