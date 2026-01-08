@@ -6,6 +6,7 @@ use pyo3::wrap_pyfunction;
 use pyo3::{Py, Python};
 mod record;
 use record::LazySeq;
+use std::panic::{self, AssertUnwindSafe, UnwindSafe};
 mod records;
 use records::{
     Stat, select_max_divergent, select_max_divergent_final, select_nmost_divergent,
@@ -18,7 +19,6 @@ use zarr_py::ZarrStoreWrapper;
 pub mod distance;
 use distance::mash_sketch;
 pub mod zarr_py;
-use std::panic::{AssertUnwindSafe, catch_unwind};
 
 #[pyfunction]
 #[pyo3(signature = (path=None, mode="r"))]
@@ -33,6 +33,29 @@ fn get_seqids_from_store(path: &str) -> PyResult<Vec<String>> {
     Ok(store.get_seqids().unwrap())
 }
 
+fn run_with_panic_to_pyerr<F, T>(f: F, default_msg: &str) -> PyResult<T>
+where
+    F: FnOnce() -> T + UnwindSafe,
+{
+    let default_hook = panic::take_hook();
+    panic::set_hook(Box::new(|_| {}));
+
+    let result = panic::catch_unwind(AssertUnwindSafe(f));
+
+    panic::set_hook(default_hook);
+
+    result.map_err(|payload| {
+        let msg = if let Some(s) = payload.downcast_ref::<&str>() {
+            s.to_string()
+        } else if let Some(s) = payload.downcast_ref::<String>() {
+            s.clone()
+        } else {
+            default_msg.to_string()
+        };
+        PyValueError::new_err(msg)
+    })
+}
+
 #[pyfunction]
 #[pyo3(signature = (store, n, k, num_states=4, seqids=None))]
 fn nmost_divergent(
@@ -43,63 +66,40 @@ fn nmost_divergent(
     seqids: Option<Vec<String>>,
 ) -> PyResult<SummedRecordsResult> {
     // Suppress panic output to stderr
-    let default_hook = std::panic::take_hook();
-    std::panic::set_hook(Box::new(|_| {}));
-    let result = catch_unwind(AssertUnwindSafe(|| {
-        select_nmost_divergent(&store.store, n, k, num_states, seqids)
-    }));
-    // Restore default panic hook
-    std::panic::set_hook(default_hook);
+    run_with_panic_to_pyerr(
+        || select_nmost_divergent(&store.store, n, k, num_states, seqids).get_result(),
+        "select_nmost_divergent panicked (likely: n exceeds available sequences)",
+    )
+}
 
-    match result {
-        Ok(r) => Ok(r.get_result()),
-        Err(payload) => {
-            // Try to surface the original panic message if available
-            let msg: String = if let Some(s) = payload.downcast_ref::<&str>() {
-                s.to_string()
-            } else if let Some(s) = payload.downcast_ref::<String>() {
-                s.clone()
-            } else {
-                "select_nmost_divergent panicked (likely: n exceeds available sequences)"
-                    .to_string()
-            };
-            Err(PyValueError::new_err(msg))
-        }
-    }
+fn run_with_panic_to_pyerr_on_records<F, T>(
+    records: &[Py<SummedRecordsResult>],
+    default_msg: &str,
+    f: F,
+) -> PyResult<T>
+where
+    F: for<'py> FnOnce(&'py Python<'py>, Vec<pyo3::PyRef<'py, SummedRecordsResult>>) -> T
+        + UnwindSafe,
+{
+    run_with_panic_to_pyerr(
+        || {
+            Python::attach(|py| {
+                let borrowed: Vec<_> = records.iter().map(|obj| obj.borrow(py)).collect();
+                f(&py, borrowed)
+            })
+        },
+        default_msg,
+    )
 }
 
 #[pyfunction]
 #[pyo3(signature = (records, n))]
 fn final_nmost(records: Vec<Py<SummedRecordsResult>>, n: usize) -> PyResult<SummedRecordsResult> {
-    // Suppress panic output to stderr
-    let default_hook = std::panic::take_hook();
-    std::panic::set_hook(Box::new(|_| {}));
-
-    let result = Python::attach(|py| {
-        let borrowed_results: Vec<_> = records.iter().map(|py_obj| py_obj.borrow(py)).collect();
-
-        catch_unwind(AssertUnwindSafe(|| {
-            select_nmost_divergent_final(&borrowed_results, n)
-        }))
-    });
-
-    // Restore default panic hook
-    std::panic::set_hook(default_hook);
-
-    match result {
-        Ok(r) => Ok(r.get_result()),
-        Err(payload) => {
-            // Try to surface the original panic message if available
-            let msg: String = if let Some(s) = payload.downcast_ref::<&str>() {
-                s.to_string()
-            } else if let Some(s) = payload.downcast_ref::<String>() {
-                s.clone()
-            } else {
-                "final_nmost panicked likely n exceeds number of records)".to_string()
-            };
-            Err(PyValueError::new_err(msg))
-        }
-    }
+    run_with_panic_to_pyerr_on_records(
+        &records,
+        "final_nmost panicked likely n exceeds number of records",
+        |_py, borrowed| select_nmost_divergent_final(&borrowed, n).get_result(),
+    )
 }
 
 #[pyfunction]
@@ -119,39 +119,21 @@ fn max_divergent(
         Stat::Cov
     };
 
-    // Suppress panic output to stderr
-    let default_hook = std::panic::take_hook();
-    std::panic::set_hook(Box::new(|_| {}));
-
-    let result = catch_unwind(AssertUnwindSafe(|| {
-        select_max_divergent(
-            &store.store,
-            stat,
-            min_size,
-            max_size,
-            k,
-            num_states,
-            seqids,
-        )
-    }));
-
-    // Restore default panic hook
-    std::panic::set_hook(default_hook);
-
-    match result {
-        Ok(r) => Ok(r.get_result()),
-        Err(payload) => {
-            // Try to surface the original panic message if available
-            let msg: String = if let Some(s) = payload.downcast_ref::<&str>() {
-                s.to_string()
-            } else if let Some(s) = payload.downcast_ref::<String>() {
-                s.clone()
-            } else {
-                "select_max_divergent panicked (likely: n exceeds available sequences)".to_string()
-            };
-            Err(PyValueError::new_err(msg))
-        }
-    }
+    run_with_panic_to_pyerr(
+        || {
+            select_max_divergent(
+                &store.store,
+                stat,
+                min_size,
+                max_size,
+                k,
+                num_states,
+                seqids,
+            )
+            .get_result()
+        },
+        "select_max_divergent panicked (likely: n exceeds available sequences)",
+    )
 }
 
 #[pyfunction]
@@ -168,34 +150,13 @@ fn final_max(
         Stat::Cov
     };
 
-    // Suppress panic output to stderr
-    let default_hook = std::panic::take_hook();
-    std::panic::set_hook(Box::new(|_| {}));
-
-    let result = Python::attach(|py| {
-        let borrowed_results: Vec<_> = records.iter().map(|py_obj| py_obj.borrow(py)).collect();
-
-        catch_unwind(AssertUnwindSafe(|| {
-            select_max_divergent_final(&borrowed_results, stat, min_size, max_size)
-        }))
-    });
-    // Restore default panic hook
-    std::panic::set_hook(default_hook);
-
-    match result {
-        Ok(r) => Ok(r.get_result()),
-        Err(payload) => {
-            // Try to surface the original panic message if available
-            let msg: String = if let Some(s) = payload.downcast_ref::<&str>() {
-                s.to_string()
-            } else if let Some(s) = payload.downcast_ref::<String>() {
-                s.clone()
-            } else {
-                "final_max panicked min_size exceeds number of records)".to_string()
-            };
-            Err(PyValueError::new_err(msg))
-        }
-    }
+    run_with_panic_to_pyerr_on_records(
+        &records,
+        "final_max panicked min_size exceeds number of records",
+        |_py, borrowed| {
+            select_max_divergent_final(&borrowed, stat, min_size, max_size).get_result()
+        },
+    )
 }
 
 #[pyfunction]

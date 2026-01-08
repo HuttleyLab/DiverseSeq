@@ -26,7 +26,7 @@ The prep step takes approximately the same amount of time. Sampling divergent se
 <details>
 <summary> Warning -- backwards incompatible changes</summary>
 
-The Rust rewrite was accompanied by a swithc to using the Zarr storage format instead of HDF5. The output file from `dvs prep` now has the suffix `.dvseqsz` instead of `.dvseq`. **Old-format files are not compatible with this version.**
+The Rust rewrite was accompanied by a switch to using the Zarr storage format instead of HDF5. The output file from `dvs prep` now has the suffix `.dvseqsz` instead of `.dvseq`. **Old-format files are not compatible with this version.**
 
 </details>
 
