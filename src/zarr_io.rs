@@ -259,34 +259,22 @@ impl ZarrStore {
 
         match &self.store {
             Storage::File(s) => {
-                let array = array_builder
-                    .build(s.clone(), &array_path)
-                    .expect("Failed to build array");
+                let array = array_builder.build(s.clone(), &array_path)?;
 
                 // Write the data
-                array
-                    .store_array_subset_elements::<u8>(&array.subset_all(), data)
-                    .expect("Failed to write data");
+                array.store_array_subset_elements::<u8>(&array.subset_all(), data)?;
 
                 // Store array metadata to disk
-                array
-                    .store_metadata()
-                    .expect("Failed to store array metadata");
+                array.store_metadata()?;
             }
             Storage::Memory(s) => {
-                let array = array_builder
-                    .build(s.clone(), &array_path)
-                    .expect("Failed to build array");
+                let array = array_builder.build(s.clone(), &array_path)?;
 
                 // Write the data
-                array
-                    .store_array_subset_elements::<u8>(&array.subset_all(), data)
-                    .expect("Failed to write data");
+                array.store_array_subset_elements::<u8>(&array.subset_all(), data)?;
 
                 // Store array metadata to disk
-                array
-                    .store_metadata()
-                    .expect("Failed to store array metadata");
+                array.store_metadata()?;
             }
         }
 
@@ -493,6 +481,8 @@ mod tests {
         }
         assert!(got.is_ok(), "read_uint8_array failed: {:?}", got.err());
         assert_eq!(got.unwrap(), &[0, 3, 1, 0]);
+        let r = reopened_store.save_metadata();
+        assert!(r.is_ok());
     }
 
     #[rstest]
@@ -550,6 +540,14 @@ mod tests {
         assert_eq!(got_ids, expect);
         let meta = m_store.read_metadata("s1").unwrap();
         assert_eq!(meta["s1"], "ahexdigest");
+        let r = m_store.save_metadata();
+        assert!(r.is_ok());
+    }
+
+    #[rstest]
+    fn test_memory_store_zero_array(mut m_store: ZarrStore) {
+        let r = m_store.add_uint8_array("seqid", &[u8::MIN; 0], None);
+        assert!(!r.is_ok());
     }
 
     #[rstest]
