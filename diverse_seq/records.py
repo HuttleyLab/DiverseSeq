@@ -43,12 +43,9 @@ AppOutType = typing.Union[c3_types.SeqsCollectionType, c3_types.SerialisableType
 def select_final_max(
     summed: list[dvs.SummedRecordsResult],
     *,
-    seq_store: str | pathlib.Path,
     stat: str,
     min_size: int,
     max_size: int,
-    k: int,
-    num_states: int,
 ) -> dvs.SummedRecordsResult:
     """returns the set that maximises stat
 
@@ -62,27 +59,20 @@ def select_final_max(
         the minimum size of the set
     max_size
         the maximum size of the set
-    k
-        k-mer size
-    num_states
-        number of canonical characters in the moltype
     """
     if len(summed) > 1:
-        records = list(itertools.chain.from_iterable(sr.record_names for sr in summed))
+        num_records = len(
+            list(itertools.chain.from_iterable(sr.records for sr in summed))
+        )
     else:
-        records = summed[0].record_names
+        num_records = len(summed[0].records)
 
-    max_size = max_size or len(records)
-    numpy.random.shuffle(records)
-    seq_store = dvs.make_zarr_store(str(seq_store))
-    return dvs.max_divergent(
-        seq_store,
+    max_size = max_size or num_records
+    return dvs.final_max(
+        summed,
+        stat=stat,
         min_size=min_size,
         max_size=max_size,
-        k=k,
-        num_states=num_states,
-        seqids=records,
-        stat=stat,
     )
 
 
@@ -193,8 +183,8 @@ class select_nmost:
 
 
 @define_app
-def dvs_final_nmost(
-    summed: list[dvs.SummedRecordsResult], seq_store: str | pathlib.Path
+def select_final_nmost(
+    summed: list[dvs.SummedRecordsResult], *, n: int
 ) -> dvs.SummedRecordsResult:
     """selects the best n records from a list of SummedRecords
 
@@ -209,15 +199,7 @@ def dvs_final_nmost(
             message="no SummedRecords instances were provided",
             source="Unknown",
         )
-    seq_store = dvs.make_zarr_store(str(seq_store))
-    size = max(sr.size for sr in summed)
-    k = summed[0].k
-    num_states = summed[0].num_states
-    seqids = list(itertools.chain.from_iterable(sr.record_names for sr in summed))
-    numpy.random.shuffle(seqids)  # noqa: NPY002
-    return dvs.nmost_divergent(
-        seq_store, n=size, k=k, num_states=num_states, seqids=seqids
-    )
+    return dvs.final_nmost(summed, n=n)
 
 
 def apply_app(

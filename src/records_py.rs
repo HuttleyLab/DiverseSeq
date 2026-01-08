@@ -5,11 +5,12 @@ use pyo3::prelude::{Bound, PyErr, PyResult, pyclass, pymethods};
 use pyo3::types::{PyAnyMethods, PyDict, PyDictMethods};
 
 #[pyclass(module = "diverse_seq._dvs")]
+#[derive(Clone)]
 pub struct SummedRecordsResult {
     #[pyo3(get)]
     pub total_jsd: f64,
     #[pyo3(get)]
-    pub record_deltas: Vec<(String, f64)>,
+    pub records: Vec<(String, Vec<f64>, f64)>,
     #[pyo3(get)]
     pub mean_delta_jsd: f64,
     #[pyo3(get)]
@@ -30,7 +31,7 @@ impl SummedRecordsResult {
     pub fn new() -> Self {
         Self {
             total_jsd: 0.0,
-            record_deltas: Vec::new(),
+            records: Vec::new(),
             mean_delta_jsd: 0.0,
             std_delta_jsd: 0.0,
             cov_delta_jsd: 0.0,
@@ -42,7 +43,7 @@ impl SummedRecordsResult {
 
     #[getter]
     pub fn record_names(&self) -> Vec<String> {
-        self.record_deltas.iter().map(|r| r.0.to_string()).collect()
+        self.records.iter().map(|r| r.0.to_string()).collect()
     }
 
     fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
@@ -54,7 +55,7 @@ impl SummedRecordsResult {
         }
 
         set_field!("total_jsd", self.total_jsd);
-        set_field!("record_deltas", self.record_deltas.clone());
+        set_field!("records", self.records.clone());
         set_field!("mean_delta_jsd", self.mean_delta_jsd);
         set_field!("std_delta_jsd", self.std_delta_jsd);
         set_field!("cov_delta_jsd", self.cov_delta_jsd);
@@ -75,7 +76,7 @@ impl SummedRecordsResult {
         }
 
         self.total_jsd = get_field!("total_jsd");
-        self.record_deltas = get_field!("record_deltas");
+        self.records = get_field!("records");
         self.mean_delta_jsd = get_field!("mean_delta_jsd");
         self.std_delta_jsd = get_field!("std_delta_jsd");
         self.cov_delta_jsd = get_field!("cov_delta_jsd");

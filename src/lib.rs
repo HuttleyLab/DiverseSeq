@@ -7,7 +7,10 @@ use pyo3::{Py, Python};
 mod record;
 use record::LazySeq;
 mod records;
-use records::{Stat, select_max_divergent, select_nmost_divergent};
+use records::{
+    Stat, select_max_divergent, select_max_divergent_final, select_nmost_divergent,
+    select_nmost_divergent_final,
+};
 mod records_py;
 use records_py::{SummedRecordsResult, SummedRecordsWrapper};
 mod zarr_io;
@@ -59,6 +62,40 @@ fn nmost_divergent(
             } else {
                 "select_nmost_divergent panicked (likely: n exceeds available sequences)"
                     .to_string()
+            };
+            Err(PyValueError::new_err(msg))
+        }
+    }
+}
+
+#[pyfunction]
+#[pyo3(signature = (records, n))]
+fn final_nmost(records: Vec<Py<SummedRecordsResult>>, n: usize) -> PyResult<SummedRecordsResult> {
+    // Suppress panic output to stderr
+    let default_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(|_| {}));
+
+    let result = Python::attach(|py| {
+        let borrowed_results: Vec<_> = records.iter().map(|py_obj| py_obj.borrow(py)).collect();
+
+        catch_unwind(AssertUnwindSafe(|| {
+            select_nmost_divergent_final(&borrowed_results, n)
+        }))
+    });
+
+    // Restore default panic hook
+    std::panic::set_hook(default_hook);
+
+    match result {
+        Ok(r) => Ok(r.get_result()),
+        Err(payload) => {
+            // Try to surface the original panic message if available
+            let msg: String = if let Some(s) = payload.downcast_ref::<&str>() {
+                s.to_string()
+            } else if let Some(s) = payload.downcast_ref::<String>() {
+                s.clone()
+            } else {
+                "final_nmost panicked likely n exceeds number of records)".to_string()
             };
             Err(PyValueError::new_err(msg))
         }
@@ -182,7 +219,9 @@ fn _dvs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(make_zarr_store, m)?)?;
     m.add_function(wrap_pyfunction!(get_seqids_from_store, m)?)?;
     m.add_function(wrap_pyfunction!(nmost_divergent, m)?)?;
+    m.add_function(wrap_pyfunction!(final_nmost, m)?)?;
     m.add_function(wrap_pyfunction!(max_divergent, m)?)?;
+    m.add_function(wrap_pyfunction!(final_max, m)?)?;
     m.add_function(wrap_pyfunction!(mash_sketch, m)?)?;
     m.add_function(wrap_pyfunction!(get_delta_jsd_calculator, m)?)?;
     Ok(())

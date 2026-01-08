@@ -5,9 +5,21 @@ import pytest
 from diverse_seq import _dvs as dvs
 
 
-def test_can_access_rust_func(tmp_path):
-    result = dvs.make_zarr_store(str(tmp_path / "test.zarr"), mode="w")
-    assert not len(result)
+def test_invalid_path():
+    with pytest.raises(FileNotFoundError):
+        dvs.make_zarr_store("nonexistent_path.zarr", mode="r")
+
+
+def test_inmem_repr():
+    st = dvs.make_zarr_store()
+    got = repr(st)
+    assert "in memory" in got
+
+
+def test_inmem_invalid_data():
+    st = dvs.make_zarr_store()
+    with pytest.raises(ValueError):
+        st.write("seq1", b"")
 
 
 @pytest.fixture
