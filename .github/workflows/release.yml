@@ -9,38 +9,34 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
+        python-version: ["3.14"]
 
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
 
-      - name: Build wheels with cibuildwheel
-        uses: pypa/cibuildwheel@v2.21.3
-        env:
-          CIBW_BUILD: "cp311-* cp312-* cp313-* cp314-*"
-          CIBW_SKIP: "*-win32 *-i686"
-          CIBW_BEFORE_ALL_LINUX: "bash -c 'echo \"=== Container Info ===\"  && echo \"PATH: $PATH\" && which bash && which sh && ls /bin/*apt* 2>/dev/null || echo \"no apt found\" && ls /bin/*yum* 2>/dev/null || echo \"no yum found\" && cat /etc/os-release 2>/dev/null || echo \"no os-release\" && apt-get update && apt-get install -y libatomic1 && curl --proto \"=https\" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y'"
-          CIBW_ENVIRONMENT_LINUX: 'PATH="$HOME/.cargo/bin:$PATH"'
+      - name: Build wheels with maturin
+        uses: PyO3/maturin-action@v1
+        with:
+          command: build
+          args: --release --out dist --interpreter python${{ matrix.python-version }}
 
       - name: Build sdist (once on ubuntu 3.13)
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13'
         run: |
           python -m pip install --upgrade pip
           python -m pip install build
           python -m build --sdist
 
-      - name: Move wheels to dist for consistent artifact structure
-        run: |
-          python -c "import glob, os, shutil; os.makedirs('dist', exist_ok=True); [shutil.move(f, os.path.join('dist', os.path.basename(f))) for f in glob.glob('wheelhouse/*.whl')]"
-
       - name: Upload artifacts
         uses: actions/upload-artifact@v6
         with:
-          name: dvs-dist-${{ matrix.os }}
+          name: dvs-dist-${{ matrix.os }}-py${{ matrix.python-version }}
           path: |
             ./dist/*.whl
             ./dist/*.tar.gz
