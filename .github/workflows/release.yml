@@ -23,7 +23,7 @@ jobs:
         env:
           CIBW_BUILD: "cp311-* cp312-* cp313-* cp314-*"
           CIBW_SKIP: "*-win32 *-i686"
-          CIBW_BEFORE_ALL_LINUX: "/bin/bash -c 'sudo apt-get update && apt-get install -y libatomic1 && curl --proto \"=https\" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y'"
+          CIBW_BEFORE_ALL_LINUX: "bash -c 'echo \"=== Container Info ===\"  && echo \"PATH: $PATH\" && which bash && which sh && ls /bin/*apt* 2>/dev/null || echo \"no apt found\" && ls /bin/*yum* 2>/dev/null || echo \"no yum found\" && cat /etc/os-release 2>/dev/null || echo \"no os-release\" && apt-get update && apt-get install -y libatomic1 && curl --proto \"=https\" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y'"
           CIBW_ENVIRONMENT_LINUX: 'PATH="$HOME/.cargo/bin:$PATH"'
 
       - name: Build sdist (once on ubuntu 3.13)
