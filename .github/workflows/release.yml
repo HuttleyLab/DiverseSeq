@@ -30,7 +30,9 @@ jobs:
 
       - name: Build wheel (maturin backend)
         run: |
+          # Build wheel and move it to dist/ so artifacts are flat
           python -m build --wheel
+          python -c "import glob, os, shutil; os.makedirs('dist', exist_ok=True); [shutil.move(f, os.path.join('dist', os.path.basename(f))) for f in glob.glob('target/wheels/*.whl')]"
 
       - name: Build sdist (once on ubuntu 3.13)
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13'
@@ -42,8 +44,8 @@ jobs:
         with:
           name: dvs-dist-${{ matrix.os }}-py${{ matrix.python-version }}
           path: |
-            ./target/wheels/*.whl
             ./dist/*.tar.gz
+            ./dist/*.whl
 
   test:
     needs: [build]
