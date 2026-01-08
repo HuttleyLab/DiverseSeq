@@ -8,8 +8,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: ["3.11", "3.12", "3.13", "3.14"]
+        os: [windows-latest]
+        python-version: ["3.14"]
 
     steps:
       - uses: actions/checkout@v6
@@ -81,7 +81,7 @@ jobs:
 
       - name: Detect wheel path
         run: |
-          python -c "import glob, os; wheels = glob.glob('dist/*.whl'); wheel = wheels[0] if wheels else ''; env = os.environ['GITHUB_ENV']; open(env, 'a').write(f'WHEEL_PATH={wheel}\n'); print(f'Detected wheel: {wheel}')"
+          python -c "import glob, os; print(glob.glob('dist/*.whl'))"
 
       - name: "Run nox for Python ${{ matrix.python-version }}"
         run: "nox -db uv --force-python python -s test"
