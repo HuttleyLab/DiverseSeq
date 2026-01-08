@@ -81,14 +81,7 @@ jobs:
 
       - name: Detect wheel path
         run: |
-          python - << 'PY'
-          import glob, os
-          wheels = glob.glob('./dist/*.whl')
-          wheel = wheels[0] if wheels else ''
-          with open(os.environ['GITHUB_ENV'], 'a') as f:
-              f.write(f"WHEEL_PATH={wheel}\n")
-          print(f"Detected wheel: {wheel}")
-          PY
+          python -c "import glob, os; wheels = glob.glob('dist/*.whl'); wheel = wheels[0] if wheels else ''; env = os.environ['GITHUB_ENV']; open(env, 'a').write(f'WHEEL_PATH={wheel}\n'); print(f'Detected wheel: {wheel}')"
 
       - name: "Run nox for Python ${{ matrix.python-version }}"
         run: "nox -db uv --force-python python -s test"
