@@ -48,7 +48,9 @@ jobs:
         run: |
           uv venv venv -p python
           source venv/bin/activate
-          uv pip install ".[doc]"
+          uv pip install maturin
+          maturin develop --extras doc
+          python -c "import diverse_seq._dvs"
 
       - name: Build Documentation
         run: |
