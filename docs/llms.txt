@@ -1,0 +1,97 @@
+# diverse-seq
+
+> Alignment-free algorithms to facilitate phylogenetic workflows
+
+diverse-seq implements computationally efficient alignment-free algorithms that enable efficient prototyping for phylogenetic workflows. It can accelerate parameter selection searches for sequence alignment and phylogeny estimation by identifying a subset of sequences that are representative of the diversity in a collection.
+
+The tool uses entropy measures of k-mer frequencies to select representative sequences, with performance-critical routines implemented in Rust for speed.
+
+## Documentation
+
+- [Introduction](https://diverse-seq.readthedocs.io/en/latest/): Overview and installation instructions
+- [Command Line Interface](https://diverse-seq.readthedocs.io/en/latest/cli/): The `dvs` CLI tool usage
+- [Python API](https://diverse-seq.readthedocs.io/en/latest/apps/): Using diverse-seq as cogent3 apps
+- [Published Article](https://joss.theoj.org/papers/10.21105/joss.07765): Methods and algorithms
+
+## Quick Start
+
+### Installation
+
+```
+pip install diverse-seq
+```
+
+Or with uv:
+```
+uv tool install diverse-seq
+```
+
+### Basic Usage
+
+1. Prepare sequences for analysis:
+```
+dvs prep -s sequences.fasta -o sequences.dvseqsz
+```
+
+2. Select n most diverse sequences:
+```
+dvs nmost -s sequences.dvseqsz -o results.tsv -k 6 -n 10
+```
+
+3. Maximize diversity in a collection:
+```
+dvs max -s sequences.dvseqsz -o results.tsv -k 6 -z 5 -zp 10
+```
+
+4. Build a cluster tree:
+```
+dvs ctree -s sequences.dvseqsz -o tree.nwk -k 12 -d mash
+```
+
+## Key Concepts
+
+- **k-mer frequencies**: Sequences are represented by the frequencies of k-length subsequences
+- **Jensen-Shannon Divergence (JSD)**: Measures diversity between k-mer frequency distributions
+- **delta_jsd**: The contribution of each sequence to the total JSD of a collection
+- **Mash distance**: MinHash-based distance metric for approximate sequence similarity
+
+## CLI Commands
+
+- `dvs prep`: Convert sequences to Zarr storage format (.dvseqsz)
+- `dvs nmost`: Select the n most divergent sequences
+- `dvs max`: Select sequences that maximize average pairwise divergence
+- `dvs ctree`: Build a cluster tree from mash or euclidean distances
+- `dvs demo-data`: Export sample data for testing
+
+## Python Apps (cogent3 integration)
+
+- `dvs_nmost`: Select n most diverse sequences
+- `dvs_max`: Maximize diversity in a collection
+- `dvs_delta_jsd`: Compute delta JSD for a query sequence against a reference set
+- `dvs_ctree`: Build a cluster tree from sequences
+- `dvs_par_ctree`: Parallel version for large collections
+
+## Optional
+
+### Technical Details
+
+- **Storage Format**: Zarr with 2-bit DNA encoding (4 bases per byte)
+- **Deduplication**: Identical sequences share storage via xxHash3
+- **Ambiguous Bases**: Non-canonical bases (N, R, Y, etc.) stored separately
+- **Performance**: Linear scaling with sequence count, parallel processing supported
+
+### Parameters
+
+Common parameters across commands:
+- `-k`: k-mer size (default varies by command)
+- `-s/--source`: Input file or prepared .dvseqsz file
+- `-o/--outpath`: Output file path
+- `--moltype`: Molecule type (dna or rna)
+- `--numprocs`: Number of parallel processes
+- `--seed`: Random seed for reproducibility
+
+### File Formats
+
+- Input: FASTA, GenBank, or directory of sequence files
+- Prepared data: `.dvseqsz` (Zarr format)
+- Output: `.tsv` (tab-separated values) or `.nwk` (Newick tree)
