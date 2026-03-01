@@ -9,6 +9,7 @@ import sys
 import typing
 
 import numpy
+from citeable import Article
 from cogent3 import get_moltype
 from cogent3.app import composable
 from cogent3.app import typing as c3_types
@@ -217,3 +218,17 @@ def as_completed(
         to_do = [executor.submit(f, e) for e in s]
         for result in cfutures.as_completed(to_do):
             yield result.result()
+
+
+cite_dvs = Article(
+    key="diverse-seq",
+    author=["Huttley, Gavin", "Caley, Katherine", "McArthur, Robert"],
+    title="diverse-seq: an application for alignment-free selecting and clustering biological sequences",
+    year=2025,
+    journal="Journal of Open Source Software",
+    volume=10,
+    pages="7765",
+    number=110,
+    doi="10.21105/joss.07765",
+    url="https://doi.org/10.21105/joss.07765",
+)

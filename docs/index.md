@@ -41,3 +41,22 @@ uvx --from diverse-seq dvs
 ```
 
 without having to activate a virtual environment.
+
+### Citation
+
+Here's the citation in BibTex format.
+
+```bibtex
+@article{diverse-seq,
+    doi = {10.21105/joss.07765},
+    url = {https://doi.org/10.21105/joss.07765},
+    year = {2025},
+    publisher = {The Open Journal},
+    volume = {10},
+    number = {110},
+    pages = {7765},
+    author = {Huttley, Gavin and Caley, Katherine and McArthur, Robert},
+    title = {diverse-seq: an application for alignment-free selecting and clustering biological sequences},
+    journal = {Journal of Open Source Software}
+}
+```

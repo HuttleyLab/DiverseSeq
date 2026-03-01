@@ -18,8 +18,9 @@ license = { file = "LICENSE" }
 requires-python = ">=3.11,<3.15"
 dependencies = [
     "attrs",
+    "citeable",
     "click",
-    "cogent3>=2026.1.6a1",
+    "cogent3>=2026.2.28a1",
     "numpy",
     "rich",
     "scitrack",

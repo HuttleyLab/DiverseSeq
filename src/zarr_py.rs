@@ -173,6 +173,10 @@ impl ZarrStoreWrapper {
     #[pyo3(signature = (unique_id, data))]
     pub fn write_log(&self, unique_id: String, data: String) {}
 
+    #[allow(unused_variables)]
+    #[pyo3(signature = (data))]
+    pub fn write_citations(&self, data: Py<PyTuple>) {}
+
     #[pyo3(signature = (seqid))]
     pub fn read(&self, seqid: &str) -> PyResult<Vec<u8>> {
         let result = self.store.read_uint8_array(seqid);
