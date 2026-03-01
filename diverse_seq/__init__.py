@@ -8,6 +8,7 @@ warnings.filterwarnings("ignore", message='.+Cannot register "UNREGISTER".+')
 if typing.TYPE_CHECKING:
     from cogent3.core.alignment import SequenceCollection
 
+# change version in Cargo.toml as well
 __version__ = "2026.3.1"
 
 
