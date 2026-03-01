@@ -26,7 +26,7 @@ from diverse_seq.distance import (
 from diverse_seq.io import (
     SeqArray,
 )
-from diverse_seq.util import _get_canonical_states, populate_inmem_zstore
+from diverse_seq.util import _get_canonical_states, cite_dvs, populate_inmem_zstore
 
 
 class ClusterTreeBase:
@@ -94,7 +94,7 @@ class ClusterTreeBase:
         self._num_states = len(_get_canonical_states(moltype))
 
 
-@define_app
+@define_app(cite=cite_dvs)
 class dvs_ctree(ClusterTreeBase):
     """Create a cluster tree from kmer distances."""
 
@@ -408,7 +408,7 @@ class DvsParCtreeMixin:
         return bottom_sketches
 
 
-@define_app(app_type=AppType.NON_COMPOSABLE)
+@define_app(app_type=AppType.NON_COMPOSABLE, cite=cite_dvs)
 class dvs_par_ctree(ClusterTreeBase, DvsParCtreeMixin):
     """Create a cluster tree from kmer distances in parallel."""
 
@@ -507,7 +507,7 @@ class dvs_par_ctree(ClusterTreeBase, DvsParCtreeMixin):
             return make_cluster_tree(seq_names, distances, progress=self._progress)
 
 
-@define_app(app_type=AppType.NON_COMPOSABLE)
+@define_app(app_type=AppType.NON_COMPOSABLE, cite=cite_dvs)
 class dvs_cli_par_ctree(ClusterTreeBase, DvsParCtreeMixin):
     """Create a cluster tree from kmer distances in parallel."""
 

@@ -262,7 +262,7 @@ def apply_app(
     return result
 
 
-@define_app
+@define_app(cite=dvs_util.cite_dvs)
 class dvs_max:  # done
     """select the maximally divergent seqs from a sequence collection"""
 
@@ -332,7 +332,7 @@ class dvs_max:  # done
         return seqs.take_seqs(selected)
 
 
-@define_app
+@define_app(cite=dvs_util.cite_dvs)
 class dvs_nmost:  # done
     """select the n-most diverse seqs from a sequence collection"""
 
@@ -384,7 +384,7 @@ class dvs_nmost:  # done
         return seqs.take_seqs(selected)
 
 
-@define_app
+@define_app(cite=dvs_util.cite_dvs)
 class dvs_delta_jsd:  # done
     """returns delta_jsd for a sequence"""
 

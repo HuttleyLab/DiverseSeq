@@ -8,7 +8,6 @@ from diverse_seq.cluster import dvs_ctree, dvs_par_ctree
 
 def check_ctree_app(app: dvs_ctree | dvs_par_ctree, seqs: SequenceCollection) -> None:
     tree = app(seqs.take_seqs(["Human", "Chimpanzee", "Rhesus", "Horse"]))
-    print(tree)
     expected = make_tree("(((Human, Chimpanzee), Rhesus), Horse);")
     assert tree.same_topology(expected)
 
@@ -19,6 +18,7 @@ def check_ctree_app(app: dvs_ctree | dvs_par_ctree, seqs: SequenceCollection) ->
     tree = app(seqs.take_seqs(["Human", "Chimpanzee", "Manatee", "Dugong", "Rhesus"]))
     expected = make_tree("(((Human, Chimpanzee), Rhesus), (Manatee, Dugong));")
     assert tree.same_topology(expected)
+    assert "@article{diverse-seq" in app.bib, app
 
 
 @pytest.mark.parametrize("sketch_size", [400, 4e9])
