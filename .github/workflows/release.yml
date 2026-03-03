@@ -70,7 +70,7 @@ jobs:
           uv tool install -p venv nox
 
       - name: Download built artifact for this matrix
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: dvs-dist-${{ matrix.os }}-py${{ matrix.python-version }}
           path: ./dist
@@ -93,7 +93,7 @@ jobs:
 
     steps:
       - name: Download all built artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           path: ./dist
           merge-multiple: true
@@ -118,7 +118,7 @@ jobs:
 
     steps:
       - name: Download all built artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           path: ./dist
           merge-multiple: true
