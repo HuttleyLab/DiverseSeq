@@ -11,9 +11,9 @@ import typing
 import numpy
 from citeable import Article
 from cogent3 import get_moltype
-from cogent3.app import composable
 from cogent3.app import typing as c3_types
 from rich import text as rich_text
+from scinexus import composable
 
 from diverse_seq import _dvs as dvs
 

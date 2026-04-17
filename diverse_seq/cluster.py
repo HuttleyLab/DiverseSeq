@@ -9,9 +9,9 @@ from typing import Literal
 import cogent3.app.typing as c3_types
 import numpy
 from cogent3 import PhyloNode, make_tree
-from cogent3.app.composable import AppType, define_app
 from loky import as_completed, get_reusable_executor
 from rich.progress import Progress
+from scinexus.composable import AppType, define_app
 from scipy.sparse import dok_matrix
 from sklearn.cluster import AgglomerativeClustering
 

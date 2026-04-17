@@ -4,9 +4,9 @@ from typing import Literal, TypeAlias
 
 import cogent3.app.typing as c3_types
 import numpy as np
-from cogent3.app.composable import define_app
 from cogent3.evolve.fast_distance import DistanceMatrix
 from rich.progress import Progress
+from scinexus.composable import define_app
 
 from diverse_seq import _dvs as dvs
 from diverse_seq.util import (

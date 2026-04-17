@@ -23,8 +23,8 @@ import typing
 import numpy
 from cogent3 import get_moltype
 from cogent3.app import typing as c3_types
-from cogent3.app.composable import NotCompleted, define_app
 from rich import progress as rich_progress
+from scinexus.composable import NotCompleted, define_app
 
 from diverse_seq import _dvs as dvs
 from diverse_seq import util as dvs_util

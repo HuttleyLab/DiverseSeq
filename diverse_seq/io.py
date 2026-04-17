@@ -6,24 +6,24 @@ from pathlib import Path
 
 from attrs import define
 from cogent3.app import typing as c3_types
-from cogent3.app.composable import (
+from cogent3.core import alphabet as c3_alpha
+from cogent3.format import fasta as format_fasta
+from cogent3.parse import fasta, genbank
+from numpy import ndarray
+from scinexus.composable import (
     LOADER,
     NON_COMPOSABLE,
     WRITER,
     define_app,
     source_proxy,
 )
-from cogent3.app.data_store import (
+from scinexus.data_store import (
     OVERWRITE,
     DataMember,
     DataStoreABC,
     DataStoreDirectory,
     Mode,
 )
-from cogent3.core import alphabet as c3_alpha
-from cogent3.format import fasta as format_fasta
-from cogent3.parse import fasta, genbank
-from numpy import ndarray
 
 from diverse_seq import util as dvs_utils
 

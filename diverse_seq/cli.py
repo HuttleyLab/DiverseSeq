@@ -11,7 +11,7 @@ import click
 import cogent3 as c3
 import numpy
 import rich.progress as rich_progress
-from cogent3.app import data_store as c3_data_store
+from scinexus import data_store as snx_data_store
 from scitrack import CachingLogger
 
 from diverse_seq import __version__
@@ -206,7 +206,7 @@ def prep(
             convert2dstore = dvs_io.dvs_file_to_dir(dest=tmp_dir)
             in_dstore = convert2dstore(seqdir)  # pylint: disable=not-callable
         else:
-            in_dstore = c3_data_store.DataStoreDirectory(source=seqdir, suffix=suffix)
+            in_dstore = snx_data_store.DataStoreDirectory(source=seqdir, suffix=suffix)
 
         if len(in_dstore) < 5:
             msg = f"Num files matching '{seqdir}/*.{suffix}' = {len(in_dstore)} < 5."
