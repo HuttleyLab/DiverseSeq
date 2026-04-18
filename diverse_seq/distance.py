@@ -4,9 +4,10 @@ from typing import Literal, TypeAlias
 
 import cogent3.app.typing as c3_types
 import numpy as np
+import scinexus
 from cogent3.evolve.fast_distance import DistanceMatrix
-from rich.progress import Progress
 from scinexus.composable import define_app
+from scinexus.progress import Progress
 
 from diverse_seq import _dvs as dvs
 from diverse_seq.util import (
@@ -105,12 +106,12 @@ class dvs_dist:
 
         seq_arrays = zstore.get_lazyseqs(num_states=self._num_states)
 
-        with Progress(disable=not self._show_progress) as progress:
-            distances = self._func(
-                seq_arrays,
-                progress=progress,
-                **self._func_kwargs,
-            )
+        progress = scinexus.get_progress(show_progress=self._show_progress)
+        distances = self._func(
+            seq_arrays,
+            progress=progress,
+            **self._func_kwargs,
+        )
 
         return distances
 
@@ -148,7 +149,7 @@ def mash_distances(
         Pairwise mash distances between sequences.
     """
     if progress is None:
-        progress = Progress(disable=True)
+        progress = scinexus.get_progress(show_progress=False)
 
     sketches = mash_sketches(
         seq_arrays,
@@ -159,26 +160,17 @@ def mash_distances(
         progress=progress,
     )
 
-    distance_task = progress.add_task(
-        "[green]Computing Pairwise Distances",
-        total=len(sketches) * (len(sketches) - 1) // 2,
-    )
+    num_pairs = len(sketches) * (len(sketches) - 1) // 2
+    pairs = ((i, j) for i in range(1, len(sketches)) for j in range(i))
 
     seqids = [sarr.seqid for sarr in seq_arrays]
     distances = np.zeros((len(sketches), len(sketches)))
 
-    for i in range(1, len(sketches)):
-        for j in range(i):
-            distance = mash_distance(
-                sketches[i],
-                sketches[j],
-                k,
-                sketch_size,
-            )
-            distances[i, j] = distance
-            distances[j, i] = distance
-
-            progress.update(distance_task, advance=1)
+    dist_pbar = progress.child()
+    for i, j in dist_pbar(pairs, total=num_pairs, msg="Computing Pairwise Distances"):
+        distance = mash_distance(sketches[i], sketches[j], k, sketch_size)
+        distances[i, j] = distance
+        distances[j, i] = distance
 
     return DistanceMatrix.from_array_names(matrix=distances, names=seqids)
 
@@ -208,32 +200,29 @@ def mash_sketches(
         whether to use mash canonical kmer representation, by default False
     progress
         progress bar, by default None
+
     Returns
     -------
     list[BottomSketch]
         Sketches for each sequence.
     """
     if progress is None:
-        progress = Progress(disable=True)
+        progress = scinexus.get_progress(show_progress=False)
 
-    sketch_task = progress.add_task(
-        "[green]Generating Sketches",
-        total=len(seq_arrays),
-    )
-
-    bottom_sketches = [None for _ in range(len(seq_arrays))]
-
-    # Compute sketches in serial
-    for i, seq_array in enumerate(seq_arrays):
-        bottom_sketches[i] = dvs.mash_sketch(
-            seq_array.get_seq(),
-            k,
-            int(sketch_size),
-            num_states,
-            mash_canonical,
+    sketch_pbar = progress.child()
+    bottom_sketches = []
+    for seq_array in sketch_pbar(
+        seq_arrays, total=len(seq_arrays), msg="Generating Sketches"
+    ):
+        bottom_sketches.append(
+            dvs.mash_sketch(
+                seq_array.get_seq(),
+                k,
+                int(sketch_size),
+                num_states,
+                mash_canonical,
+            )
         )
-
-        progress.update(sketch_task, advance=1)
 
     return bottom_sketches
 
@@ -324,25 +313,21 @@ def euclidean_distances(
         Pairwise euclidean distances between sequences.
     """
     if progress is None:
-        progress = Progress(disable=True)
+        progress = scinexus.get_progress(show_progress=False)
 
     distances = np.zeros((len(seq_arrays), len(seq_arrays)))
 
-    distance_task = progress.add_task(
-        "[green]Computing Pairwise Distances",
-        total=len(seq_arrays) * (len(seq_arrays) - 1) // 2,
-    )
+    num_pairs = len(seq_arrays) * (len(seq_arrays) - 1) // 2
+    pairs = ((i, j) for i in range(1, len(seq_arrays)) for j in range(i))
 
     seqids = [sarr.seqid for sarr in seq_arrays]
-    for i, sarr_i in enumerate(seq_arrays[1:], 1):
-        freq_i = np.array(sarr_i.get_kfreqs(k))
-        for j, sarr_j in enumerate(seq_arrays[:i]):
-            freq_j = np.array(sarr_j.get_kfreqs(k))
-            distance = euclidean_distance(freq_i, freq_j)
-            distances[i, j] = distance
-            distances[j, i] = distance
-
-            progress.update(distance_task, advance=1)
+    dist_pbar = progress.child()
+    for i, j in dist_pbar(pairs, total=num_pairs, msg="Computing Pairwise Distances"):
+        freq_i = np.array(seq_arrays[i].get_kfreqs(k))
+        freq_j = np.array(seq_arrays[j].get_kfreqs(k))
+        distance = euclidean_distance(freq_i, freq_j)
+        distances[i, j] = distance
+        distances[j, i] = distance
 
     return DistanceMatrix.from_array_names(matrix=distances, names=seqids)
 

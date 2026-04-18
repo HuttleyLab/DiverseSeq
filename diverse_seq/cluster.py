@@ -8,10 +8,11 @@ from typing import Literal
 
 import cogent3.app.typing as c3_types
 import numpy
+import scinexus
 from cogent3 import PhyloNode, make_tree
 from loky import as_completed, get_reusable_executor
-from rich.progress import Progress
 from scinexus.composable import AppType, define_app
+from scinexus.progress import Progress
 from scipy.sparse import dok_matrix
 from sklearn.cluster import AgglomerativeClustering
 
@@ -90,7 +91,7 @@ class ClusterTreeBase:
         self._sketch_size = sketch_size
         self._distance_mode = distance_mode
         self._mash_canonical = mash_canonical_kmers
-        self._progress = Progress(disable=not show_progress)
+        self._progress = scinexus.get_progress(show_progress=show_progress)
         self._num_states = len(_get_canonical_states(moltype))
 
 
@@ -168,24 +169,23 @@ class dvs_ctree(ClusterTreeBase):
             zstore.get_lazyseq(name, num_states=self._num_states) for name in seq_names
         ]
 
-        with self._progress:
-            if self._distance_mode == "mash":
-                distances = mash_distances(
-                    seq_arrays,
-                    self._k,
-                    int(self._sketch_size),
-                    self._num_states,
-                    mash_canonical=self._mash_canonical,
-                    progress=self._progress,
-                )
-            elif self._distance_mode == "euclidean":
-                distances = euclidean_distances(
-                    seq_arrays,
-                    self._k,
-                    self._moltype,
-                    progress=self._progress,
-                )
-            return make_cluster_tree(seq_names, distances, progress=self._progress)
+        if self._distance_mode == "mash":
+            distances = mash_distances(
+                seq_arrays,
+                self._k,
+                int(self._sketch_size),
+                self._num_states,
+                mash_canonical=self._mash_canonical,
+                progress=self._progress,
+            )
+        elif self._distance_mode == "euclidean":
+            distances = euclidean_distances(
+                seq_arrays,
+                self._k,
+                self._moltype,
+                progress=self._progress,
+            )
+        return make_cluster_tree(seq_names, distances, progress=self._progress)
 
 
 def make_cluster_tree(
@@ -211,32 +211,29 @@ def make_cluster_tree(
         The cluster tree.
     """
     if progress is None:
-        progress = Progress(disable=True)
+        progress = scinexus.get_progress(show_progress=False)
 
     clustering = AgglomerativeClustering(
         metric="precomputed",
         linkage="average",
     )
 
-    tree_task = progress.add_task(
-        "[green]Computing Tree",
-        total=None,
-    )
+    tree_pbar = progress.child()
+    with tree_pbar.context(msg="Computing Tree") as ctx:
+        clustering.fit(pairwise_distances)
 
-    clustering.fit(pairwise_distances)
-
-    tree_dict = {i: seq_names[i] for i in range(len(seq_names))}
-    node_index = len(seq_names)
-    for left_index, right_index in clustering.children_:
-        tree_dict[node_index] = (
-            tree_dict.pop(left_index),
-            tree_dict.pop(right_index),
-        )
-        node_index += 1
-    # use string representation and then remove quotes
-    treestring = str(tree_dict[node_index - 1]).replace("'", "")
-    tree = make_tree(treestring=treestring, underscore_unmunge=True)
-    progress.update(tree_task, completed=1, total=1)
+        tree_dict = {i: seq_names[i] for i in range(len(seq_names))}
+        node_index = len(seq_names)
+        for left_index, right_index in clustering.children_:
+            tree_dict[node_index] = (
+                tree_dict.pop(left_index),
+                tree_dict.pop(right_index),
+            )
+            node_index += 1
+        # use string representation and then remove quotes
+        treestring = str(tree_dict[node_index - 1]).replace("'", "")
+        tree = make_tree(treestring=treestring, underscore_unmunge=True)
+        ctx.update(progress=1.0)
     return tree
 
 
@@ -269,37 +266,33 @@ class DvsParCtreeMixin:
 
         sketches = self.mash_sketches_parallel(seq_arrays)
 
-        distance_task = self._progress.add_task(
-            "[green]Computing Pairwise Distances",
-            total=None,
-        )
+        dist_pbar = self._progress.child()
+        with dist_pbar.context(msg="Computing Pairwise Distances") as ctx:
+            # Compute distances in parallel
+            num_jobs = self._numprocs
+            futures = [
+                self._executor.submit(
+                    compute_mash_chunk_distances,
+                    start,
+                    num_jobs,
+                    sketches,
+                    self._k,
+                    self._sketch_size,
+                )
+                for start in range(num_jobs)
+            ]
 
-        # Compute distances in parallel
-        num_jobs = self._numprocs
-        futures = [
-            self._executor.submit(
-                compute_mash_chunk_distances,
-                start,
-                num_jobs,
-                sketches,
-                self._k,
-                self._sketch_size,
-            )
-            for start in range(num_jobs)
-        ]
+            distances = numpy.zeros((len(sketches), len(sketches)))
 
-        distances = numpy.zeros((len(sketches), len(sketches)))
+            for future in futures:
+                start_idx, distances_chunk = future.result()
+                distances[start_idx::num_jobs] = distances_chunk[
+                    start_idx::num_jobs
+                ].toarray()
 
-        for future in futures:
-            start_idx, distances_chunk = future.result()
-            distances[start_idx::num_jobs] = distances_chunk[
-                start_idx::num_jobs
-            ].toarray()
-
-        # Make lower triangular matrix symmetric
-        distances = distances + distances.T - numpy.diag(distances.diagonal())
-
-        self._progress.update(distance_task, completed=1, total=1)
+            # Make lower triangular matrix symmetric
+            distances = distances + distances.T - numpy.diag(distances.diagonal())
+            ctx.update(progress=1.0)
 
         return distances
 
@@ -330,37 +323,34 @@ class DvsParCtreeMixin:
                 progress=self._progress,
             )
 
-        distance_task = self._progress.add_task(
-            "[green]Computing Pairwise Distances",
-            total=None,
-        )
+        dist_pbar = self._progress.child()
+        with dist_pbar.context(msg="Computing Pairwise Distances") as ctx:
+            kmer_seqs = [numpy.array(seq.get_kfreqs(self._k)) for seq in seq_arrays]
 
-        kmer_seqs = [numpy.array(seq.get_kfreqs(self._k)) for seq in seq_arrays]
+            # Compute distances in parallel
+            num_jobs = self._numprocs
+            futures = [
+                self._executor.submit(
+                    compute_euclidean_chunk_distances,
+                    start,
+                    num_jobs,
+                    kmer_seqs,
+                )
+                for start in range(num_jobs)
+            ]
 
-        # Compute distances in parallel
-        num_jobs = self._numprocs
-        futures = [
-            self._executor.submit(
-                compute_euclidean_chunk_distances,
-                start,
-                num_jobs,
-                kmer_seqs,
-            )
-            for start in range(num_jobs)
-        ]
+            distances = numpy.zeros((len(kmer_seqs), len(kmer_seqs)))
 
-        distances = numpy.zeros((len(kmer_seqs), len(kmer_seqs)))
+            for future in futures:
+                start_idx, distances_chunk = future.result()
+                distances[start_idx::num_jobs] = distances_chunk[
+                    start_idx::num_jobs
+                ].toarray()
 
-        for future in futures:
-            start_idx, distances_chunk = future.result()
-            distances[start_idx::num_jobs] = distances_chunk[
-                start_idx::num_jobs
-            ].toarray()
+            # Make lower triangular matrix symmetric
+            distances = distances + distances.T - numpy.diag(distances.diagonal())
+            ctx.update(progress=1.0)
 
-        # Make lower triangular matrix symmetric
-        distances = distances + distances.T - numpy.diag(distances.diagonal())
-
-        self._progress.update(distance_task, completed=1, total=1)
         return distances
 
     def mash_sketches_parallel(
@@ -379,11 +369,6 @@ class DvsParCtreeMixin:
         list[BottomSketch]
             Sketches for each sequence.
         """
-        sketch_task = self._progress.add_task(
-            "[green]Generating Sketches",
-            total=len(seq_arrays),
-        )
-
         bottom_sketches = [None for _ in range(len(seq_arrays))]
 
         # Compute sketches in parallel
@@ -399,11 +384,14 @@ class DvsParCtreeMixin:
             for i, seq_array in enumerate(seq_arrays)
         }
 
-        for future in as_completed(list(futures_to_idx)):
+        sketch_pbar = self._progress.child()
+        for future in sketch_pbar(
+            as_completed(list(futures_to_idx)),
+            total=len(seq_arrays),
+            msg="Generating Sketches",
+        ):
             idx = futures_to_idx[future]
             bottom_sketches[idx] = future.result()
-
-            self._progress.update(sketch_task, advance=1)
 
         return bottom_sketches
 
@@ -502,7 +490,7 @@ class dvs_par_ctree(ClusterTreeBase, DvsParCtreeMixin):
         seq_arrays = zstore.get_lazyseqs(num_states=self._num_states)
         seq_names = [s.seqid for s in seq_arrays]
 
-        with self._progress, self._executor:
+        with self._executor:
             distances = self._calc_dist(seq_arrays)
             return make_cluster_tree(seq_names, distances, progress=self._progress)
 
@@ -611,7 +599,7 @@ class dvs_cli_par_ctree(ClusterTreeBase, DvsParCtreeMixin):
             for seqid in seqids
         ]
 
-        with self._progress, self._executor:
+        with self._executor:
             distances = self._calc_dist(seq_arrays)
             return make_cluster_tree(seqids, distances, progress=self._progress)
 
