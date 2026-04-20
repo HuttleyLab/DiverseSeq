@@ -22,7 +22,7 @@ dependencies = [
     "click",
     "cogent3>=2026.4.20a0",
     "numpy",
-    "scinexus[rich]>=2026.4.20b0",
+    "scinexus[rich]>=2026.4.20b1",
     "scitrack",
     "scikit-learn",
 ]
