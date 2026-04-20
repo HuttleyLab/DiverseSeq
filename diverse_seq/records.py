@@ -21,10 +21,11 @@ import sys
 import typing
 
 import numpy
+import scinexus
+import scinexus.parallel as snxpar
 from cogent3 import get_moltype
 from cogent3.app import typing as c3_types
-from cogent3.app.composable import NotCompleted, define_app
-from rich import progress as rich_progress
+from scinexus.composable import NotCompleted, define_app
 
 from diverse_seq import _dvs as dvs
 from diverse_seq import util as dvs_util
@@ -227,28 +228,16 @@ def apply_app(
         else:
             seqids = [seqids]
 
-        with rich_progress.Progress(
-            rich_progress.TextColumn("{task.description}"),
-            rich_progress.BarColumn(),
-            rich_progress.TaskProgressColumn(),
-            rich_progress.TimeRemainingColumn(),
-            rich_progress.TimeElapsedColumn(),
-            disable=hide_progress,
-        ) as progress:
-            select = progress.add_task(
-                description=f"[blue]Selection with {app_name!r}",
-                total=len(seqids),
-            )
-            result = []
-            for r in dvs_util.as_completed(
-                app,
-                seqids,
-                max_workers=numprocs,
-            ):
-                if not r:
-                    dvs_util.print_colour(str(r), "red")
-                result.append(r)
-                progress.update(select, advance=1, refresh=True)
+        pbar = scinexus.get_progress(show_progress=not hide_progress)
+        result = []
+        for r in pbar(
+            snxpar.as_completed(app, seqids, max_workers=numprocs),
+            total=len(seqids),
+            msg=f"Selection with {app_name!r}",
+        ):
+            if not r:
+                dvs_util.print_colour(str(r), "red")
+            result.append(r)
 
         if len(seqids) > 1:
             dvs_util.print_colour(f"Merging results from {len(seqids)} runs...", "blue")

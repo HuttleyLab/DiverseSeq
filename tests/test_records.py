@@ -10,9 +10,9 @@ from cogent3 import (
     make_unaligned_seqs,
     open_data_store,
 )
-from cogent3.app.composable import NotCompleted
 from cogent3.maths.measure import jsd
 from numpy.testing import assert_allclose
+from scinexus.composable import NotCompleted
 
 from diverse_seq import _dvs as dvs
 from diverse_seq import load_sample_data

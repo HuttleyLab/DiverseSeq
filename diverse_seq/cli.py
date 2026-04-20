@@ -10,8 +10,9 @@ from pathlib import Path
 import click
 import cogent3 as c3
 import numpy
-import rich.progress as rich_progress
-from cogent3.app import data_store as c3_data_store
+import scinexus
+import scinexus.parallel as snxpar
+from scinexus import data_store as snx_data_store
 from scitrack import CachingLogger
 
 from diverse_seq import __version__
@@ -206,7 +207,7 @@ def prep(
             convert2dstore = dvs_io.dvs_file_to_dir(dest=tmp_dir)
             in_dstore = convert2dstore(seqdir)  # pylint: disable=not-callable
         else:
-            in_dstore = c3_data_store.DataStoreDirectory(source=seqdir, suffix=suffix)
+            in_dstore = snx_data_store.DataStoreDirectory(source=seqdir, suffix=suffix)
 
         if len(in_dstore) < 5:
             msg = f"Num files matching '{seqdir}/*.{suffix}' = {len(in_dstore)} < 5."
@@ -230,26 +231,17 @@ def prep(
             data_store=out_dstore,
         )
 
-        with rich_progress.Progress(
-            rich_progress.TextColumn("[progress.description]{task.description}"),
-            rich_progress.BarColumn(),
-            rich_progress.TaskProgressColumn(),
-            rich_progress.TimeRemainingColumn(),
-            rich_progress.TimeElapsedColumn(),
-            disable=hide_progress,
-        ) as progress:
-            convert = progress.add_task("Processing sequences", total=len(in_dstore))
-            for r in dvs_util.as_completed(
-                loader,
-                in_dstore,
-                max_workers=numprocs,
-            ):
-                if not r:
-                    dvs_util.print_colour(str(r), "red")
-                    sys.exit(1)
-                writer(r)  # pylint: disable=not-callable
-                progress.update(convert, advance=1, refresh=True)
-                del r
+        pbar = scinexus.get_progress(show_progress=not hide_progress)
+        for r in pbar(
+            snxpar.as_completed(loader, in_dstore, max_workers=numprocs),
+            total=len(in_dstore),
+            msg="Processing sequences",
+        ):
+            if not r:
+                dvs_util.print_colour(str(r), "red")
+                sys.exit(1)
+            writer(r)  # pylint: disable=not-callable
+            del r
 
     dvs_util.print_colour(
         f"Successfully created '{out_dstore.source!s}'",

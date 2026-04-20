@@ -147,3 +147,7 @@ dmypy.json
 manuscript/*
 paper/*
 jats/*
+
+
+#Ignore vscode AI rules
+.github/instructions/codacy.instructions.md

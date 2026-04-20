@@ -1,7 +1,5 @@
-import concurrent.futures as cfutures
 import contextlib
 import functools
-import multiprocessing
 import os
 import pathlib
 import re
@@ -11,9 +9,9 @@ import typing
 import numpy
 from citeable import Article
 from cogent3 import get_moltype
-from cogent3.app import composable
 from cogent3.app import typing as c3_types
 from rich import text as rich_text
+from scinexus import composable
 
 from diverse_seq import _dvs as dvs
 
@@ -195,29 +193,6 @@ def _get_canonical_states(moltype: str) -> bytes:
         msg = f"indices of canonical states {canonical} not sequential {v}"
         raise ValueError(msg)
     return canonical.encode("utf8")
-
-
-P = typing.ParamSpec("P")
-R = typing.TypeVar("R")
-T = typing.TypeVar("T")
-
-
-def as_completed(
-    f: typing.Callable[[T], R], s: typing.Iterable[T], max_workers: int | None
-) -> typing.Generator[R, None, None]:
-    """multiprocess version of as_completed"""
-    if not max_workers or max_workers > multiprocessing.cpu_count():
-        max_workers = multiprocessing.cpu_count() - 1
-
-    if max_workers == 1:
-        for e in s:
-            yield f(e)
-        return
-
-    with cfutures.ProcessPoolExecutor(max_workers=max_workers) as executor:
-        to_do = [executor.submit(f, e) for e in s]
-        for result in cfutures.as_completed(to_do):
-            yield result.result()
 
 
 cite_dvs = Article(
