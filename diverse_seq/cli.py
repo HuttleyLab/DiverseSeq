@@ -26,6 +26,7 @@ if typing.TYPE_CHECKING:
     from click.core import Context, Option
 
 LOGGER = CachingLogger()
+snxpar.set_parallel_backend("multiprocess")
 
 
 def _get_seed(ctx: "Context", param: "Option", value: str | None) -> int:
