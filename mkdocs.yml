@@ -12,6 +12,9 @@ theme:
         - text
         - bash
 
+hooks:
+    - docs/hooks/env.py
+
 plugins:
     - mkdocs-jupyter:
         allow_errors: false
