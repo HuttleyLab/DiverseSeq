@@ -3,11 +3,8 @@
 import typing
 import warnings
 
-import scinexus
-
 warnings.filterwarnings("ignore", message='.+Cannot register "UNREGISTER".+')
 
-scinexus.set_parallel_backend("multiprocess")
 
 if typing.TYPE_CHECKING:
     from cogent3.core.alignment import SequenceCollection

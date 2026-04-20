@@ -11,7 +11,6 @@ import click
 import cogent3 as c3
 import numpy
 import scinexus
-import scinexus.parallel as snxpar
 from scinexus import data_store as snx_data_store
 from scitrack import CachingLogger
 
@@ -26,7 +25,6 @@ if typing.TYPE_CHECKING:
     from click.core import Context, Option
 
 LOGGER = CachingLogger()
-snxpar.set_parallel_backend("multiprocess")
 
 
 def _get_seed(ctx: "Context", param: "Option", value: str | None) -> int:
@@ -179,7 +177,12 @@ def prep(
     hide_progress: bool,
 ) -> None:
     """Writes processed sequences to <Zarr Storage>.dvseqsz."""
+    from scinexus import get_parallel_backend
+
     from diverse_seq import _dvs as dvs
+
+    # we need multiprocess to avoid errors from loky+rust
+    backend = get_parallel_backend("multiprocess")
 
     dvseqs_path = outpath.with_suffix(".dvseqsz")
     if dvseqs_path.exists() and not force_overwrite:
@@ -233,8 +236,9 @@ def prep(
         )
 
         pbar = scinexus.get_progress(show_progress=not hide_progress)
+
         for r in pbar(
-            snxpar.as_completed(loader, in_dstore, max_workers=numprocs),
+            backend.as_completed(loader, in_dstore, max_workers=numprocs),
             total=len(in_dstore),
             msg="Processing sequences",
         ):
