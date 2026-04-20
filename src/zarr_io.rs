@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use xxhash_rust::xxh3::xxh3_64;
 use zarrs::array::codec::ZstdCodec;
-use zarrs::array::{Array, ArrayBuilder, DataType, FillValue};
+use zarrs::array::{Array, ArrayBuilder, FillValue, data_type};
 use zarrs::filesystem::FilesystemStore;
 use zarrs_storage::store::MemoryStore;
 
@@ -241,7 +241,7 @@ impl ZarrStore {
         let mut array_builder = ArrayBuilder::new(
             vec![data_len],
             vec![chunk_size],
-            DataType::UInt8,
+            data_type::uint8(),
             FillValue::from(0u8),
         );
         let array_builder = if metadata.is_some() {
