@@ -20,9 +20,9 @@ dependencies = [
     "attrs",
     "citeable",
     "click",
-    "cogent3>=2026.2.28a1",
+    "cogent3>=2026.4.20a0",
     "numpy",
-    "scinexus[rich]",
+    "scinexus[rich]>=2026.4.20b0",
     "scitrack",
     "scikit-learn",
 ]
