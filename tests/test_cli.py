@@ -37,7 +37,8 @@ def runner():
 
 @pytest.fixture(scope="function")
 def rna_seq_path(tmp_dir, seq_path):
-    seqs = load_unaligned_seqs(seq_path, moltype="rna")
+    seqs = load_unaligned_seqs(seq_path, moltype="dna")
+    seqs = seqs.to_rna()
     path = tmp_dir / "test_rna.fasta"
     seqs.write(path)
     return path
