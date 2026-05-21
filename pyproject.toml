@@ -65,7 +65,7 @@ dev = [
     "cogapp",
     "docformatter",
     "flit",
-    "ruff==0.15.12",
+    "ruff==0.15.13",
     "diverse_seq[test]",
     "diverse_seq[doc]",
 ]
