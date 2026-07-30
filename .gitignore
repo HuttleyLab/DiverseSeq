@@ -153,3 +153,9 @@ jats/*
 .github/instructions/codacy.instructions.md
 
 uv.lock
+
+CLAUDE.md
+working/*
+.idea/*
+*.wpr
+*.wpu
