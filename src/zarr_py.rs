@@ -6,7 +6,7 @@ use pyo3::types::{PyAnyMethods, PyDict, PyDictMethods, PyTuple};
 use rustc_hash::FxHashMap;
 use std::path::PathBuf;
 
-#[pyclass(module = "diverse_seq._dvs")]
+#[pyclass(module = "diverse_seq._dvs", skip_from_py_object)]
 pub struct ZarrStoreWrapper {
     pub store: ZarrStore,
     #[pyo3(get)]

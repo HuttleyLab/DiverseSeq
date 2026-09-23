@@ -27,11 +27,11 @@ impl ZarrArray {
     fn retrieve_array_subset_elements(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         match self {
             ZarrArray::File(arr) => {
-                let data = arr.retrieve_array_subset_elements::<u8>(&arr.subset_all())?;
+                let data = arr.retrieve_array_subset::<Vec<u8>>(&arr.subset_all())?;
                 Ok(data)
             }
             ZarrArray::Memory(arr) => {
-                let data = arr.retrieve_array_subset_elements::<u8>(&arr.subset_all())?;
+                let data = arr.retrieve_array_subset::<Vec<u8>>(&arr.subset_all())?;
                 Ok(data)
             }
         }
@@ -262,7 +262,7 @@ impl ZarrStore {
                 let array = array_builder.build(s.clone(), &array_path)?;
 
                 // Write the data
-                array.store_array_subset_elements::<u8>(&array.subset_all(), data)?;
+                array.store_array_subset(&array.subset_all(), data)?;
 
                 // Store array metadata to disk
                 array.store_metadata()?;
@@ -271,7 +271,7 @@ impl ZarrStore {
                 let array = array_builder.build(s.clone(), &array_path)?;
 
                 // Write the data
-                array.store_array_subset_elements::<u8>(&array.subset_all(), data)?;
+                array.store_array_subset(&array.subset_all(), data)?;
 
                 // Store array metadata to disk
                 array.store_metadata()?;

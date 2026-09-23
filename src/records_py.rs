@@ -4,7 +4,7 @@ use pyo3::Python;
 use pyo3::prelude::{Bound, PyErr, PyResult, pyclass, pymethods};
 use pyo3::types::{PyAnyMethods, PyDict, PyDictMethods};
 
-#[pyclass(module = "diverse_seq._dvs")]
+#[pyclass(module = "diverse_seq._dvs", skip_from_py_object)]
 #[derive(Clone)]
 pub struct SummedRecordsResult {
     #[pyo3(get)]
