@@ -20,9 +20,9 @@ dependencies = [
     "attrs",
     "citeable",
     "click",
-    "cogent3>=2026.4.20a0",
+    "cogent3>=2026.9.10",
     "numpy",
-    "scinexus[rich]>=2026.4.20b1",
+    "scinexus[rich]>=2026.9.12",
     "scitrack",
     "scikit-learn",
 ]
@@ -53,6 +53,21 @@ module-name = "diverse_seq._dvs"
 
 [project.optional-dependencies]
 test = ["nox", "pytest", "pytest-cov", "maturin"]
+extra = [
+    "cogent3[extra]",
+    "ipykernel",
+    "ipython",
+    "ipywidgets",
+    "jupyter_client",
+    "jupyterlab",
+    "jupytext",
+    "kaleido",
+    "nbconvert>5.4",
+    "nbformat",
+    "plotly",
+]
+
+[dependency-groups]
 doc = [
     "diverse_seq[extra]",
     "mkdocs>=1.6.1",
@@ -67,20 +82,7 @@ dev = [
     "flit",
     "ruff==0.16.7",
     "diverse_seq[test]",
-    "diverse_seq[doc]",
-]
-extra = [
-    "cogent3[extra]",
-    "ipykernel",
-    "ipython",
-    "ipywidgets",
-    "jupyter_client",
-    "jupyterlab",
-    "jupytext",
-    "kaleido",
-    "nbconvert>5.4",
-    "nbformat",
-    "plotly",
+    { include-group = "doc" },
 ]
 
 [project.scripts]

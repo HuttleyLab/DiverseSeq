@@ -181,6 +181,11 @@ def prep(
 
     from diverse_seq import _dvs as dvs
 
+    # a writer app whose main() takes identifier has one injected by scinexus,
+    # and its default derives the id from SeqArray.source, which is the
+    # directory shared by every sequence. Ours uses the seqid.
+    snx_data_store.set_id_from_source(dvs_io.get_unique_id)
+
     # we need multiprocess to avoid errors from loky+rust
     backend = get_parallel_backend("multiprocess")
 

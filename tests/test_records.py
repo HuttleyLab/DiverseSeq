@@ -1,3 +1,5 @@
+import contextlib
+
 import numpy
 import pytest
 from cogent3 import (
@@ -207,13 +209,15 @@ def test_dvs_select_nmost_keep(brca1_coll, include):
 @pytest.mark.parametrize("app_name", ["dvs_nmost", "dvs_max"])
 def test_serialisable(brca1_coll, tmp_path, app_name):
     brca1_coll.info.source = "blah.fa"
-    outstore = open_data_store(tmp_path / "data.sqlitedb", mode="w")
-    select = get_app(app_name, k=2)
-    writer = get_app("write_db", data_store=outstore)
-    app = select + writer
-    _ = app(brca1_coll)  # pylint: disable=not-callable
-    assert len(outstore.completed) == 1
-    assert "@article{diverse-seq" in app.bib
+    with contextlib.closing(
+        open_data_store(tmp_path / "data.sqlitedb", mode="w"),
+    ) as outstore:
+        select = get_app(app_name, k=2)
+        writer = get_app("write_db", data_store=outstore)
+        app = select + writer
+        _ = app(brca1_coll)  # pylint: disable=not-callable
+        assert len(outstore.completed) == 1
+        assert "@article{diverse-seq" in app.bib
 
 
 @pytest.mark.parametrize("app_name", ("dvs_nmost", "dvs_max"))
