@@ -49,7 +49,9 @@ jobs:
           uv venv venv -p python
           source venv/bin/activate
           uv pip install maturin
-          maturin develop --extras doc
+          uv pip install --group doc
+          # the doc group pulls diverse_seq[extra] from PyPI, so build over it last
+          maturin develop
           python -c "import diverse_seq._dvs"
 
       - name: Build Documentation
