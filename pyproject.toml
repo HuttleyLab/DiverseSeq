@@ -80,7 +80,7 @@ dev = [
     "cogapp",
     "docformatter",
     "flit",
-    "ruff==0.16.9",
+    "ruff==0.16.10",
     "diverse_seq[test]",
     { include-group = "doc" },
 ]
