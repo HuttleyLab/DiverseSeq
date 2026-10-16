@@ -23,8 +23,8 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install tomli
-          export ruff_version=$(python -c 'import tomli; print([line for line in tomli.load(open("pyproject.toml","rb"))["project"]["optional-dependencies"]["dev"] if "ruff" in line][0])')
-          echo "Click version: ruff_version"
+          export ruff_version=$(python -c 'import tomli; print([line for line in tomli.load(open("pyproject.toml","rb"))["dependency-groups"]["dev"] if "ruff" in line][0])')
+          echo "ruff version: $ruff_version"
           python -m pip install $ruff_version
       - name: Format code using ruff
         run: ruff check --fix-only . && ruff format .
