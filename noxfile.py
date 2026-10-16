@@ -6,7 +6,7 @@ import nox
 
 PROJ_ROOT = Path(__file__).parent
 
-_py_versions = range(11, 15)
+_py_versions = range(11, 16)
 
 nox.options.sessions = ["test", "testcov"]
 
